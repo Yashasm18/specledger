@@ -14,7 +14,7 @@ from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStat
 class ProductRepository:
     def __init__(self, database_path: str | Path = ":memory:") -> None:
         self.database_path = str(database_path)
-        self.connection = sqlite3.connect(self.database_path, check_same_thread=False)
+        self.connection = sqlite3.connect(self.database_path, check_same_thread=False, timeout=30)
         self.connection.row_factory = sqlite3.Row
         self._lock = RLock()
         self._create_schema()

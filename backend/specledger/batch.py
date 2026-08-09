@@ -59,7 +59,7 @@ def product_fingerprint(product: Product) -> str:
 
 class BatchJobRepository:
     def __init__(self, database_path: str | Path = ":memory:") -> None:
-        self.connection = sqlite3.connect(str(database_path), check_same_thread=False)
+        self.connection = sqlite3.connect(str(database_path), check_same_thread=False, timeout=30)
         self.connection.row_factory = sqlite3.Row
         self._lock = RLock()
         with self._lock:

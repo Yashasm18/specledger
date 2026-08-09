@@ -18,7 +18,9 @@ from .repository import ProductRepository
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
 repository = ProductRepository(DATABASE_PATH)
 service = SpecLedgerService(repository)
-job_repository = BatchJobRepository(DATABASE_PATH)
+# Local development uses a separate job database to avoid SQLite's single-file
+# writer lock. Production uses PostgreSQL for both stores.
+job_repository = BatchJobRepository(f"{DATABASE_PATH}.jobs")
 batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
 

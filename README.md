@@ -51,6 +51,8 @@ Batch imports are also supported through durable import jobs. Each item has an i
 
 The production-scale target is documented in [docs/PRODUCTION_SCALE.md](docs/PRODUCTION_SCALE.md). SQLite is only the local development adapter; the target architecture uses PostgreSQL, object storage, asynchronous workers, and read-optimized search/impact indexes.
 
+The PostgreSQL adapter and deployment notes are documented in [docs/POSTGRESQL.md](docs/POSTGRESQL.md). The production adapter uses pooled connections, tenant-scoped keys, JSONB attributes, referential integrity, and catalogue indexes.
+
 To run the API after installing `requirements.txt`:
 
 ```bash

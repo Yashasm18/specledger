@@ -1,4 +1,5 @@
 import unittest
+from uuid import uuid4
 
 try:
     from fastapi.testclient import TestClient
@@ -51,7 +52,7 @@ class HttpApiTests(unittest.TestCase):
                 "evidence": [{"source_name": "batch.pdf", "source_type": "datasheet", "page": 1}]
             }]}]
         }
-        response = client.post("/imports", json={"organization_id": "org-api", "job_id": "job-api-001", "products": [product]})
+        response = client.post("/imports", json={"organization_id": "org-api", "job_id": f"job-api-{uuid4().hex}", "products": [product]})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["state"], "completed")
         self.assertEqual(response.json()["progress"], 1.0)
