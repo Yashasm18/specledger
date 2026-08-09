@@ -15,6 +15,8 @@ from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStat
 from .repository import ProductRepository
 from .postgres_repository import PostgresRepository
 from .postgres_jobs import PostgresJobRepository
+from .object_store import LocalObjectStore
+from .tasks import TaskQueue
 
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
@@ -24,6 +26,8 @@ service = SpecLedgerService(repository)
 # Local development uses a separate job database to avoid SQLite's single-file
 # writer lock. Production uses PostgreSQL for both stores.
 job_repository = PostgresJobRepository(DATABASE_URL) if DATABASE_URL else BatchJobRepository(f"{DATABASE_PATH}.jobs")
+task_queue = TaskQueue(DATABASE_URL) if DATABASE_URL else None
+artifact_store = LocalObjectStore(os.getenv("SPECLEDGER_OBJECT_STORE", "object-data"))
 batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
 
@@ -34,6 +38,8 @@ def close_resources() -> None:
     if close:
         close()
     job_repository.close()
+    if task_queue:
+        task_queue.close()
 
 
 class EvidenceInput(BaseModel):
@@ -195,3 +201,17 @@ async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
             os.unlink(temporary_path)
 
     return {"filename": file.filename, "page_count": len(pages), "pages": pages}
+
+
+@app.get("/documents/{document_id}/artifact")
+def get_latest_artifact(document_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Durable document artifacts require PostgreSQL")
+    artifact = task_queue.latest_artifact(organization_id, document_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="No extraction artifact found")
+    if not artifact_store.exists(artifact["object_key"]):
+        raise HTTPException(status_code=409, detail="Artifact metadata exists but its object is unavailable")
+    import json
+    artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
+    return artifact

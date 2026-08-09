@@ -38,6 +38,10 @@ class DocumentProcessingWorker:
             return None
         try:
             result = self._extract(task)
+            artifact_key = f"artifacts/{task.organization_id}/{task.document_id}/{uuid4().hex}.json"
+            self.object_store.put_json(artifact_key, result.to_dict() | {"schema_version": "extraction.v1"})
+            self.queue.record_artifact(task.organization_id, task.document_id, artifact_key,
+                                       fact_count=sum(bool(page.text) for page in result.pages))
             self.queue.complete(task.organization_id, task.task_id)
             return result
         except Exception as exc:

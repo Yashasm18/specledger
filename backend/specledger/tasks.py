@@ -97,6 +97,33 @@ class TaskQueue:
                 row = cursor.fetchone()
         return self._task(row) if row else None
 
+    def record_artifact(self, organization_id: str, document_id: str, object_key: str,
+                        fact_count: int = 0, schema_version: str = "extraction.v1") -> str:
+        artifact_id = str(uuid4())
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO extraction_artifacts
+                    (organization_id, artifact_id, document_id, object_key, schema_version, fact_count)
+                    VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (organization_id, artifact_id, document_id, object_key, schema_version, fact_count),
+                )
+            connection.commit()
+        return artifact_id
+
+    def latest_artifact(self, organization_id: str, document_id: str) -> dict | None:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT artifact_id, document_id, object_key, schema_version, fact_count, created_at
+                    FROM extraction_artifacts WHERE organization_id = %s AND document_id = %s
+                    ORDER BY created_at DESC LIMIT 1""", (organization_id, document_id))
+                row = cursor.fetchone()
+        if not row:
+            return None
+        return {"artifact_id": row[0], "document_id": row[1], "object_key": row[2],
+                "schema_version": row[3], "fact_count": row[4], "created_at": row[5].isoformat()}
+
     def _set_state(self, organization_id: str, task_id: str, state: str, error: str | None) -> None:
         with self.database.connection() as connection:
             with connection.cursor() as cursor:

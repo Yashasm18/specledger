@@ -38,6 +38,10 @@ class WorkerTests(unittest.TestCase):
             self.assertIsNotNone(result)
             assert result is not None
             self.assertIn("Pressure rating", result.pages[0].text)
+            artifact = queue.latest_artifact(organization_id, "document-001")
+            self.assertIsNotNone(artifact)
+            assert artifact is not None
+            self.assertTrue(store.exists(artifact["object_key"]))
             queue.close()
 
 
