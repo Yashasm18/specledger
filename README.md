@@ -53,6 +53,8 @@ The production-scale target is documented in [docs/PRODUCTION_SCALE.md](docs/PRO
 
 The PostgreSQL adapter and deployment notes are documented in [docs/POSTGRESQL.md](docs/POSTGRESQL.md). The production adapter uses pooled connections, tenant-scoped keys, JSONB attributes, referential integrity, and catalogue indexes.
 
+PostgreSQL is now the required target database. Local setup is defined in [docs/LOCAL_POSTGRES.md](docs/LOCAL_POSTGRES.md), with Docker Compose and a versioned initial migration.
+
 To run the API after installing `requirements.txt`:
 
 ```bash
