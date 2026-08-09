@@ -1,0 +1,153 @@
+"""FastAPI adapter for the SpecLedger application service."""
+
+from __future__ import annotations
+
+import os
+import tempfile
+from typing import Any
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from pydantic import BaseModel, Field
+
+from .api import SpecLedgerService, product_summary
+from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
+from .repository import ProductRepository
+
+
+DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
+repository = ProductRepository(DATABASE_PATH)
+service = SpecLedgerService(repository)
+app = FastAPI(title="SpecLedger API", version="0.1.0")
+
+
+class EvidenceInput(BaseModel):
+    source_name: str
+    source_type: str
+    page: int | None = Field(default=None, ge=1)
+    locator: str | None = None
+    excerpt: str | None = None
+
+
+class AttributeInput(BaseModel):
+    name: str
+    value: Any
+    unit: str | None = None
+    evidence: list[EvidenceInput] = Field(min_length=1)
+    status: ValueStatus = ValueStatus.VERIFIED
+    confidence: float | None = Field(default=None, ge=0, le=1)
+
+
+class VersionInput(BaseModel):
+    version_id: str
+    attributes: list[AttributeInput]
+
+
+class ProductInput(BaseModel):
+    product_id: str
+    sku: str
+    name: str
+    category: str
+    versions: list[VersionInput] = Field(min_length=1)
+
+
+def to_domain_product(payload: ProductInput) -> Product:
+    versions = tuple(
+        ProductVersion(
+            version_id=version.version_id,
+            product_id=payload.product_id,
+            attributes=tuple(
+                AttributeValue(
+                    name=attribute.name,
+                    value=attribute.value,
+                    unit=attribute.unit,
+                    evidence=tuple(Evidence(**source.model_dump()) for source in attribute.evidence),
+                    status=attribute.status,
+                    confidence=attribute.confidence,
+                )
+                for attribute in version.attributes
+            ),
+        )
+        for version in payload.versions
+    )
+    return Product(payload.product_id, payload.sku, payload.name, payload.category, versions)
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok", "service": "specledger"}
+
+
+@app.post("/products")
+def create_product(payload: ProductInput) -> dict[str, Any]:
+    try:
+        product = to_domain_product(payload)
+        return service.create_or_update_product(product)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/products/{product_id}")
+def get_product(product_id: str) -> dict[str, Any]:
+    product = service.get_product(product_id)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product.to_dict()
+
+
+@app.get("/products/{product_id}/validation")
+def validate_product(product_id: str) -> dict[str, Any]:
+    try:
+        issues = service.validate_latest(product_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"product_id": product_id, "issues": issues, "issue_count": len(issues)}
+
+
+@app.get("/products/{product_id}/changes")
+def compare_product_versions(product_id: str) -> dict[str, Any]:
+    try:
+        changes = service.compare_latest_versions(product_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"product_id": product_id, "changes": changes, "change_count": len(changes)}
+
+
+@app.post("/documents/extract")
+async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Extract text with page evidence; semantic attribute extraction comes later."""
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=415, detail="Only PDF files are supported in this milestone")
+
+    try:
+        import fitz  # PyMuPDF
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="PDF extraction dependency is not installed") from exc
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded PDF is empty")
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PDF must be 5 MB or smaller")
+
+    temporary_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temporary_file:
+            temporary_file.write(contents)
+            temporary_path = temporary_file.name
+        document = fitz.open(temporary_path)
+        pages = [
+            {
+                "page": index + 1,
+                "text": page.get_text("text").strip(),
+                "source_name": file.filename or "uploaded.pdf",
+                "source_type": "pdf",
+            }
+            for index, page in enumerate(document)
+        ]
+        document.close()
+    finally:
+        if temporary_path:
+            os.unlink(temporary_path)
+
+    return {"filename": file.filename, "page_count": len(pages), "pages": pages}
+

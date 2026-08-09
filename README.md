@@ -45,4 +45,10 @@ The first backend domain milestone is complete. The project now has typed produc
 
 The persistence milestone is complete. Product records, versions, attributes, and source evidence can now be stored in SQLite and loaded again. The application service can validate stored products and compare their latest versions.
 
-The next milestone is a HTTP API and document-ingestion endpoint around this workflow.
+The HTTP API and first document-ingestion endpoint are now implemented. The API supports product creation, retrieval, validation, version comparison, and PDF text extraction with page-level source references.
+
+To run the API after installing `requirements.txt`:
+
+```bash
+uvicorn backend.specledger.http_api:app --reload
+```

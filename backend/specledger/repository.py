@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from threading import RLock
 from pathlib import Path
 from typing import Any
 
@@ -13,16 +14,18 @@ from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStat
 class ProductRepository:
     def __init__(self, database_path: str | Path = ":memory:") -> None:
         self.database_path = str(database_path)
-        self.connection = sqlite3.connect(self.database_path)
+        self.connection = sqlite3.connect(self.database_path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
+        self._lock = RLock()
         self._create_schema()
 
     def close(self) -> None:
         self.connection.close()
 
     def _create_schema(self) -> None:
-        self.connection.executescript(
-            """
+        with self._lock:
+            self.connection.executescript(
+                """
             PRAGMA foreign_keys = ON;
 
             CREATE TABLE IF NOT EXISTS products (
@@ -61,67 +64,69 @@ class ProductRepository:
                 FOREIGN KEY (version_id, attribute_name)
                     REFERENCES attributes(version_id, name)
             );
-            """
-        )
-        self.connection.commit()
+                """
+            )
+            self.connection.commit()
 
     def save_product(self, product: Product) -> None:
-        self.connection.execute(
-            "INSERT OR REPLACE INTO products(product_id, sku, name, category) VALUES (?, ?, ?, ?)",
-            (product.product_id, product.sku, product.name, product.category),
-        )
-        for version in product.versions:
+        with self._lock:
             self.connection.execute(
-                "INSERT OR REPLACE INTO product_versions(version_id, product_id, created_at) VALUES (?, ?, ?)",
-                (version.version_id, version.product_id, version.created_at),
+                "INSERT OR REPLACE INTO products(product_id, sku, name, category) VALUES (?, ?, ?, ?)",
+                (product.product_id, product.sku, product.name, product.category),
             )
-            for attribute in version.attributes:
+            for version in product.versions:
                 self.connection.execute(
-                    """INSERT OR REPLACE INTO attributes
-                    (version_id, name, value_json, unit, status, confidence)
-                    VALUES (?, ?, ?, ?, ?, ?)""",
-                    (
-                        version.version_id,
-                        attribute.name,
-                        json.dumps(attribute.value),
-                        attribute.unit,
-                        attribute.status.value,
-                        attribute.confidence,
-                    ),
+                    "INSERT OR REPLACE INTO product_versions(version_id, product_id, created_at) VALUES (?, ?, ?)",
+                    (version.version_id, version.product_id, version.created_at),
                 )
-                self.connection.execute(
-                    "DELETE FROM evidence WHERE version_id = ? AND attribute_name = ?",
-                    (version.version_id, attribute.name),
-                )
-                for source in attribute.evidence:
+                for attribute in version.attributes:
                     self.connection.execute(
-                        """INSERT INTO evidence
-                        (version_id, attribute_name, source_name, source_type, page, locator, excerpt, captured_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        """INSERT OR REPLACE INTO attributes
+                        (version_id, name, value_json, unit, status, confidence)
+                        VALUES (?, ?, ?, ?, ?, ?)""",
                         (
                             version.version_id,
                             attribute.name,
-                            source.source_name,
-                            source.source_type,
-                            source.page,
-                            source.locator,
-                            source.excerpt,
-                            source.captured_at,
+                            json.dumps(attribute.value),
+                            attribute.unit,
+                            attribute.status.value,
+                            attribute.confidence,
                         ),
                     )
-        self.connection.commit()
+                    self.connection.execute(
+                        "DELETE FROM evidence WHERE version_id = ? AND attribute_name = ?",
+                        (version.version_id, attribute.name),
+                    )
+                    for source in attribute.evidence:
+                        self.connection.execute(
+                            """INSERT INTO evidence
+                            (version_id, attribute_name, source_name, source_type, page, locator, excerpt, captured_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (
+                                version.version_id,
+                                attribute.name,
+                                source.source_name,
+                                source.source_type,
+                                source.page,
+                                source.locator,
+                                source.excerpt,
+                                source.captured_at,
+                            ),
+                        )
+            self.connection.commit()
 
     def get_product(self, product_id: str) -> Product | None:
-        product_row = self.connection.execute("SELECT * FROM products WHERE product_id = ?", (product_id,)).fetchone()
-        if product_row is None:
-            return None
+        with self._lock:
+            product_row = self.connection.execute("SELECT * FROM products WHERE product_id = ?", (product_id,)).fetchone()
+            if product_row is None:
+                return None
 
-        version_rows = self.connection.execute(
-            "SELECT * FROM product_versions WHERE product_id = ? ORDER BY created_at, version_id",
-            (product_id,),
-        ).fetchall()
-        versions = tuple(self._read_version(row) for row in version_rows)
-        return Product(product_id, product_row["sku"], product_row["name"], product_row["category"], versions)
+            version_rows = self.connection.execute(
+                "SELECT * FROM product_versions WHERE product_id = ? ORDER BY created_at, version_id",
+                (product_id,),
+            ).fetchall()
+            versions = tuple(self._read_version(row) for row in version_rows)
+            return Product(product_id, product_row["sku"], product_row["name"], product_row["category"], versions)
 
     def _read_version(self, version_row: sqlite3.Row) -> ProductVersion:
         attribute_rows = self.connection.execute(
@@ -156,4 +161,3 @@ class ProductRepository:
                 )
             )
         return ProductVersion(version_row["version_id"], version_row["product_id"], tuple(attributes), version_row["created_at"])
-
