@@ -61,6 +61,8 @@ The next production layer includes PostgreSQL-backed document-processing tasks. 
 
 The first document worker now claims `pdf_extract` tasks, reads documents through an object-store boundary, extracts page-level text, and updates task state safely.
 
+The worker now also performs a conservative deterministic extraction pass for visible pressure, size, and material facts, then stores a JSON artifact with page evidence.
+
 To run the API after installing `requirements.txt`:
 
 ```bash

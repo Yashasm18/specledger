@@ -26,3 +26,7 @@ class LocalObjectStore:
     def exists(self, object_key: str) -> bool:
         return (self.root / object_key).exists()
 
+    def put_json(self, object_key: str, value: dict) -> str:
+        import json
+        return self.put(object_key, json.dumps(value, indent=2, sort_keys=True).encode("utf-8"))
+

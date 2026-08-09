@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from .object_store import LocalObjectStore
 from .tasks import ProcessingTask, TaskQueue
+from .extraction import extract_facts
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,11 @@ class DocumentProcessingWorker:
             return None
         try:
             result = self._extract(task)
+            facts = extract_facts(result)
+            self.object_store.put_json(
+                f"artifacts/{task.organization_id}/{task.document_id}.json",
+                {"document_id": result.document_id, "facts": [fact.__dict__ for fact in facts], "pages": result.to_dict()["pages"]},
+            )
             self.queue.complete(task.organization_id, task.task_id)
             return result
         except Exception as exc:
