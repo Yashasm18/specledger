@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import "./enhancements.css";
 
 const rows = [
   ["VLV-600-050", "Ball Valve · DN50", "Acme Industrial", "Valve", "Needs review", "2 conflicts"],
