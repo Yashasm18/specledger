@@ -26,7 +26,7 @@ class WorkerTests(unittest.TestCase):
             queue = TaskQueue("postgresql://specledger:specledger_dev_only@localhost:5432/specledger")
             organization_id = "worker-test-" + uuid4().hex
             content = pdf_path.read_bytes()
-            queue.register_document(organization_id, "document-001", "source.pdf", "application/pdf", "document-001", hashlib.sha256(content).hexdigest(), len(content))
+            queue.register_document(organization_id, "document-001", "source.pdf", "application/pdf", "document-001", hashlib.sha256(content).hexdigest(), len(content), "valve")
             task = queue.enqueue(organization_id, "pdf_extract-verify", "document-001")
             # The worker's production task type is pdf_extract; use that type
             # and a unique organization so this integration test cannot claim
@@ -50,7 +50,7 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(saved["facts"][0]["normalized_unit"], "wog")
             issue_codes = {issue["code"] for issue in saved["validation"]["issues"]}
             self.assertIn("MISSING_REQUIRED", issue_codes)
-            self.assertEqual(saved["catalogue_schema"]["id"], "industrial.generic")
+            self.assertEqual(saved["catalogue_schema"]["id"], "industrial.valve")
             self.assertEqual(artifact["review_state"], "pending_review")
             queue.set_artifact_review_state(organization_id, artifact["artifact_id"], "approved", "reviewer-1", "Evidence checked")
             queue.set_artifact_review_state(organization_id, artifact["artifact_id"], "approved", "reviewer-1", "Retry")

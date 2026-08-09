@@ -41,7 +41,7 @@ class DocumentProcessingWorker:
             result = self._extract(task)
             artifact_key = f"artifacts/{task.organization_id}/{task.document_id}/{uuid4().hex}.json"
             facts = extract_facts([asdict(page) for page in result.pages])
-            schema = get_schema(None)
+            schema = get_schema(task.category)
             self.object_store.put_json(artifact_key, result.to_dict() | {
                 "schema_version": "extraction.v1",
                 "catalogue_schema": {"id": schema.schema_id, "version": schema.version},

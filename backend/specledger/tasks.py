@@ -19,6 +19,7 @@ class ProcessingTask:
     attempts: int
     document_id: str | None
     error_message: str | None
+    category: str = "generic"
 
 
 class TaskQueue:
@@ -42,18 +43,20 @@ class TaskQueue:
         return self.get(organization_id, task_id)  # type: ignore[return-value]
 
     def register_document(self, organization_id: str, document_id: str, filename: str,
-                          media_type: str, object_key: str, content_hash: str, size_bytes: int) -> None:
+                          media_type: str, object_key: str, content_hash: str, size_bytes: int,
+                          category: str = "generic") -> None:
         self.database.ensure_organization(organization_id)
         with self.database.connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """INSERT INTO document_assets
-                    (organization_id, document_id, filename, media_type, object_key, content_hash, size_bytes)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (organization_id, document_id, filename, media_type, object_key, content_hash, size_bytes, category)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (organization_id, document_id) DO UPDATE SET
                     filename = EXCLUDED.filename, object_key = EXCLUDED.object_key,
-                    content_hash = EXCLUDED.content_hash, size_bytes = EXCLUDED.size_bytes""",
-                    (organization_id, document_id, filename, media_type, object_key, content_hash, size_bytes),
+                    content_hash = EXCLUDED.content_hash, size_bytes = EXCLUDED.size_bytes,
+                    category = EXCLUDED.category""",
+                    (organization_id, document_id, filename, media_type, object_key, content_hash, size_bytes, category),
                 )
             connection.commit()
 
@@ -74,7 +77,9 @@ class TaskQueue:
                     FROM candidate WHERE task.organization_id = candidate.organization_id
                       AND task.task_id = candidate.task_id
                     RETURNING task.task_id, task.organization_id, task.task_type, task.state,
-                              task.attempts, task.document_id, task.error_message""",
+                              task.attempts, task.document_id, task.error_message,
+                              COALESCE((SELECT category FROM document_assets asset WHERE
+                                asset.organization_id = task.organization_id AND asset.document_id = task.document_id), 'generic')""",
                     (task_type, task_type, organization_id, organization_id, worker_id),
                 )
                 row = cursor.fetchone()
@@ -91,8 +96,11 @@ class TaskQueue:
         with self.database.connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT task_id, organization_id, task_type, state, attempts, document_id, error_message
-                    FROM processing_tasks WHERE organization_id = %s AND task_id = %s""",
+                    """SELECT task.task_id, task.organization_id, task.task_type, task.state, task.attempts,
+                    task.document_id, task.error_message,
+                    COALESCE((SELECT category FROM document_assets asset WHERE
+                      asset.organization_id = task.organization_id AND asset.document_id = task.document_id), 'generic')
+                    FROM processing_tasks task WHERE task.organization_id = %s AND task.task_id = %s""",
                     (organization_id, task_id),
                 )
                 row = cursor.fetchone()
@@ -175,4 +183,4 @@ class TaskQueue:
 
     @staticmethod
     def _task(row: tuple) -> ProcessingTask:
-        return ProcessingTask(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
+        return ProcessingTask(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
