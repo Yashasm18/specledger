@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from uuid import uuid4
 
 from .object_store import LocalObjectStore
+from .extraction import extract_facts
 from .tasks import ProcessingTask, TaskQueue
 
 
@@ -39,9 +39,13 @@ class DocumentProcessingWorker:
         try:
             result = self._extract(task)
             artifact_key = f"artifacts/{task.organization_id}/{task.document_id}/{uuid4().hex}.json"
-            self.object_store.put_json(artifact_key, result.to_dict() | {"schema_version": "extraction.v1"})
+            facts = extract_facts([asdict(page) for page in result.pages])
+            self.object_store.put_json(artifact_key, result.to_dict() | {
+                "schema_version": "extraction.v1",
+                "facts": [fact.to_dict() for fact in facts],
+            })
             self.queue.record_artifact(task.organization_id, task.document_id, artifact_key,
-                                       fact_count=sum(bool(page.text) for page in result.pages))
+                                       fact_count=len(facts))
             self.queue.complete(task.organization_id, task.task_id)
             return result
         except Exception as exc:

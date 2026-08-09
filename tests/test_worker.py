@@ -42,6 +42,10 @@ class WorkerTests(unittest.TestCase):
             self.assertIsNotNone(artifact)
             assert artifact is not None
             self.assertTrue(store.exists(artifact["object_key"]))
+            import json
+            saved = json.loads(store.get(artifact["object_key"]))
+            self.assertEqual(saved["facts"][0]["name"], "pressure_rating")
+            self.assertEqual(saved["facts"][0]["page"], 1)
             queue.close()
 
 
