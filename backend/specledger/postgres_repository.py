@@ -126,10 +126,11 @@ class PostgresRepository:
                     (organization_id, product.product_id, product.sku, product.name, product.category),
                 )
                 for version in product.versions:
+                    stored_version_id = f"{product.product_id}:{version.version_id}"
                     cursor.execute(
                         """INSERT INTO product_versions(organization_id, version_id, product_id, created_at)
                         VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING""",
-                        (organization_id, version.version_id, version.product_id, version.created_at),
+                        (organization_id, stored_version_id, version.product_id, version.created_at),
                     )
                     for attribute in version.attributes:
                         cursor.execute(
@@ -138,19 +139,19 @@ class PostgresRepository:
                             ON CONFLICT (organization_id, version_id, name) DO UPDATE SET
                             value = EXCLUDED.value, unit = EXCLUDED.unit, status = EXCLUDED.status,
                             confidence = EXCLUDED.confidence""",
-                            (organization_id, version.version_id, attribute.name, json.dumps(attribute.value),
+                            (organization_id, stored_version_id, attribute.name, json.dumps(attribute.value),
                              attribute.unit, attribute.status.value, attribute.confidence),
                         )
                         cursor.execute(
                             "DELETE FROM evidence WHERE organization_id = %s AND version_id = %s AND attribute_name = %s",
-                            (organization_id, version.version_id, attribute.name),
+                            (organization_id, stored_version_id, attribute.name),
                         )
                         for source in attribute.evidence:
                             cursor.execute(
                                 """INSERT INTO evidence
                                 (organization_id, version_id, attribute_name, source_name, source_type, page, locator, excerpt, captured_at)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                                (organization_id, version.version_id, attribute.name, source.source_name,
+                                (organization_id, stored_version_id, attribute.name, source.source_name,
                                  source.source_type, source.page, source.locator, source.excerpt, source.captured_at),
                             )
             connection.commit()
