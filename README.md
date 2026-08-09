@@ -41,5 +41,6 @@ We will add an LLM only after deterministic extraction, validation, provenance, 
 
 ## Current status
 
-The project foundation is being created. The next implementation milestone is a small backend that accepts a product record, validates it, stores its source evidence, and compares two versions.
+The first backend domain milestone is complete. The project now has typed product, attribute, evidence, and version models; deterministic validation; version comparison; synthetic sample data; and automated tests.
 
+The next milestone is persistence and a small API around this core workflow.

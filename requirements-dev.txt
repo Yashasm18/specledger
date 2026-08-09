@@ -1,0 +1,3 @@
+# Framework dependencies will be added after the standard-library domain core is stable.
+# Keeping milestone 1 dependency-free makes the core workflow reproducible locally.
+
