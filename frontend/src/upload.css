@@ -1,0 +1,1 @@
+#specledger-toast{position:fixed;right:24px;bottom:24px;z-index:20;background:#172232;color:#fff;border:1px solid #41658f;border-radius:9px;padding:13px 17px;font:600 12px Manrope,sans-serif;box-shadow:0 14px 35px #17223240;animation:toast-in .25s ease-out}@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}

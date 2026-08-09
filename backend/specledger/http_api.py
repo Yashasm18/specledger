@@ -7,6 +7,7 @@ import tempfile
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .api import SpecLedgerService, product_summary
@@ -31,6 +32,8 @@ task_queue = TaskQueue(DATABASE_URL) if DATABASE_URL else None
 artifact_store = LocalObjectStore(os.getenv("SPECLEDGER_OBJECT_STORE", "object-data"))
 batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
+                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
 @app.on_event("shutdown")
