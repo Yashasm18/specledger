@@ -46,6 +46,7 @@ class WorkerTests(unittest.TestCase):
             saved = json.loads(store.get(artifact["object_key"]))
             self.assertEqual(saved["facts"][0]["name"], "pressure_rating")
             self.assertEqual(saved["facts"][0]["page"], 1)
+            self.assertEqual(saved["validation"]["issues"], [])
             queue.close()
 
 

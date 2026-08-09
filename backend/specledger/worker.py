@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from .object_store import LocalObjectStore
-from .extraction import extract_facts
+from .extraction import extract_facts, validate_facts
 from .tasks import ProcessingTask, TaskQueue
 
 
@@ -43,6 +43,7 @@ class DocumentProcessingWorker:
             self.object_store.put_json(artifact_key, result.to_dict() | {
                 "schema_version": "extraction.v1",
                 "facts": [fact.to_dict() for fact in facts],
+                "validation": {"issues": validate_facts(facts)},
             })
             self.queue.record_artifact(task.organization_id, task.document_id, artifact_key,
                                        fact_count=len(facts))

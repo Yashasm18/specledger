@@ -19,6 +19,24 @@ class ExtractedFact:
         return asdict(self)
 
 
+def validate_facts(facts: list[ExtractedFact]) -> list[dict]:
+    """Return deterministic review issues without silently changing source values."""
+    issues: list[dict] = []
+    grouped: dict[str, list[ExtractedFact]] = {}
+    for fact in facts:
+        grouped.setdefault(fact.name, []).append(fact)
+        if not fact.value.strip():
+            issues.append({"code": "EMPTY_VALUE", "attribute": fact.name, "severity": "error",
+                           "message": "Extracted value is empty"})
+    for name, values in grouped.items():
+        distinct = {value.value.casefold() for value in values}
+        if len(distinct) > 1:
+            issues.append({"code": "SOURCE_CONFLICT", "attribute": name, "severity": "error",
+                           "message": f"Multiple source values found for {name}",
+                           "pages": sorted(value.page for value in values)})
+    return issues
+
+
 PATTERNS = (
     ("pressure_rating", re.compile(r"(?:pressure\s*(?:rating|class)?|class)\s*[:#-]?\s*([0-9]+(?:\s*[-/]\s*[0-9]+)?\s*(?:psi|bar|wog|class)?\b)", re.I)),
     ("size", re.compile(r"(?:size|diameter|dia\.?|dn)\s*[:#-]?\s*(dn\s*)?([0-9]+(?:\s*[x×/]\s*[0-9]+)?\s*(?:mm|in|inch|inches)?\b)", re.I)),

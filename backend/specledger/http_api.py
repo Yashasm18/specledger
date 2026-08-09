@@ -17,6 +17,7 @@ from .postgres_repository import PostgresRepository
 from .postgres_jobs import PostgresJobRepository
 from .object_store import LocalObjectStore
 from .tasks import TaskQueue
+from .extraction import validate_facts, ExtractedFact
 
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
@@ -214,4 +215,6 @@ def get_latest_artifact(document_id: str, organization_id: str = Query(default="
         raise HTTPException(status_code=409, detail="Artifact metadata exists but its object is unavailable")
     import json
     artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
+    facts = [ExtractedFact(**fact) for fact in artifact["data"].get("facts", [])]
+    artifact["validation"] = {"issues": validate_facts(facts)}
     return artifact
