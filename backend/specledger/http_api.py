@@ -236,6 +236,17 @@ async def intake_document(file: UploadFile = File(...), organization_id: str = Q
             "filename": file.filename, "category": category}
 
 
+@app.get("/documents/tasks/{task_id}")
+def document_task_status(task_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Task status requires PostgreSQL")
+    task = task_queue.get(organization_id, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Processing task not found")
+    return {"task_id": task.task_id, "document_id": task.document_id, "state": task.state,
+            "attempts": task.attempts, "error_message": task.error_message}
+
+
 @app.get("/documents/{document_id}/artifact")
 def get_latest_artifact(document_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
     if task_queue is None:
