@@ -40,7 +40,23 @@ class TaskQueue:
             connection.commit()
         return self.get(organization_id, task_id)  # type: ignore[return-value]
 
-    def claim(self, worker_id: str, task_type: str | None = None) -> ProcessingTask | None:
+    def register_document(self, organization_id: str, document_id: str, filename: str,
+                          media_type: str, object_key: str, content_hash: str, size_bytes: int) -> None:
+        self.database.ensure_organization(organization_id)
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO document_assets
+                    (organization_id, document_id, filename, media_type, object_key, content_hash, size_bytes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (organization_id, document_id) DO UPDATE SET
+                    filename = EXCLUDED.filename, object_key = EXCLUDED.object_key,
+                    content_hash = EXCLUDED.content_hash, size_bytes = EXCLUDED.size_bytes""",
+                    (organization_id, document_id, filename, media_type, object_key, content_hash, size_bytes),
+                )
+            connection.commit()
+
+    def claim(self, worker_id: str, task_type: str | None = None, organization_id: str | None = None) -> ProcessingTask | None:
         with self.database.connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -48,6 +64,7 @@ class TaskQueue:
                         SELECT organization_id, task_id FROM processing_tasks
                         WHERE state = 'queued' AND available_at <= NOW()
                           AND (%s::text IS NULL OR task_type = %s::text)
+                          AND (%s::text IS NULL OR organization_id = %s::text)
                         ORDER BY created_at
                         FOR UPDATE SKIP LOCKED LIMIT 1
                     )
@@ -57,7 +74,7 @@ class TaskQueue:
                       AND task.task_id = candidate.task_id
                     RETURNING task.task_id, task.organization_id, task.task_type, task.state,
                               task.attempts, task.document_id, task.error_message""",
-                    (task_type, task_type, worker_id),
+                    (task_type, task_type, organization_id, organization_id, worker_id),
                 )
                 row = cursor.fetchone()
             connection.commit()
