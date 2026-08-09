@@ -54,6 +54,7 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(artifact["review_state"], "pending_review")
             queue.set_artifact_review_state(organization_id, artifact["artifact_id"], "approved")
             self.assertEqual(queue.latest_artifact(organization_id, "document-001")["review_state"], "approved")
+            self.assertEqual(queue.artifact_audit(organization_id, artifact["artifact_id"])[0]["payload"]["review_state"], "approved")
             queue.close()
 
 

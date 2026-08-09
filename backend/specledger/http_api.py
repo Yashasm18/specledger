@@ -234,3 +234,12 @@ def review_artifact(document_id: str, artifact_id: str, payload: ArtifactReviewI
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Artifact not found") from exc
     return {"document_id": document_id, "artifact_id": artifact_id, "review_state": payload.review_state}
+
+
+@app.get("/documents/{document_id}/artifact/{artifact_id}/audit")
+def artifact_audit(document_id: str, artifact_id: str,
+                   organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Artifact audit requires PostgreSQL")
+    return {"document_id": document_id, "artifact_id": artifact_id,
+            "events": task_queue.artifact_audit(organization_id, artifact_id)}

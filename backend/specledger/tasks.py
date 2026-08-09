@@ -134,7 +134,22 @@ class TaskQueue:
                     WHERE organization_id = %s AND artifact_id = %s""", (state, organization_id, artifact_id))
                 if cursor.rowcount != 1:
                     raise KeyError("Artifact not found")
+                cursor.execute("""INSERT INTO audit_events
+                    (organization_id, entity_type, entity_id, event_type, payload)
+                    VALUES (%s, 'extraction_artifact', %s, 'review_state_changed', %s::jsonb)""",
+                    (organization_id, artifact_id,
+                     '{"review_state": "' + state + '"}'))
             connection.commit()
+
+    def artifact_audit(self, organization_id: str, artifact_id: str) -> list[dict]:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""SELECT event_id, event_type, payload, created_at
+                    FROM audit_events WHERE organization_id = %s AND entity_type = 'extraction_artifact'
+                    AND entity_id = %s ORDER BY created_at""", (organization_id, artifact_id))
+                rows = cursor.fetchall()
+        return [{"event_id": row[0], "event_type": row[1], "payload": row[2],
+                 "created_at": row[3].isoformat()} for row in rows]
 
     def _set_state(self, organization_id: str, task_id: str, state: str, error: str | None) -> None:
         with self.database.connection() as connection:
