@@ -43,4 +43,6 @@ We will add an LLM only after deterministic extraction, validation, provenance, 
 
 The first backend domain milestone is complete. The project now has typed product, attribute, evidence, and version models; deterministic validation; version comparison; synthetic sample data; and automated tests.
 
-The next milestone is persistence and a small API around this core workflow.
+The persistence milestone is complete. Product records, versions, attributes, and source evidence can now be stored in SQLite and loaded again. The application service can validate stored products and compare their latest versions.
+
+The next milestone is a HTTP API and document-ingestion endpoint around this workflow.
