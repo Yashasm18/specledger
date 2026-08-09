@@ -21,7 +21,10 @@ class ExtractedFact:
         return asdict(self)
 
 
-def validate_facts(facts: list[ExtractedFact]) -> list[dict]:
+DEFAULT_REQUIRED_ATTRIBUTES = frozenset({"size", "pressure_rating", "material"})
+
+
+def validate_facts(facts: list[ExtractedFact], required: frozenset[str] = DEFAULT_REQUIRED_ATTRIBUTES) -> list[dict]:
     """Return deterministic review issues without silently changing source values."""
     issues: list[dict] = []
     grouped: dict[str, list[ExtractedFact]] = {}
@@ -33,9 +36,12 @@ def validate_facts(facts: list[ExtractedFact]) -> list[dict]:
     for name, values in grouped.items():
         distinct = {value.value.casefold() for value in values}
         if len(distinct) > 1:
-            issues.append({"code": "SOURCE_CONFLICT", "attribute": name, "severity": "error",
+                issues.append({"code": "SOURCE_CONFLICT", "attribute": name, "severity": "error",
                            "message": f"Multiple source values found for {name}",
                            "pages": sorted(value.page for value in values)})
+    for name in sorted(required - grouped.keys()):
+        issues.append({"code": "MISSING_REQUIRED", "attribute": name, "severity": "error",
+                       "message": f"Required catalogue attribute '{name}' was not found"})
     return issues
 
 

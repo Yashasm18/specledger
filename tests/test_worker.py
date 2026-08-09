@@ -48,7 +48,8 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(saved["facts"][0]["page"], 1)
             self.assertEqual(saved["facts"][0]["normalized_value"], "600")
             self.assertEqual(saved["facts"][0]["normalized_unit"], "wog")
-            self.assertEqual(saved["validation"]["issues"], [])
+            issue_codes = {issue["code"] for issue in saved["validation"]["issues"]}
+            self.assertIn("MISSING_REQUIRED", issue_codes)
             queue.close()
 
 
