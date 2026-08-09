@@ -6,7 +6,7 @@ import os
 import tempfile
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from pydantic import BaseModel, Field
 
 from .api import SpecLedgerService, product_summary
@@ -14,6 +14,7 @@ from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
 from .repository import ProductRepository
 from .postgres_repository import PostgresRepository
+from .postgres_jobs import PostgresJobRepository
 
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
@@ -22,7 +23,7 @@ repository = PostgresRepository(DATABASE_URL) if DATABASE_URL else ProductReposi
 service = SpecLedgerService(repository)
 # Local development uses a separate job database to avoid SQLite's single-file
 # writer lock. Production uses PostgreSQL for both stores.
-job_repository = BatchJobRepository(f"{DATABASE_PATH}.jobs")
+job_repository = PostgresJobRepository(DATABASE_URL) if DATABASE_URL else BatchJobRepository(f"{DATABASE_PATH}.jobs")
 batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
 
@@ -146,8 +147,8 @@ def run_import(payload: BatchImportInput) -> dict[str, Any]:
 
 
 @app.get("/imports/{job_id}")
-def get_import(job_id: str) -> dict[str, Any]:
-    result = job_repository.get_job(job_id)
+def get_import(job_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    result = job_repository.get_job(job_id, organization_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Import job not found")
     return {"job_id": result.job_id, "organization_id": result.organization_id, "state": result.state.value,

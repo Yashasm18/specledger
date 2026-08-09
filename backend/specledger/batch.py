@@ -115,12 +115,12 @@ class BatchJobRepository:
                 )
             self.connection.commit()
 
-    def set_job_state(self, job_id: str, state: JobState) -> None:
+    def set_job_state(self, job_id: str, state: JobState, organization_id: str = "default") -> None:
         with self._lock:
             self.connection.execute("UPDATE import_jobs SET state = ? WHERE job_id = ?", (state.value, job_id))
             self.connection.commit()
 
-    def set_item_state(self, job_id: str, item_number: int, state: ItemState, error: str | None = None) -> None:
+    def set_item_state(self, job_id: str, item_number: int, state: ItemState, error: str | None = None, organization_id: str = "default") -> None:
         with self._lock:
             self.connection.execute(
                 "UPDATE import_items SET state = ?, error_message = ? WHERE job_id = ? AND item_number = ?",
@@ -144,7 +144,7 @@ class BatchJobRepository:
             self.connection.commit()
             return True
 
-    def get_job(self, job_id: str) -> ImportJob | None:
+    def get_job(self, job_id: str, organization_id: str = "default") -> ImportJob | None:
         with self._lock:
             row = self.connection.execute("SELECT * FROM import_jobs WHERE job_id = ?", (job_id,)).fetchone()
             if row is None:
@@ -154,7 +154,7 @@ class BatchJobRepository:
                 row["completed_items"], row["failed_items"], row["review_items"],
             )
 
-    def refresh_counts(self, job_id: str) -> None:
+    def refresh_counts(self, job_id: str, organization_id: str = "default") -> None:
         with self._lock:
             self.connection.execute(
                 """UPDATE import_jobs SET
@@ -178,25 +178,25 @@ class BatchImportService:
     def run(self, job_id: str, organization_id: str, products: Iterable[Product]) -> ImportJob:
         product_list = list(products)
         self.jobs.create_job(job_id, organization_id, product_list)
-        self.jobs.set_job_state(job_id, JobState.PROCESSING)
+        self.jobs.set_job_state(job_id, JobState.PROCESSING, organization_id)
         for start in range(0, len(product_list), self.chunk_size):
             for offset, product in enumerate(product_list[start:start + self.chunk_size], start=start + 1):
                 try:
-                    self.jobs.set_item_state(job_id, offset, ItemState.PROCESSING)
+                    self.jobs.set_item_state(job_id, offset, ItemState.PROCESSING, organization_id=organization_id)
                     if not self.jobs.mark_fingerprint_processed(organization_id, product):
-                        self.jobs.set_item_state(job_id, offset, ItemState.COMPLETED)
+                        self.jobs.set_item_state(job_id, offset, ItemState.COMPLETED, organization_id=organization_id)
                         continue
                     issues = validate_version(product.latest_version())
                     self.products.save_product(product)
                     state = ItemState.NEEDS_REVIEW if issues else ItemState.COMPLETED
-                    self.jobs.set_item_state(job_id, offset, state)
+                    self.jobs.set_item_state(job_id, offset, state, organization_id=organization_id)
                 except Exception as exc:  # isolate one bad record from the batch
-                    self.jobs.set_item_state(job_id, offset, ItemState.FAILED, str(exc))
-            self.jobs.refresh_counts(job_id)
+                    self.jobs.set_item_state(job_id, offset, ItemState.FAILED, str(exc), organization_id)
+            self.jobs.refresh_counts(job_id, organization_id)
 
-        self.jobs.refresh_counts(job_id)
-        current = self.jobs.get_job(job_id)
+        self.jobs.refresh_counts(job_id, organization_id)
+        current = self.jobs.get_job(job_id, organization_id)
         assert current is not None
         final_state = JobState.COMPLETED_WITH_ERRORS if current.failed_items or current.review_items else JobState.COMPLETED
-        self.jobs.set_job_state(job_id, final_state)
-        return self.jobs.get_job(job_id)  # type: ignore[return-value]
+        self.jobs.set_job_state(job_id, final_state, organization_id)
+        return self.jobs.get_job(job_id, organization_id)  # type: ignore[return-value]
