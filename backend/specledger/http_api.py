@@ -79,6 +79,10 @@ class BatchImportInput(BaseModel):
     products: list[ProductInput] = Field(min_length=1, max_length=10000)
 
 
+class ArtifactReviewInput(BaseModel):
+    review_state: str = Field(pattern="^(pending_review|approved|rejected)$")
+
+
 def to_domain_product(payload: ProductInput) -> Product:
     versions = tuple(
         ProductVersion(
@@ -218,3 +222,15 @@ def get_latest_artifact(document_id: str, organization_id: str = Query(default="
     facts = [ExtractedFact(**fact) for fact in artifact["data"].get("facts", [])]
     artifact["validation"] = {"issues": validate_facts(facts)}
     return artifact
+
+
+@app.patch("/documents/{document_id}/artifact/{artifact_id}/review")
+def review_artifact(document_id: str, artifact_id: str, payload: ArtifactReviewInput,
+                    organization_id: str = Query(default="default", min_length=1)) -> dict[str, str]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Artifact review requires PostgreSQL")
+    try:
+        task_queue.set_artifact_review_state(organization_id, artifact_id, payload.review_state)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Artifact not found") from exc
+    return {"document_id": document_id, "artifact_id": artifact_id, "review_state": payload.review_state}

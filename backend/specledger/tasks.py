@@ -115,14 +115,26 @@ class TaskQueue:
         with self.database.connection() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    """SELECT artifact_id, document_id, object_key, schema_version, fact_count, created_at
+                    """SELECT artifact_id, document_id, object_key, schema_version, fact_count, created_at, review_state
                     FROM extraction_artifacts WHERE organization_id = %s AND document_id = %s
                     ORDER BY created_at DESC LIMIT 1""", (organization_id, document_id))
                 row = cursor.fetchone()
         if not row:
             return None
         return {"artifact_id": row[0], "document_id": row[1], "object_key": row[2],
-                "schema_version": row[3], "fact_count": row[4], "created_at": row[5].isoformat()}
+                "schema_version": row[3], "fact_count": row[4], "created_at": row[5].isoformat(),
+                "review_state": row[6]}
+
+    def set_artifact_review_state(self, organization_id: str, artifact_id: str, state: str) -> None:
+        if state not in {"pending_review", "approved", "rejected"}:
+            raise ValueError("Invalid artifact review state")
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""UPDATE extraction_artifacts SET review_state = %s
+                    WHERE organization_id = %s AND artifact_id = %s""", (state, organization_id, artifact_id))
+                if cursor.rowcount != 1:
+                    raise KeyError("Artifact not found")
+            connection.commit()
 
     def _set_state(self, organization_id: str, task_id: str, state: str, error: str | None) -> None:
         with self.database.connection() as connection:

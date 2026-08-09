@@ -51,6 +51,9 @@ class WorkerTests(unittest.TestCase):
             issue_codes = {issue["code"] for issue in saved["validation"]["issues"]}
             self.assertIn("MISSING_REQUIRED", issue_codes)
             self.assertEqual(saved["catalogue_schema"]["id"], "industrial.generic")
+            self.assertEqual(artifact["review_state"], "pending_review")
+            queue.set_artifact_review_state(organization_id, artifact["artifact_id"], "approved")
+            self.assertEqual(queue.latest_artifact(organization_id, "document-001")["review_state"], "approved")
             queue.close()
 
 
