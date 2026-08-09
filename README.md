@@ -59,6 +59,8 @@ When `DATABASE_URL` is set, the API reads and writes product data through the Po
 
 The next production layer includes PostgreSQL-backed document-processing tasks. Large files will be stored through object-storage metadata, while workers claim queued extraction tasks using safe row locking.
 
+The first document worker now claims `pdf_extract` tasks, reads documents through an object-store boundary, extracts page-level text, and updates task state safely.
+
 To run the API after installing `requirements.txt`:
 
 ```bash
