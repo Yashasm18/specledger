@@ -25,7 +25,12 @@ def main() -> None:
     print(f"SpecLedger worker {worker.worker_id} listening", flush=True)
     try:
         while not stopping:
-            result = worker.run_once()
+            try:
+                result = worker.run_once()
+            except Exception as exc:
+                print(f"task failed: {exc}", flush=True)
+                time.sleep(0.2)
+                continue
             if result is None:
                 time.sleep(float(os.getenv("WORKER_POLL_SECONDS", "1.0")))
             else:
