@@ -81,6 +81,8 @@ class BatchImportInput(BaseModel):
 
 class ArtifactReviewInput(BaseModel):
     review_state: str = Field(pattern="^(pending_review|approved|rejected)$")
+    actor_id: str = Field(min_length=1, max_length=200)
+    comment: str | None = Field(default=None, max_length=2000)
 
 
 def to_domain_product(payload: ProductInput) -> Product:
@@ -230,7 +232,8 @@ def review_artifact(document_id: str, artifact_id: str, payload: ArtifactReviewI
     if task_queue is None:
         raise HTTPException(status_code=503, detail="Artifact review requires PostgreSQL")
     try:
-        task_queue.set_artifact_review_state(organization_id, artifact_id, payload.review_state)
+        task_queue.set_artifact_review_state(organization_id, artifact_id, payload.review_state,
+                                             payload.actor_id, payload.comment)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Artifact not found") from exc
     return {"document_id": document_id, "artifact_id": artifact_id, "review_state": payload.review_state}

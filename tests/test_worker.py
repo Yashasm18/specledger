@@ -52,7 +52,7 @@ class WorkerTests(unittest.TestCase):
             self.assertIn("MISSING_REQUIRED", issue_codes)
             self.assertEqual(saved["catalogue_schema"]["id"], "industrial.generic")
             self.assertEqual(artifact["review_state"], "pending_review")
-            queue.set_artifact_review_state(organization_id, artifact["artifact_id"], "approved")
+            queue.set_artifact_review_state(organization_id, artifact["artifact_id"], "approved", "reviewer-1", "Evidence checked")
             self.assertEqual(queue.latest_artifact(organization_id, "document-001")["review_state"], "approved")
             self.assertEqual(queue.artifact_audit(organization_id, artifact["artifact_id"])[0]["payload"]["review_state"], "approved")
             queue.close()
