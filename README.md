@@ -47,6 +47,8 @@ The persistence milestone is complete. Product records, versions, attributes, an
 
 The HTTP API and first document-ingestion endpoint are now implemented. The API supports product creation, retrieval, validation, version comparison, and PDF text extraction with page-level source references.
 
+The production-scale target is documented in [docs/PRODUCTION_SCALE.md](docs/PRODUCTION_SCALE.md). SQLite is only the local development adapter; the target architecture uses PostgreSQL, object storage, asynchronous workers, and read-optimized search/impact indexes.
+
 To run the API after installing `requirements.txt`:
 
 ```bash
