@@ -10,6 +10,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from .api import SpecLedgerService, product_summary
+from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
 from .repository import ProductRepository
 
@@ -17,6 +18,8 @@ from .repository import ProductRepository
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
 repository = ProductRepository(DATABASE_PATH)
 service = SpecLedgerService(repository)
+job_repository = BatchJobRepository(DATABASE_PATH)
+batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
 
 
@@ -48,6 +51,12 @@ class ProductInput(BaseModel):
     name: str
     category: str
     versions: list[VersionInput] = Field(min_length=1)
+
+
+class BatchImportInput(BaseModel):
+    organization_id: str = Field(min_length=1)
+    job_id: str = Field(min_length=1)
+    products: list[ProductInput] = Field(min_length=1, max_length=10000)
 
 
 def to_domain_product(payload: ProductInput) -> Product:
@@ -112,6 +121,29 @@ def compare_product_versions(product_id: str) -> dict[str, Any]:
     return {"product_id": product_id, "changes": changes, "change_count": len(changes)}
 
 
+@app.post("/imports")
+def run_import(payload: BatchImportInput) -> dict[str, Any]:
+    try:
+        products = [to_domain_product(product) for product in payload.products]
+        result = batch_service.run(payload.job_id, payload.organization_id, products)
+        return {"job_id": result.job_id, "state": result.state.value, "progress": result.progress,
+                "total_items": result.total_items, "completed_items": result.completed_items,
+                "failed_items": result.failed_items, "review_items": result.review_items}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/imports/{job_id}")
+def get_import(job_id: str) -> dict[str, Any]:
+    result = job_repository.get_job(job_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Import job not found")
+    return {"job_id": result.job_id, "organization_id": result.organization_id, "state": result.state.value,
+            "progress": result.progress, "total_items": result.total_items,
+            "completed_items": result.completed_items, "failed_items": result.failed_items,
+            "review_items": result.review_items}
+
+
 @app.post("/documents/extract")
 async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
     """Extract text with page evidence; semantic attribute extraction comes later."""
@@ -150,4 +182,3 @@ async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
             os.unlink(temporary_path)
 
     return {"filename": file.filename, "page_count": len(pages), "pages": pages}
-

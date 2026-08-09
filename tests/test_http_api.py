@@ -39,3 +39,19 @@ class HttpApiTests(unittest.TestCase):
         self.assertEqual(retrieved.status_code, 200)
         self.assertEqual(retrieved.json()["sku"], "API-VALVE-001")
 
+    def test_batch_import_returns_job_progress(self) -> None:
+        client = TestClient(app)
+        product = {
+            "product_id": "batch-api-valve-001",
+            "sku": "BATCH-API-VALVE-001",
+            "name": "Batch API Valve",
+            "category": "industrial_valve",
+            "versions": [{"version_id": "v1", "attributes": [{
+                "name": "pressure_rating", "value": 600, "unit": "WOG",
+                "evidence": [{"source_name": "batch.pdf", "source_type": "datasheet", "page": 1}]
+            }]}]
+        }
+        response = client.post("/imports", json={"organization_id": "org-api", "job_id": "job-api-001", "products": [product]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["state"], "completed")
+        self.assertEqual(response.json()["progress"], 1.0)

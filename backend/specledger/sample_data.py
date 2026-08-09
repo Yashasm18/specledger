@@ -3,11 +3,11 @@
 from .models import AttributeValue, Evidence, Product, ProductVersion
 
 
-def valve_version(version_id: str, pressure: int, source: str) -> ProductVersion:
+def valve_version(version_id: str, pressure: int, source: str, product_id: str = "valve-001") -> ProductVersion:
     evidence = Evidence(source_name=source, source_type="datasheet", page=2, excerpt=f"Pressure rating: {pressure} WOG")
     return ProductVersion(
         version_id=version_id,
-        product_id="valve-001",
+        product_id=product_id,
         attributes=(
             AttributeValue("size", 1, "in", (evidence,)),
             AttributeValue("pressure_rating", pressure, "WOG", (evidence,)),
@@ -26,4 +26,3 @@ def sample_product() -> Product:
         category="industrial_valve",
         versions=(valve_version("v1", 600, "valve-datasheet-v1.pdf"),),
     )
-
