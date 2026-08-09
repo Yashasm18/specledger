@@ -13,16 +13,26 @@ from .api import SpecLedgerService, product_summary
 from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
 from .repository import ProductRepository
+from .postgres_repository import PostgresRepository
 
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
-repository = ProductRepository(DATABASE_PATH)
+DATABASE_URL = os.getenv("DATABASE_URL")
+repository = PostgresRepository(DATABASE_URL) if DATABASE_URL else ProductRepository(DATABASE_PATH)
 service = SpecLedgerService(repository)
 # Local development uses a separate job database to avoid SQLite's single-file
 # writer lock. Production uses PostgreSQL for both stores.
 job_repository = BatchJobRepository(f"{DATABASE_PATH}.jobs")
 batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
+
+
+@app.on_event("shutdown")
+def close_resources() -> None:
+    close = getattr(repository, "close", None)
+    if close:
+        close()
+    job_repository.close()
 
 
 class EvidenceInput(BaseModel):

@@ -155,3 +155,42 @@ class PostgresRepository:
                             )
             connection.commit()
 
+    def get_product(self, product_id: str, organization_id: str = "default") -> Product | None:
+        with self.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT product_id, sku, name, category FROM products WHERE organization_id = %s AND product_id = %s",
+                    (organization_id, product_id),
+                )
+                product_row = cursor.fetchone()
+                if product_row is None:
+                    return None
+
+                cursor.execute(
+                    "SELECT version_id, product_id, created_at FROM product_versions WHERE organization_id = %s AND product_id = %s ORDER BY created_at, version_id",
+                    (organization_id, product_id),
+                )
+                version_rows = cursor.fetchall()
+                versions: list[ProductVersion] = []
+                for version_id, version_product_id, created_at in version_rows:
+                    cursor.execute(
+                        "SELECT name, value, unit, status, confidence FROM attributes WHERE organization_id = %s AND version_id = %s ORDER BY name",
+                        (organization_id, version_id),
+                    )
+                    attribute_rows = cursor.fetchall()
+                    attributes: list[AttributeValue] = []
+                    for name, value, unit, status, confidence in attribute_rows:
+                        cursor.execute(
+                            """SELECT source_name, source_type, page, locator, excerpt, captured_at
+                            FROM evidence WHERE organization_id = %s AND version_id = %s AND attribute_name = %s
+                            ORDER BY evidence_id""",
+                            (organization_id, version_id, name),
+                        )
+                        evidence = tuple(
+                            Evidence(source_name, source_type, page, locator, excerpt, captured_at)
+                            for source_name, source_type, page, locator, excerpt, captured_at in cursor.fetchall()
+                        )
+                        attributes.append(AttributeValue(name, value, unit, evidence, ValueStatus(status), confidence))
+                    versions.append(ProductVersion(version_id, version_product_id, tuple(attributes), created_at.isoformat()))
+
+                return Product(product_row[0], product_row[1], product_row[2], product_row[3], tuple(versions))

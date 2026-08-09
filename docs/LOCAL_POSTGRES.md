@@ -16,6 +16,13 @@ postgresql://specledger:specledger_dev_only@localhost:5432/specledger
 
 The migration in `migrations/001_initial.sql` runs automatically when the volume is created.
 
+Run the API against this database with:
+
+```bash
+DATABASE_URL=postgresql://specledger:specledger_dev_only@localhost:5432/specledger \
+  uvicorn backend.specledger.http_api:app --reload
+```
+
 ## Stop the database
 
 ```bash
@@ -27,4 +34,3 @@ The named Docker volume preserves data between stops. Do not delete the volume u
 ## Production
 
 Use a managed PostgreSQL service and provide `DATABASE_URL` through a secret manager. Never commit a production connection string.
-

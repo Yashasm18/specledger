@@ -55,6 +55,8 @@ The PostgreSQL adapter and deployment notes are documented in [docs/POSTGRESQL.m
 
 PostgreSQL is now the required target database. Local setup is defined in [docs/LOCAL_POSTGRES.md](docs/LOCAL_POSTGRES.md), with Docker Compose and a versioned initial migration.
 
+When `DATABASE_URL` is set, the API reads and writes product data through the PostgreSQL adapter. The local PostgreSQL smoke test has been verified for product creation and retrieval.
+
 To run the API after installing `requirements.txt`:
 
 ```bash
