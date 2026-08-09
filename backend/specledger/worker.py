@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from .object_store import LocalObjectStore
 from .extraction import extract_facts, validate_facts
+from .schemas import get_schema
 from .tasks import ProcessingTask, TaskQueue
 
 
@@ -40,10 +41,12 @@ class DocumentProcessingWorker:
             result = self._extract(task)
             artifact_key = f"artifacts/{task.organization_id}/{task.document_id}/{uuid4().hex}.json"
             facts = extract_facts([asdict(page) for page in result.pages])
+            schema = get_schema(None)
             self.object_store.put_json(artifact_key, result.to_dict() | {
                 "schema_version": "extraction.v1",
+                "catalogue_schema": {"id": schema.schema_id, "version": schema.version},
                 "facts": [fact.to_dict() for fact in facts],
-                "validation": {"issues": validate_facts(facts)},
+                "validation": {"issues": validate_facts(facts, schema.required_attributes)},
             })
             self.queue.record_artifact(task.organization_id, task.document_id, artifact_key,
                                        fact_count=len(facts))

@@ -50,6 +50,7 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(saved["facts"][0]["normalized_unit"], "wog")
             issue_codes = {issue["code"] for issue in saved["validation"]["issues"]}
             self.assertIn("MISSING_REQUIRED", issue_codes)
+            self.assertEqual(saved["catalogue_schema"]["id"], "industrial.generic")
             queue.close()
 
 
