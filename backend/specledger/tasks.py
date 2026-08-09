@@ -132,12 +132,19 @@ class TaskQueue:
             raise ValueError("Invalid artifact review state")
         with self.database.connection() as connection:
             with connection.cursor() as cursor:
+                cursor.execute("""SELECT review_state FROM extraction_artifacts
+                    WHERE organization_id = %s AND artifact_id = %s FOR UPDATE""",
+                    (organization_id, artifact_id))
+                current = cursor.fetchone()
+                if current is None:
+                    raise KeyError("Artifact not found")
+                if current[0] == state:
+                    connection.commit()
+                    return
                 cursor.execute("""UPDATE extraction_artifacts SET review_state = %s,
                     review_actor_id = %s, review_comment = %s
                     WHERE organization_id = %s AND artifact_id = %s""",
                     (state, actor_id, comment, organization_id, artifact_id))
-                if cursor.rowcount != 1:
-                    raise KeyError("Artifact not found")
                 cursor.execute("""INSERT INTO audit_events
                     (organization_id, entity_type, entity_id, event_type, payload)
                     VALUES (%s, 'extraction_artifact', %s, 'review_state_changed', %s::jsonb)""",
