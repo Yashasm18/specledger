@@ -57,6 +57,8 @@ PostgreSQL is now the required target database. Local setup is defined in [docs/
 
 When `DATABASE_URL` is set, the API reads and writes product data through the PostgreSQL adapter. The local PostgreSQL smoke test has been verified for product creation and retrieval.
 
+The next production layer includes PostgreSQL-backed document-processing tasks. Large files will be stored through object-storage metadata, while workers claim queued extraction tasks using safe row locking.
+
 To run the API after installing `requirements.txt`:
 
 ```bash

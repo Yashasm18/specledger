@@ -1,0 +1,96 @@
+"""Worker-ready PostgreSQL task queue primitives."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from .postgres_repository import PostgresRepository
+
+
+@dataclass(frozen=True)
+class ProcessingTask:
+    task_id: str
+    organization_id: str
+    task_type: str
+    state: str
+    attempts: int
+    document_id: str | None
+    error_message: str | None
+
+
+class TaskQueue:
+    def __init__(self, database_url: str) -> None:
+        self.database = PostgresRepository(database_url)
+
+    def close(self) -> None:
+        self.database.close()
+
+    def enqueue(self, organization_id: str, task_type: str, document_id: str | None = None) -> ProcessingTask:
+        task_id = str(uuid4())
+        self.database.ensure_organization(organization_id)
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO processing_tasks(organization_id, task_id, document_id, task_type)
+                    VALUES (%s, %s, %s, %s)""",
+                    (organization_id, task_id, document_id, task_type),
+                )
+            connection.commit()
+        return self.get(organization_id, task_id)  # type: ignore[return-value]
+
+    def claim(self, worker_id: str, task_type: str | None = None) -> ProcessingTask | None:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """WITH candidate AS (
+                        SELECT organization_id, task_id FROM processing_tasks
+                        WHERE state = 'queued' AND available_at <= NOW()
+                          AND (%s::text IS NULL OR task_type = %s::text)
+                        ORDER BY created_at
+                        FOR UPDATE SKIP LOCKED LIMIT 1
+                    )
+                    UPDATE processing_tasks AS task SET state = 'processing', locked_by = %s,
+                        locked_at = NOW(), attempts = task.attempts + 1, updated_at = NOW()
+                    FROM candidate WHERE task.organization_id = candidate.organization_id
+                      AND task.task_id = candidate.task_id
+                    RETURNING task.task_id, task.organization_id, task.task_type, task.state,
+                              task.attempts, task.document_id, task.error_message""",
+                    (task_type, task_type, worker_id),
+                )
+                row = cursor.fetchone()
+            connection.commit()
+        return self._task(row) if row else None
+
+    def complete(self, organization_id: str, task_id: str) -> None:
+        self._set_state(organization_id, task_id, "completed", None)
+
+    def fail(self, organization_id: str, task_id: str, message: str) -> None:
+        self._set_state(organization_id, task_id, "failed", message)
+
+    def get(self, organization_id: str, task_id: str) -> ProcessingTask | None:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT task_id, organization_id, task_type, state, attempts, document_id, error_message
+                    FROM processing_tasks WHERE organization_id = %s AND task_id = %s""",
+                    (organization_id, task_id),
+                )
+                row = cursor.fetchone()
+        return self._task(row) if row else None
+
+    def _set_state(self, organization_id: str, task_id: str, state: str, error: str | None) -> None:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """UPDATE processing_tasks SET state = %s, error_message = %s,
+                    locked_by = NULL, locked_at = NULL, updated_at = NOW()
+                    WHERE organization_id = %s AND task_id = %s""",
+                    (state, error, organization_id, task_id),
+                )
+            connection.commit()
+
+    @staticmethod
+    def _task(row: tuple) -> ProcessingTask:
+        return ProcessingTask(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
