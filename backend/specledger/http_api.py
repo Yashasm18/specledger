@@ -226,11 +226,16 @@ async def intake_document(file: UploadFile = File(...), organization_id: str = Q
     contents = await file.read()
     if not contents or len(contents) > 5 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="PDF must be between 1 byte and 5 MB")
+    content_hash = hashlib.sha256(contents).hexdigest()
+    existing = task_queue.find_document_by_hash(organization_id, content_hash)
+    if existing:
+        return {"document_id": existing["document_id"], "task_id": None, "state": "already_registered",
+                "filename": existing["filename"], "category": existing["category"]}
     document_id = str(uuid4())
     object_key = document_id
     artifact_store.put(object_key, contents)
     task_queue.register_document(organization_id, document_id, file.filename or "uploaded.pdf",
-                                 "application/pdf", object_key, hashlib.sha256(contents).hexdigest(), len(contents), category)
+                                 "application/pdf", object_key, content_hash, len(contents), category)
     task = task_queue.enqueue(organization_id, "pdf_extract", document_id)
     return {"document_id": document_id, "task_id": task.task_id, "state": task.state,
             "filename": file.filename, "category": category}
