@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import tempfile
+import hashlib
+from uuid import uuid4
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
@@ -211,6 +213,27 @@ async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
             os.unlink(temporary_path)
 
     return {"filename": file.filename, "page_count": len(pages), "pages": pages}
+
+
+@app.post("/documents/intake")
+async def intake_document(file: UploadFile = File(...), organization_id: str = Query(default="default", min_length=1),
+                          category: str = Query(default="generic", min_length=1)) -> dict[str, Any]:
+    """Persist a source document and enqueue durable worker extraction."""
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Durable intake requires PostgreSQL")
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=415, detail="Only PDF files are supported")
+    contents = await file.read()
+    if not contents or len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PDF must be between 1 byte and 5 MB")
+    document_id = str(uuid4())
+    object_key = document_id
+    artifact_store.put(object_key, contents)
+    task_queue.register_document(organization_id, document_id, file.filename or "uploaded.pdf",
+                                 "application/pdf", object_key, hashlib.sha256(contents).hexdigest(), len(contents), category)
+    task = task_queue.enqueue(organization_id, "pdf_extract", document_id)
+    return {"document_id": document_id, "task_id": task.task_id, "state": task.state,
+            "filename": file.filename, "category": category}
 
 
 @app.get("/documents/{document_id}/artifact")
