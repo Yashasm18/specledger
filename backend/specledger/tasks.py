@@ -42,6 +42,14 @@ class TaskQueue:
             connection.commit()
         return self.get(organization_id, task_id)  # type: ignore[return-value]
 
+    def find_document_by_hash(self, organization_id: str, content_hash: str) -> dict | None:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""SELECT document_id, filename, category FROM document_assets
+                    WHERE organization_id = %s AND content_hash = %s""", (organization_id, content_hash))
+                row = cursor.fetchone()
+        return {"document_id": row[0], "filename": row[1], "category": row[2]} if row else None
+
     def register_document(self, organization_id: str, document_id: str, filename: str,
                           media_type: str, object_key: str, content_hash: str, size_bytes: int,
                           category: str = "generic") -> None:
