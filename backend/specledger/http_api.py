@@ -259,6 +259,18 @@ def document_task_status(task_id: str, organization_id: str = Query(default="def
             payload["artifact"] = artifact
     return payload
 
+@app.get("/documents/latest/artifact")
+def get_latest_any_artifact_first(organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Durable artifacts require PostgreSQL")
+    artifact = task_queue.latest_any_artifact(organization_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="No extraction artifact found")
+    if artifact_store.exists(artifact["object_key"]):
+        import json
+        artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
+    return artifact
+
 
 @app.get("/documents/{document_id}/artifact")
 def get_latest_artifact(document_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
@@ -273,6 +285,19 @@ def get_latest_artifact(document_id: str, organization_id: str = Query(default="
     artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
     facts = [ExtractedFact(**fact) for fact in artifact["data"].get("facts", [])]
     artifact["validation"] = {"issues": validate_facts(facts)}
+    return artifact
+
+
+@app.get("/documents/latest/artifact")
+def get_latest_any_artifact(organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Durable artifacts require PostgreSQL")
+    artifact = task_queue.latest_any_artifact(organization_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="No extraction artifact found")
+    if artifact_store.exists(artifact["object_key"]):
+        import json
+        artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
     return artifact
 
 

@@ -142,6 +142,14 @@ class TaskQueue:
                 "schema_version": row[3], "fact_count": row[4], "created_at": row[5].isoformat(),
                 "review_state": row[6]}
 
+    def latest_any_artifact(self, organization_id: str) -> dict | None:
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""SELECT document_id FROM extraction_artifacts
+                    WHERE organization_id = %s ORDER BY created_at DESC LIMIT 1""", (organization_id,))
+                row = cursor.fetchone()
+        return self.latest_artifact(organization_id, row[0]) if row else None
+
     def set_artifact_review_state(self, organization_id: str, artifact_id: str, state: str,
                                   actor_id: str = "system", comment: str | None = None) -> None:
         if state not in {"pending_review", "approved", "rejected"}:
