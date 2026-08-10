@@ -6,7 +6,7 @@ import "./upload.css";
 import "./notification-overrides.css";
 import "./reviewWorkspace.css";
 import "./reviewLauncher.css";
-import { openReviewWorkspace } from "./reviewWorkspace";
+import "./reviewWorkspace";
 
 const rows = [
   ["VLV-600-050", "Ball Valve · DN50", "Acme Industrial", "Valve", "Needs review", "2 conflicts"],
