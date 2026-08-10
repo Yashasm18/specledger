@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import os
 import tempfile
+import hashlib
+from uuid import uuid4
 from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .api import SpecLedgerService, product_summary
@@ -15,6 +18,9 @@ from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStat
 from .repository import ProductRepository
 from .postgres_repository import PostgresRepository
 from .postgres_jobs import PostgresJobRepository
+from .object_store import LocalObjectStore
+from .tasks import TaskQueue
+from .extraction import validate_facts, ExtractedFact
 
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
@@ -24,8 +30,12 @@ service = SpecLedgerService(repository)
 # Local development uses a separate job database to avoid SQLite's single-file
 # writer lock. Production uses PostgreSQL for both stores.
 job_repository = PostgresJobRepository(DATABASE_URL) if DATABASE_URL else BatchJobRepository(f"{DATABASE_PATH}.jobs")
+task_queue = TaskQueue(DATABASE_URL) if DATABASE_URL else None
+artifact_store = LocalObjectStore(os.getenv("SPECLEDGER_OBJECT_STORE", "object-data"))
 batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
+                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
 @app.on_event("shutdown")
@@ -34,6 +44,8 @@ def close_resources() -> None:
     if close:
         close()
     job_repository.close()
+    if task_queue:
+        task_queue.close()
 
 
 class EvidenceInput(BaseModel):
@@ -70,6 +82,12 @@ class BatchImportInput(BaseModel):
     organization_id: str = Field(min_length=1)
     job_id: str = Field(min_length=1)
     products: list[ProductInput] = Field(min_length=1, max_length=10000)
+
+
+class ArtifactReviewInput(BaseModel):
+    review_state: str = Field(pattern="^(pending_review|approved|rejected)$")
+    actor_id: str = Field(min_length=1, max_length=200)
+    comment: str | None = Field(default=None, max_length=2000)
 
 
 def to_domain_product(payload: ProductInput) -> Product:
@@ -195,3 +213,86 @@ async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
             os.unlink(temporary_path)
 
     return {"filename": file.filename, "page_count": len(pages), "pages": pages}
+
+
+@app.post("/documents/intake")
+async def intake_document(file: UploadFile = File(...), organization_id: str = Query(default="default", min_length=1),
+                          category: str = Query(default="generic", min_length=1)) -> dict[str, Any]:
+    """Persist a source document and enqueue durable worker extraction."""
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Durable intake requires PostgreSQL")
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=415, detail="Only PDF files are supported")
+    contents = await file.read()
+    if not contents or len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PDF must be between 1 byte and 5 MB")
+    content_hash = hashlib.sha256(contents).hexdigest()
+    existing = task_queue.find_document_by_hash(organization_id, content_hash)
+    if existing:
+        return {"document_id": existing["document_id"], "task_id": None, "state": "already_registered",
+                "filename": existing["filename"], "category": existing["category"]}
+    document_id = str(uuid4())
+    object_key = document_id
+    artifact_store.put(object_key, contents)
+    task_queue.register_document(organization_id, document_id, file.filename or "uploaded.pdf",
+                                 "application/pdf", object_key, content_hash, len(contents), category)
+    task = task_queue.enqueue(organization_id, "pdf_extract", document_id)
+    return {"document_id": document_id, "task_id": task.task_id, "state": task.state,
+            "filename": file.filename, "category": category}
+
+
+@app.get("/documents/tasks/{task_id}")
+def document_task_status(task_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Task status requires PostgreSQL")
+    task = task_queue.get(organization_id, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Processing task not found")
+    payload = {"task_id": task.task_id, "document_id": task.document_id, "state": task.state,
+               "attempts": task.attempts, "error_message": task.error_message}
+    if task.state == "completed" and task.document_id:
+        artifact = task_queue.latest_artifact(organization_id, task.document_id)
+        if artifact:
+            if artifact_store.exists(artifact["object_key"]):
+                import json
+                artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
+            payload["artifact"] = artifact
+    return payload
+
+
+@app.get("/documents/{document_id}/artifact")
+def get_latest_artifact(document_id: str, organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Durable document artifacts require PostgreSQL")
+    artifact = task_queue.latest_artifact(organization_id, document_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="No extraction artifact found")
+    if not artifact_store.exists(artifact["object_key"]):
+        raise HTTPException(status_code=409, detail="Artifact metadata exists but its object is unavailable")
+    import json
+    artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
+    facts = [ExtractedFact(**fact) for fact in artifact["data"].get("facts", [])]
+    artifact["validation"] = {"issues": validate_facts(facts)}
+    return artifact
+
+
+@app.patch("/documents/{document_id}/artifact/{artifact_id}/review")
+def review_artifact(document_id: str, artifact_id: str, payload: ArtifactReviewInput,
+                    organization_id: str = Query(default="default", min_length=1)) -> dict[str, str]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Artifact review requires PostgreSQL")
+    try:
+        task_queue.set_artifact_review_state(organization_id, artifact_id, payload.review_state,
+                                             payload.actor_id, payload.comment)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Artifact not found") from exc
+    return {"document_id": document_id, "artifact_id": artifact_id, "review_state": payload.review_state}
+
+
+@app.get("/documents/{document_id}/artifact/{artifact_id}/audit")
+def artifact_audit(document_id: str, artifact_id: str,
+                   organization_id: str = Query(default="default", min_length=1)) -> dict[str, Any]:
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Artifact audit requires PostgreSQL")
+    return {"document_id": document_id, "artifact_id": artifact_id,
+            "events": task_queue.artifact_audit(organization_id, artifact_id)}

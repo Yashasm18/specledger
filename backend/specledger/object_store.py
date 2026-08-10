@@ -7,6 +7,7 @@ S3, GCS, or Azure Blob without changing worker logic.
 from __future__ import annotations
 
 from pathlib import Path
+import json
 
 
 class LocalObjectStore:
@@ -26,3 +27,5 @@ class LocalObjectStore:
     def exists(self, object_key: str) -> bool:
         return (self.root / object_key).exists()
 
+    def put_json(self, object_key: str, payload: dict) -> str:
+        return self.put(object_key, json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8"))
