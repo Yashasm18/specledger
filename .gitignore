@@ -19,3 +19,27 @@ node_modules/
 *.db.*
 *.sqlite
 *.sqlite3
+
+# Private data — never commit Unilog datasets, reference data, or ground truth
+data/reference/*.csv
+data/reference/*.tsv
+data/reference/*.xlsx
+data/reference/*.json
+!data/reference/.gitkeep
+data/ground_truth/*.csv
+data/ground_truth/*.tsv
+data/ground_truth/*.xlsx
+data/ground_truth/*.json
+!data/ground_truth/.gitkeep
+
+# Object storage artifacts
+object-data/
+
+# Private working material
+AGENT_HANDOFF_SPECLEDGER.*
+PROJECT_STATUS_LOCAL.md
+Synthetic_Valve_Datasheet*.pdf
+*.pdf
+
+# Playwright
+.playwright-cli/
