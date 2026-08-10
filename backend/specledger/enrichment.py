@@ -12,17 +12,16 @@ Fields that cannot be matched are preserved as-is with status
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
 from .catalogue_ingestion import CatalogueBatch, SourceRow
 from .reference_data import ReferenceStore, CanonicalMatch
-from .uom import normalize_uom, normalize_material, NormalizedUOM, NormalizedMaterial
+from .uom import normalize_uom, normalize_material, NormalizedUOM, NormalizedMaterial, MATERIAL_CANONICAL
 
 
 # -- Column role detection -------------------------------------------------
-# Maps canonical column keys to their semantic role so the enrichment
-# pipeline knows which LOV to match against.
 
 _MANUFACTURER_KEYS = frozenset({
     "manufacturer", "mfr", "mfg", "manufacturer_name", "mfr_name", "mfg_name",
@@ -36,7 +35,7 @@ _MATERIAL_KEYS = frozenset({
     "shell_material", "seat_material", "trim_material",
 })
 _UOM_KEYS = frozenset({
-    "uom", "unit", "units", "unit_of_measure", "measure",
+    "uom", "unit", "units", "unit_of_measure", "measure", "size_uom", "pressure_uom",
 })
 _CATEGORY_KEYS = frozenset({
     "category", "product_category", "type", "product_type", "class",
@@ -55,9 +54,45 @@ _SIZE_KEYS = frozenset({
     "size", "pipe_size", "nominal_size", "diameter", "dia", "dn", "nps",
 })
 _PRESSURE_KEYS = frozenset({
-    "pressure", "pressure_rating", "pressure_class", "class", "cwp", "wog",
+    "pressure", "pressure_rating", "pressure_class", "cwp", "wog",
     "working_pressure", "max_pressure",
 })
+_CONNECTION_TYPE_KEYS = frozenset({
+    "connection_type", "connection", "end_connection", "ends", "joint",
+})
+
+
+PLACEHOLDER_VALUES = frozenset({
+    "n/a", "na", "--", "---", "-", "null", "none", "n\\a", "n.a.", "n.a",
+})
+
+
+# Part number 3-letter prefix -> Canonical Manufacturer name
+PART_NUMBER_MFR_PREFIXES: dict[str, str] = {
+    "APO": "Apollo Valves",
+    "BRA": "Bray International",
+    "CAM": "Cameron (Schlumberger)",
+    "CRA": "Crane Co.",
+    "FLO": "Flowserve",
+    "GRA": "Graco",
+    "GRU": "Grundfos",
+    "HON": "Honeywell",
+    "ITT": "ITT Inc.",
+    "KIT": "Kitz Corporation",
+    "MIL": "Milwaukee Valve",
+    "NIB": "Nibco",
+    "PAR": "Parker Hannifin",
+    "PEN": "Pentair",
+    "SWA": "Swagelok",
+    "VEL": "Velan",
+    "VIC": "Victaulic",
+    "WAT": "Watts Water Technologies",
+    "XYL": "Xylem",
+}
+
+KNOWN_CONNECTION_TYPES = [
+    "FNPT", "MNPT", "NPT", "Flanged", "Threaded", "Compression", "Solder", "BSP", "BSPT", "Socket Weld",
+]
 
 
 @dataclass(frozen=True)
@@ -67,7 +102,7 @@ class FieldEvidence:
     source_row: int
     source_column: str
     raw_value: str | None
-    transformation: str  # "exact_match", "alias_match", "normalized", "placeholder", "passthrough", "missing"
+    transformation: str  # "exact_match", "alias_match", "normalized", "placeholder", "passthrough", "missing", "extracted_from_description", "extracted_from_part_number"
 
 
 @dataclass(frozen=True)
@@ -78,7 +113,7 @@ class EnrichedField:
     canonical_value: str | None
     confidence: float
     status: str  # "verified", "inferred", "missing", "review_required"
-    role: str  # "manufacturer", "brand", "material", "uom", "category", "part_number", "description", "size", "pressure", "other"
+    role: str  # "manufacturer", "brand", "material", "uom", "category", "part_number", "description", "size", "pressure", "connection_type", "other"
     evidence: FieldEvidence
     normalized_unit: str | None = None
 
@@ -112,7 +147,7 @@ class EnrichedBatch:
     source_name: str
     columns: tuple[str, ...]
     rows: tuple[EnrichedRow, ...]
-    reference_source: str  # "seed", "file:...", etc.
+    reference_source: str = "seed"
 
     @property
     def row_count(self) -> int:
@@ -151,6 +186,8 @@ def detect_role(column_key: str) -> str:
         return "size"
     if column_key in _PRESSURE_KEYS:
         return "pressure"
+    if column_key in _CONNECTION_TYPE_KEYS:
+        return "connection_type"
     return "other"
 
 
@@ -166,6 +203,102 @@ def _worst_status(statuses: Sequence[str]) -> str:
     return min(statuses, key=lambda s: _STATUS_PRIORITY.get(s, 1))
 
 
+def _extract_from_part_number(
+    column: str,
+    role: str,
+    part_number: str,
+    source_name: str,
+    row_number: int,
+    store: ReferenceStore,
+) -> EnrichedField | None:
+    """Infer manufacturer or brand from part number prefix."""
+    if not part_number or not part_number.strip():
+        return None
+
+    prefix = part_number.strip()[:3].upper()
+    mfr_canonical = PART_NUMBER_MFR_PREFIXES.get(prefix)
+    if not mfr_canonical:
+        return None
+
+    if role == "manufacturer":
+        match = store.match_manufacturer(mfr_canonical)
+        evidence = FieldEvidence(source_name, row_number, column, f"from SKU prefix: {prefix}", "extracted_from_part_number")
+        return EnrichedField(column, None, match.canonical, 0.85, "inferred", role, evidence)
+
+    return None
+
+
+def _extract_from_description(
+    column: str,
+    role: str,
+    description: str,
+    source_name: str,
+    row_number: int,
+    store: ReferenceStore,
+) -> EnrichedField | None:
+    """Extract missing or placeholder attribute from description text."""
+    if not description or not description.strip():
+        return None
+
+    desc = description.strip()
+
+    if role == "manufacturer":
+        match = store.match_manufacturer(desc)
+        if match.confidence >= 0.80:
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, match.canonical, match.confidence, "inferred", role, evidence)
+
+    if role == "brand":
+        match = store.match_brand(desc)
+        if match.confidence >= 0.80:
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, match.canonical, match.confidence, "inferred", role, evidence)
+
+    if role == "material":
+        sorted_keys = sorted(MATERIAL_CANONICAL.keys(), key=len, reverse=True)
+        for key in sorted_keys:
+            if re.search(r'\b' + re.escape(key) + r'\b', desc, re.IGNORECASE):
+                canonical = MATERIAL_CANONICAL[key]
+                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                return EnrichedField(column, None, canonical, 0.85, "inferred", role, evidence)
+
+    if role == "pressure":
+        if "uom" in column.lower():
+            m = re.search(r'\b(\d+)\s*(psi|bar|wog|cwp|swp|kpa|mpa)\b', desc, re.IGNORECASE)
+            if m:
+                uom_canonical = normalize_uom(m.group(2)).canonical
+                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                return EnrichedField(column, None, uom_canonical, 0.85, "inferred", role, evidence, uom_canonical)
+        else:
+            m = re.search(r'\b(\d+)\s*(?:psi|bar|wog|cwp|swp|kpa|mpa)\b', desc, re.IGNORECASE)
+            if m:
+                val = m.group(1)
+                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                return EnrichedField(column, None, val, 0.85, "inferred", role, evidence)
+
+    if role == "connection_type":
+        for conn_type in KNOWN_CONNECTION_TYPES:
+            if re.search(r'\b' + re.escape(conn_type) + r'\b', desc, re.IGNORECASE):
+                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                return EnrichedField(column, None, conn_type, 0.85, "inferred", role, evidence)
+
+    if role == "size":
+        m = re.search(r'\b(\d+(?:[-/]\d+)?|\d+\.\d+)\s*(?:in|inch|inches|mm|cm)\b', desc, re.IGNORECASE)
+        if m:
+            val = m.group(1)
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, val, 0.85, "inferred", role, evidence)
+
+    if role == "uom":
+        m = re.search(r'\b\d+(?:[-/]\d+)?\s*(in|inch|inches|mm|cm)\b', desc, re.IGNORECASE)
+        if m:
+            uom_canonical = normalize_uom(m.group(1)).canonical
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, uom_canonical, 0.85, "inferred", role, evidence, uom_canonical)
+
+    return None
+
+
 def _enrich_field(
     column: str,
     raw_value: str | None,
@@ -173,13 +306,30 @@ def _enrich_field(
     source_name: str,
     row_number: int,
     store: ReferenceStore,
+    description: str | None = None,
+    part_number: str | None = None,
 ) -> EnrichedField:
     """Enrich a single field based on its detected role."""
     base_evidence = FieldEvidence(source_name, row_number, column, raw_value, "passthrough")
 
-    # Missing or None values
-    if raw_value is None or not raw_value.strip():
-        evidence = FieldEvidence(source_name, row_number, column, raw_value, "missing")
+    # Missing or placeholder values
+    is_missing = raw_value is None or not raw_value.strip()
+    is_placeholder = raw_value is not None and raw_value.strip().casefold() in PLACEHOLDER_VALUES
+
+    if is_missing or is_placeholder:
+        # Try extracting from part_number if manufacturer
+        if part_number and role == "manufacturer":
+            extracted = _extract_from_part_number(column, role, part_number, source_name, row_number, store)
+            if extracted:
+                return extracted
+
+        # Try extracting from description if available
+        if description:
+            extracted = _extract_from_description(column, role, description, source_name, row_number, store)
+            if extracted:
+                return extracted
+
+        evidence = FieldEvidence(source_name, row_number, column, raw_value, "missing" if is_missing else "placeholder")
         return EnrichedField(column, raw_value, None, 0.0, "missing", role, evidence)
 
     # Role-specific enrichment
@@ -211,22 +361,17 @@ def _enrich_field(
         if uom.recognized:
             evidence = FieldEvidence(source_name, row_number, column, raw_value, "exact_match")
             return EnrichedField(column, raw_value, uom.canonical, uom.confidence, "verified", role, evidence, uom.canonical)
-        evidence = FieldEvidence(source_name, row_number, column, raw_value, "passthrough")
+        evidence = FieldEvidence(source_name, raw_value, column, raw_value, "passthrough")
         return EnrichedField(column, raw_value, raw_value, 0.0, "review_required", role, evidence)
 
-    # For part_number, description, size, pressure, and other — pass through
-    # These are preserved as-is; the values are not LOV-constrained.
     if role in {"part_number", "description"}:
         evidence = FieldEvidence(source_name, row_number, column, raw_value, "passthrough")
         return EnrichedField(column, raw_value, raw_value, 1.0, "verified", role, evidence)
 
-    # Size and pressure: pass through with verified status (they have their
-    # own extraction-time normalization in extraction.py)
-    if role in {"size", "pressure"}:
+    if role in {"size", "pressure", "connection_type"}:
         evidence = FieldEvidence(source_name, row_number, column, raw_value, "passthrough")
         return EnrichedField(column, raw_value, raw_value, 0.9, "verified", role, evidence)
 
-    # Other / unknown columns
     evidence = FieldEvidence(source_name, row_number, column, raw_value, "passthrough")
     return EnrichedField(column, raw_value, raw_value, 0.5, "review_required", role, evidence)
 
@@ -252,10 +397,7 @@ def _from_canonical_match(
 
 
 def enrich_batch(batch: CatalogueBatch, store: ReferenceStore | None = None) -> EnrichedBatch:
-    """Enrich every field in a CatalogueBatch using the reference store.
-
-    If no store is provided, a default store with seed data is created.
-    """
+    """Enrich every field in a CatalogueBatch using the reference store."""
     if store is None:
         store = ReferenceStore()
 
@@ -263,15 +405,26 @@ def enrich_batch(batch: CatalogueBatch, store: ReferenceStore | None = None) -> 
 
     enriched_rows: list[EnrichedRow] = []
     for source_row in batch.rows:
+        description_text = None
+        part_number_text = None
+        for col, role in column_roles.items():
+            if role == "description":
+                description_text = source_row.values.get(col)
+            elif role == "part_number":
+                part_number_text = source_row.values.get(col)
+
         fields: list[EnrichedField] = []
         for column in batch.columns:
             raw_value = source_row.values.get(column)
             role = column_roles[column]
-            enriched = _enrich_field(column, raw_value, role, batch.source_name, source_row.row_number, store)
+            enriched = _enrich_field(
+                column, raw_value, role, batch.source_name, source_row.row_number, store,
+                description_text, part_number_text
+            )
             fields.append(enriched)
 
         statuses = [f.status for f in fields]
-        confidences = [f.confidence for f in fields if f.raw_value is not None]
+        confidences = [f.confidence for f in fields if f.raw_value is not None or f.canonical_value is not None]
         overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
         overall_status = _worst_status(statuses)
 
@@ -288,5 +441,4 @@ def enrich_batch(batch: CatalogueBatch, store: ReferenceStore | None = None) -> 
         batch.source_name,
         batch.columns,
         tuple(enriched_rows),
-        "seed",
     )

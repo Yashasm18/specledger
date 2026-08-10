@@ -161,6 +161,123 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_export_csv_endpoint(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("export_test.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.get(f"/catalogue/batches/{batch_id}/export?format=csv")
+            assert res.status_code == 200
+            assert "text/csv" in res.headers["content-type"]
+            assert "Parker Hannifin" in res.text
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_export_commerce_csv_endpoint(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("export_test.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.get(f"/catalogue/batches/{batch_id}/export?format=commerce_csv")
+            assert res.status_code == 200
+            assert "text/csv" in res.headers["content-type"]
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_export_json_endpoint(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("export_test.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.get(f"/catalogue/batches/{batch_id}/export?format=json")
+            assert res.status_code == 200
+            assert "application/json" in res.headers["content-type"]
+            data = res.json()
+            assert "batch" in data
+            assert "rows" in data
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_export_audit_endpoint(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("export_test.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.get(f"/catalogue/batches/{batch_id}/export?format=audit")
+            assert res.status_code == 200
+            data = res.json()
+            assert data["export_type"] == "audit"
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_pending_review_endpoint(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("review_test.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.get(f"/catalogue/batches/{batch_id}/review/pending")
+            assert res.status_code == 200
+            data = res.json()
+            assert data["count"] >= 1
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_review_row_action(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("review_action.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.post(
+                f"/catalogue/batches/{batch_id}/rows/2/review",
+                json={"action": "approve", "reviewer": "user@example.com", "comment": "Verified manually"},
+            )
+            assert res.status_code == 200
+            data = res.json()
+            assert data["review_state"] == "approved"
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_sources_endpoint(self) -> None:
+        csv_path = self._make_csv([
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post("/catalogue/ingest", files={"file": ("sources_test.csv", f, "text/csv")})
+            batch_id = ingest_res.json()["batch_id"]
+
+            res = self.client.get(f"/catalogue/batches/{batch_id}/sources")
+            assert res.status_code == 200
+            data = res.json()
+            assert "sources" in data
+        finally:
+            csv_path.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()
+
