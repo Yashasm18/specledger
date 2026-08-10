@@ -248,8 +248,16 @@ def document_task_status(task_id: str, organization_id: str = Query(default="def
     task = task_queue.get(organization_id, task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Processing task not found")
-    return {"task_id": task.task_id, "document_id": task.document_id, "state": task.state,
-            "attempts": task.attempts, "error_message": task.error_message}
+    payload = {"task_id": task.task_id, "document_id": task.document_id, "state": task.state,
+               "attempts": task.attempts, "error_message": task.error_message}
+    if task.state == "completed" and task.document_id:
+        artifact = task_queue.latest_artifact(organization_id, task.document_id)
+        if artifact:
+            if artifact_store.exists(artifact["object_key"]):
+                import json
+                artifact["data"] = json.loads(artifact_store.get(artifact["object_key"]))
+            payload["artifact"] = artifact
+    return payload
 
 
 @app.get("/documents/{document_id}/artifact")

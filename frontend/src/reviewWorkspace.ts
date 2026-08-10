@@ -20,8 +20,8 @@ window.fetch = async (...args: Parameters<typeof window.fetch>) => {
     const status = await response.clone().json().catch(() => null);
     if (status?.state === "completed" && status.document_id && !openedTasks.has(status.task_id)) {
       openedTasks.add(status.task_id);
-      nativeFetch(`http://localhost:8000/documents/${status.document_id}/artifact?organization_id=default`)
-        .then((artifactResponse) => artifactResponse.json()).then(openReviewWorkspace);
+      const artifactRequest = status.artifact ? Promise.resolve(status.artifact) : nativeFetch(`http://localhost:8000/documents/${status.document_id}/artifact?organization_id=default`).then((artifactResponse) => artifactResponse.json());
+      artifactRequest.then(openReviewWorkspace);
     }
   }
   return response;
