@@ -9,3 +9,20 @@ export function openReviewWorkspace(artifact: { data?: { facts?: Fact[]; pages?:
   document.body.appendChild(panel);
   panel.querySelector(".review-close")?.addEventListener("click", () => panel.remove());
 }
+
+// Bridge the existing task poller to the review surface without duplicating polling logic.
+const nativeFetch = window.fetch.bind(window);
+const openedTasks = new Set<string>();
+window.fetch = async (...args: Parameters<typeof window.fetch>) => {
+  const response = await nativeFetch(...args);
+  const requestUrl = typeof args[0] === "string" ? args[0] : args[0] instanceof Request ? args[0].url : "";
+  if (requestUrl.includes("/documents/tasks/") && response.ok) {
+    const status = await response.clone().json().catch(() => null);
+    if (status?.state === "completed" && status.document_id && !openedTasks.has(status.task_id)) {
+      openedTasks.add(status.task_id);
+      nativeFetch(`http://localhost:8000/documents/${status.document_id}/artifact?organization_id=default`)
+        .then((artifactResponse) => artifactResponse.json()).then(openReviewWorkspace);
+    }
+  }
+  return response;
+};
