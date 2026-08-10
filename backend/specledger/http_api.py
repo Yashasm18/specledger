@@ -21,6 +21,7 @@ from .postgres_jobs import PostgresJobRepository
 from .object_store import LocalObjectStore
 from .tasks import TaskQueue
 from .extraction import validate_facts, ExtractedFact
+from .catalogue_api import router as catalogue_router
 
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
@@ -36,6 +37,7 @@ batch_service = BatchImportService(repository, job_repository)
 app = FastAPI(title="SpecLedger API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.include_router(catalogue_router)
 
 
 @app.on_event("shutdown")
