@@ -21,7 +21,22 @@ window.fetch = async (...args: Parameters<typeof window.fetch>) => {
     if (status?.state === "completed" && status.document_id && !openedTasks.has(status.task_id)) {
       openedTasks.add(status.task_id);
       const artifactRequest = status.artifact ? Promise.resolve(status.artifact) : nativeFetch(`http://localhost:8000/documents/${status.document_id}/artifact?organization_id=default`).then((artifactResponse) => artifactResponse.json());
-      artifactRequest.then(openReviewWorkspace);
+      artifactRequest.then((artifact) => {
+        openReviewWorkspace(artifact);
+        document.getElementById("review-launcher")?.remove();
+        const launcher = document.createElement("button");
+        launcher.id = "review-launcher";
+        launcher.textContent = "Open evidence review →";
+        launcher.setAttribute("aria-label", "Open evidence review workspace");
+        launcher.onclick = () => { openReviewWorkspace(artifact); launcher.remove(); };
+        document.body.appendChild(launcher);
+      }).catch(() => {
+        const launcher = document.createElement("button");
+        launcher.id = "review-launcher";
+        launcher.textContent = "Open evidence review →";
+        launcher.onclick = () => launcher.remove();
+        document.body.appendChild(launcher);
+      });
     }
   }
   return response;

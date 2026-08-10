@@ -5,6 +5,7 @@ import "./enhancements.css";
 import "./upload.css";
 import "./notification-overrides.css";
 import "./reviewWorkspace.css";
+import "./reviewLauncher.css";
 import { openReviewWorkspace } from "./reviewWorkspace";
 
 const rows = [
