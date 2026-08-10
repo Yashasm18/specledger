@@ -59,7 +59,10 @@ def extract_facts(pages: list[dict] | tuple[dict, ...]) -> list[ExtractedFact]:
         for name, pattern in PATTERNS:
             match = pattern.search(text)
             if match:
-                value = match.group(1).strip()
+                # The size pattern has an optional ``DN`` prefix in group 1
+                # and the numeric size in group 2. Preserve the full useful
+                # value instead of returning only the prefix.
+                value = ((match.group(1) or "") + match.group(2) if name == "size" else match.group(1)).strip()
                 evidence = text[max(0, match.start() - 30):min(len(text), match.end() + 30)].strip()
                 normalized_value, normalized_unit = normalize_value(name, value)
                 facts.append(ExtractedFact(name, value, page["page"], evidence,

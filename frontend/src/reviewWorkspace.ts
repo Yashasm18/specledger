@@ -42,15 +42,6 @@ window.fetch = async (...args: Parameters<typeof window.fetch>) => {
   return response;
 };
 
-let latestArtifactId = "";
-const reviewPoll = window.setInterval(() => {
-  nativeFetch("http://localhost:8000/documents/latest/artifact?organization_id=default")
-    .then((response) => response.ok ? response.json() : null)
-    .then((artifact) => {
-      if (artifact?.artifact_id && artifact.artifact_id !== latestArtifactId) {
-        latestArtifactId = artifact.artifact_id;
-        openReviewWorkspace(artifact);
-      }
-    }).catch(() => undefined);
-}, 1500);
-window.addEventListener("beforeunload", () => window.clearInterval(reviewPoll));
+// Review opens from the upload task completion bridge above. Do not poll and
+// auto-open the latest artifact on page load; that would interrupt users on
+// every refresh and make an old review appear unexpectedly.
