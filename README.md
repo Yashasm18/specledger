@@ -11,7 +11,7 @@
 
 ---
 
-## 📌 Executive Summary
+## Executive Summary
 
 Industrial B2B commerce platforms (such as Unilog CX1 PIM) process hundreds of thousands of raw SKUs from thousands of component manufacturers. Ingested data is frequently fragmented, misspelled, missing units of measure (UOM), or lacking material and pressure specifications.
 
@@ -24,7 +24,7 @@ Industrial B2B commerce platforms (such as Unilog CX1 PIM) process hundreds of t
 
 ---
 
-## 🚀 Key Features & Performance Metrics
+## Key Features & Performance Metrics
 
 ### 🎯 Ground-Truth Evaluation Benchmark (200-Row Dataset)
 Evaluated against the official 200-row industrial valve ground-truth benchmark (`data/ground_truth/synthetic_200_valves.csv`):
@@ -42,7 +42,7 @@ Evaluated against the official 200-row industrial valve ground-truth benchmark (
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```mermaid
 flowchart TD
@@ -121,7 +121,7 @@ Executes 6 rule categories against every enriched record:
 
 ---
 
-## 🛠️ API Reference
+## API Reference
 
 The FastAPI backend exposes comprehensive endpoints under `/catalogue`:
 
