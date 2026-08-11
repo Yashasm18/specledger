@@ -184,6 +184,11 @@ def _values_match_normalized(predicted: str | None, expected: str | None) -> boo
     return p == e and p != ""
 
 
+_COLUMN_ALIASES = {
+    "size_uom": "uom",
+}
+
+
 def load_ground_truth_csv(path: str | Path) -> list[GroundTruthRow]:
     """Load ground-truth data from a CSV file.
 
@@ -195,7 +200,12 @@ def load_ground_truth_csv(path: str | Path) -> list[GroundTruthRow]:
     with source.open("r", encoding="utf-8-sig", newline="") as handle:
         for row in csv.DictReader(handle):
             row_number = int(row.pop("row_number", "0"))
-            values = {canonical_key(k): v.strip() if v and v.strip() else None for k, v in row.items() if canonical_key(k)}
+            values = {}
+            for k, v in row.items():
+                ck = canonical_key(k)
+                if ck:
+                    ck = _COLUMN_ALIASES.get(ck, ck)
+                    values[ck] = v.strip() if v and v.strip() else None
             rows.append(GroundTruthRow(row_number, values))
     return rows
 
@@ -226,7 +236,7 @@ def evaluate(predicted: EnrichedBatch, ground_truth: Sequence[GroundTruthRow]) -
         row_result = RowResult(enriched_row.row_number)
 
         for enriched_field in enriched_row.fields:
-            col = enriched_field.column
+            col = _COLUMN_ALIASES.get(canonical_key(enriched_field.column), enriched_field.column)
             predicted_value = enriched_field.canonical_value
             expected_value = gt_row.values.get(col)
 

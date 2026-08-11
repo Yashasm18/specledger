@@ -8,6 +8,8 @@ import hashlib
 from uuid import uuid4
 from typing import Any
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -34,20 +36,36 @@ job_repository = PostgresJobRepository(DATABASE_URL) if DATABASE_URL else BatchJ
 task_queue = TaskQueue(DATABASE_URL) if DATABASE_URL else None
 artifact_store = LocalObjectStore(os.getenv("SPECLEDGER_OBJECT_STORE", "object-data"))
 batch_service = BatchImportService(repository, job_repository)
-app = FastAPI(title="SpecLedger API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
-                   allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-app.include_router(catalogue_router)
 
 
-@app.on_event("shutdown")
-def close_resources() -> None:
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    yield
     close = getattr(repository, "close", None)
     if close:
         close()
     job_repository.close()
     if task_queue:
         task_queue.close()
+
+
+app = FastAPI(title="SpecLedger API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:3000",
+        "*",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(catalogue_router)
 
 
 class EvidenceInput(BaseModel):

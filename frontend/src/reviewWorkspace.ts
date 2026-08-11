@@ -1,6 +1,12 @@
 type Fact = { name: string; value: string; normalized_value?: string; normalized_unit?: string; page: number; confidence: number; evidence: string };
+type ReviewArtifact = {
+  artifact_id?: string;
+  document_id?: string;
+  data?: { facts?: Fact[]; pages?: { page: number; text: string }[] };
+  review_state?: string;
+};
 
-export function openReviewWorkspace(artifact: { data?: { facts?: Fact[]; pages?: { page: number; text: string }[] }; review_state?: string }) {
+export function openReviewWorkspace(artifact: ReviewArtifact) {
   document.getElementById("review-workspace")?.remove();
   const panel = document.createElement("section");
   panel.id = "review-workspace";
@@ -8,6 +14,46 @@ export function openReviewWorkspace(artifact: { data?: { facts?: Fact[]; pages?:
   panel.innerHTML = `<div class="review-header"><div><span class="review-eyebrow">EVIDENCE REVIEW WORKSPACE</span><h2>Verify extracted product intelligence</h2><p>Every value remains linked to its source before publication.</p></div><button class="review-close" aria-label="Close review workspace">×</button></div><div class="review-body"><div class="review-summary"><span><b>${facts.length}</b> extracted facts</span><span class="pending">● ${artifact.review_state || "pending_review"}</span><span>Evidence-backed</span></div><div class="fact-list">${facts.length ? facts.map((fact) => `<article class="fact-card"><div class="fact-title"><strong>${fact.name.replaceAll("_", " ")}</strong><mark>${Math.round(fact.confidence * 100)}% confidence</mark></div><div class="fact-values"><b>${fact.value}</b><span>${fact.normalized_value || "—"} ${fact.normalized_unit || ""}</span></div><p>“${fact.evidence}”</p><button class="evidence-link">↳ Page ${fact.page} evidence</button></article>`).join("") : `<div class="empty-review">No structured facts were found. The source document remains available for manual review.</div>`}</div></div><div class="review-footer"><span>Nothing is published automatically.</span><button class="review-reject">Reject</button><button class="review-approve">Approve artifact</button></div>`;
   document.body.appendChild(panel);
   panel.querySelector(".review-close")?.addEventListener("click", () => panel.remove());
+
+  panel.querySelectorAll<HTMLButtonElement>(".evidence-link").forEach((button, index) => {
+    button.addEventListener("click", () => {
+      const fact = facts[index];
+      const pageText = artifact.data?.pages?.find((page) => page.page === fact.page)?.text;
+      const detail = document.createElement("div");
+      detail.className = "review-evidence-detail";
+      detail.innerHTML = `<div><strong>Page ${fact.page} source evidence</strong><button aria-label="Close evidence">×</button></div><p>${pageText || fact.evidence}</p>`;
+      detail.querySelector("button")?.addEventListener("click", () => detail.remove());
+      panel.querySelector(".review-body")?.prepend(detail);
+    });
+  });
+
+  const submitDecision = async (reviewState: "approved" | "rejected") => {
+    if (!artifact.document_id || !artifact.artifact_id) {
+      window.alert("This review record is missing its document identity. Please upload the document again.");
+      return;
+    }
+    const response = await fetch(
+      `http://localhost:8000/documents/${artifact.document_id}/artifact/${artifact.artifact_id}/review?organization_id=default`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ review_state: reviewState, actor_id: "yashas", comment: `Artifact ${reviewState} from review workspace` }),
+      },
+    );
+    if (!response.ok) {
+      const failure = await response.json().catch(() => ({}));
+      window.alert(failure.detail || "Unable to save the review decision.");
+      return;
+    }
+    const status = panel.querySelector(".review-summary .pending");
+    if (status) status.textContent = `● ${reviewState}`;
+    panel.querySelectorAll<HTMLButtonElement>(".review-approve, .review-reject").forEach((button) => {
+      button.disabled = true;
+      button.textContent = reviewState === "approved" ? "Approved" : "Rejected";
+    });
+  };
+  panel.querySelector(".review-approve")?.addEventListener("click", () => void submitDecision("approved"));
+  panel.querySelector(".review-reject")?.addEventListener("click", () => void submitDecision("rejected"));
 }
 
 // Bridge the existing task poller to the review surface without duplicating polling logic.

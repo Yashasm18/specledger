@@ -166,6 +166,13 @@ class EnrichedBatch:
         return verified / total
 
 
+_PRESSURE_UOM_KEYS = frozenset({
+    "pressure_uom", "pressure_unit",
+})
+_TEMPERATURE_KEYS = frozenset({
+    "temperature_range", "temp_range", "temperature", "temp", "temp_rating",
+})
+
 def detect_role(column_key: str) -> str:
     """Detect the semantic role of a column based on its normalized key."""
     if column_key in _MANUFACTURER_KEYS:
@@ -174,6 +181,8 @@ def detect_role(column_key: str) -> str:
         return "brand"
     if column_key in _MATERIAL_KEYS:
         return "material"
+    if column_key in _PRESSURE_UOM_KEYS:
+        return "pressure_uom"
     if column_key in _UOM_KEYS:
         return "uom"
     if column_key in _CATEGORY_KEYS:
@@ -188,6 +197,8 @@ def detect_role(column_key: str) -> str:
         return "pressure"
     if column_key in _CONNECTION_TYPE_KEYS:
         return "connection_type"
+    if column_key in _TEMPERATURE_KEYS:
+        return "temperature_range"
     return "other"
 
 
@@ -243,16 +254,28 @@ def _extract_from_description(
     desc = description.strip()
 
     if role == "manufacturer":
-        match = store.match_manufacturer(desc)
-        if match.confidence >= 0.80:
-            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
-            return EnrichedField(column, None, match.canonical, match.confidence, "inferred", role, evidence)
+        for entry in store._manufacturers:
+            canon = entry.canonical
+            if re.search(r'\b' + re.escape(canon) + r'\b', desc, re.IGNORECASE):
+                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                return EnrichedField(column, None, canon, 0.85, "inferred", role, evidence)
+            for alias in entry.aliases:
+                if len(alias) >= 3 and re.search(r'\b' + re.escape(alias) + r'\b', desc, re.IGNORECASE):
+                    evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                    return EnrichedField(column, None, canon, 0.85, "inferred", role, evidence)
+        return None
 
     if role == "brand":
-        match = store.match_brand(desc)
-        if match.confidence >= 0.80:
-            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
-            return EnrichedField(column, None, match.canonical, match.confidence, "inferred", role, evidence)
+        for entry in store._brands:
+            canon = entry.canonical
+            if re.search(r'\b' + re.escape(canon) + r'\b', desc, re.IGNORECASE):
+                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                return EnrichedField(column, None, canon, 0.85, "inferred", role, evidence)
+            for alias in entry.aliases:
+                if len(alias) >= 3 and re.search(r'\b' + re.escape(alias) + r'\b', desc, re.IGNORECASE):
+                    evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+                    return EnrichedField(column, None, canon, 0.85, "inferred", role, evidence)
+        return None
 
     if role == "material":
         sorted_keys = sorted(MATERIAL_CANONICAL.keys(), key=len, reverse=True)
@@ -263,24 +286,32 @@ def _extract_from_description(
                 return EnrichedField(column, None, canonical, 0.85, "inferred", role, evidence)
 
     if role == "pressure":
-        if "uom" in column.lower():
-            m = re.search(r'\b(\d+)\s*(psi|bar|wog|cwp|swp|kpa|mpa)\b', desc, re.IGNORECASE)
-            if m:
-                uom_canonical = normalize_uom(m.group(2)).canonical
-                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
-                return EnrichedField(column, None, uom_canonical, 0.85, "inferred", role, evidence, uom_canonical)
-        else:
-            m = re.search(r'\b(\d+)\s*(?:psi|bar|wog|cwp|swp|kpa|mpa)\b', desc, re.IGNORECASE)
-            if m:
-                val = m.group(1)
-                evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
-                return EnrichedField(column, None, val, 0.85, "inferred", role, evidence)
+        m = re.search(r'\b(\d+)\s*(?:psi|bar|wog|cwp|swp|kpa|mpa)\b', desc, re.IGNORECASE)
+        if m:
+            val = m.group(1)
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, val, 0.85, "inferred", role, evidence)
+
+    if role == "pressure_uom":
+        m = re.search(r'\b(?:\d+)\s*(psi|bar|wog|cwp|swp|kpa|mpa)\b', desc, re.IGNORECASE)
+        if m:
+            uom_raw = m.group(1)
+            uom_canonical = normalize_uom(uom_raw).canonical or uom_raw.upper()
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, uom_canonical, 0.85, "inferred", role, evidence, uom_canonical)
 
     if role == "connection_type":
         for conn_type in KNOWN_CONNECTION_TYPES:
             if re.search(r'\b' + re.escape(conn_type) + r'\b', desc, re.IGNORECASE):
                 evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
                 return EnrichedField(column, None, conn_type, 0.85, "inferred", role, evidence)
+
+    if role == "temperature_range":
+        m = re.search(r'(-?\d+°[FC]\s*to\s*-?\d+°[FC])', desc, re.IGNORECASE)
+        if m:
+            val = m.group(1)
+            evidence = FieldEvidence(source_name, row_number, column, f"from desc: {desc}", "extracted_from_description")
+            return EnrichedField(column, None, val, 0.85, "inferred", role, evidence)
 
     if role == "size":
         m = re.search(r'\b(\d+(?:[-/]\d+)?|\d+\.\d+)\s*(?:in|inch|inches|mm|cm)\b', desc, re.IGNORECASE)
@@ -316,20 +347,24 @@ def _enrich_field(
     is_missing = raw_value is None or not raw_value.strip()
     is_placeholder = raw_value is not None and raw_value.strip().casefold() in PLACEHOLDER_VALUES
 
-    if is_missing or is_placeholder:
+    if is_missing:
         # Try extracting from part_number if manufacturer
         if part_number and role == "manufacturer":
             extracted = _extract_from_part_number(column, role, part_number, source_name, row_number, store)
             if extracted:
                 return extracted
 
-        # Try extracting from description if available
+        # Try extracting from description if missing
         if description:
             extracted = _extract_from_description(column, role, description, source_name, row_number, store)
             if extracted:
                 return extracted
 
-        evidence = FieldEvidence(source_name, row_number, column, raw_value, "missing" if is_missing else "placeholder")
+        evidence = FieldEvidence(source_name, row_number, column, raw_value, "missing")
+        return EnrichedField(column, raw_value, None, 0.0, "missing", role, evidence)
+
+    if is_placeholder:
+        evidence = FieldEvidence(source_name, row_number, column, raw_value, "placeholder")
         return EnrichedField(column, raw_value, None, 0.0, "missing", role, evidence)
 
     # Role-specific enrichment
