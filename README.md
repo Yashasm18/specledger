@@ -17,7 +17,7 @@ Industrial B2B commerce platforms (such as Unilog CX1 PIM) process hundreds of t
 
 **SpecLedger** is a production-grade, evidence-backed catalogue enrichment engine. It cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels.
 
-### 🛡️ Core Guarantee: Grounded Provenance & Human Governance
+### Core Guarantee: Grounded Provenance & Human Governance
 - **Zero Hallucination:** Every enriched attribute is backed by an explicit evidence trail (source file, row number, column, transformation, or manufacturer URL).
 - **Marketplace Prohibition:** In strict compliance with UniHack requirements, **Amazon, eBay, Alibaba, Walmart, and consumer shopping sites are blocked**. All enrichment data is derived from manufacturer-authoritative sources.
 - **Human-in-the-Loop:** High-confidence records are auto-approved, while low-confidence or contradictory records are automatically routed to a priority-ordered review queue.
