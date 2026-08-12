@@ -43,3 +43,14 @@ Synthetic_Valve_Datasheet*.pdf
 
 # Playwright
 .playwright-cli/
+
+# Demo video & media files (keep locally, ignore on GitHub)
+*.mp4
+*.mov
+*.webm
+*.avi
+*.mkv
+*.gif
+demo-video.*
+demo_video.*
+
