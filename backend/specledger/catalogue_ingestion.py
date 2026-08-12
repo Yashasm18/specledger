@@ -32,6 +32,16 @@ def clean_cell(value: object) -> str | None:
     return None if cleaned.casefold() in PLACEHOLDERS else cleaned
 
 
+def clean_manufacturer_name(raw_name: str | None) -> str | None:
+    """Strip distributor codes in parentheses, e.g. 'Freud Inc (2435)' -> 'Freud Inc'."""
+    if not raw_name:
+        return None
+    # Remove code in trailing parentheses like (2435) or (JAMIN)
+    cleaned = re.sub(r"\s*\([A-Z0-9_-]+\)\s*$", "", raw_name.strip(), flags=re.IGNORECASE).strip()
+    return cleaned if cleaned else raw_name
+
+
+
 @dataclass(frozen=True)
 class SourceRow:
     row_number: int

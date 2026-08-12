@@ -409,6 +409,9 @@ function App() {
                 <h3>Catalogue activity</h3>
               </div>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <button className="view" onClick={() => handleExport("unilog_template")} style={{ background: "rgba(99, 102, 241, 0.15)", borderColor: "rgba(99, 102, 241, 0.4)", color: "#818cf8" }}>
+                  Unilog 252-Col CSV ↓
+                </button>
                 <button className="view" onClick={() => handleExport("commerce_csv")}>
                   Export PIM CSV ↓
                 </button>
@@ -416,6 +419,7 @@ function App() {
                   Audit Lineage ↓
                 </button>
               </div>
+
             </div>
 
             <div className="filters">

@@ -35,8 +35,9 @@ from .human_review import (
 )
 from .source_discovery import discover_sources_simulated, is_blocked_source
 from .batch_processor import process_batch, BatchProcessingResult, SourceCache
-from .export import export_csv, export_json, export_commerce_csv, export_audit_json
+from .export import export_csv, export_json, export_commerce_csv, export_audit_json, export_unilog_template
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
+
 
 router = APIRouter(prefix="/catalogue", tags=["catalogue"])
 
@@ -418,10 +419,10 @@ def get_batch_sources(
 @router.get("/batches/{batch_id}/export")
 def export_batch_endpoint(
     batch_id: str,
-    format: Literal["csv", "json", "commerce_csv", "audit"] = Query(default="csv"),
+    format: Literal["csv", "json", "commerce_csv", "audit", "unilog_template"] = Query(default="csv"),
     organization_id: str = Query(default="default"),
 ) -> Response:
-    """Export an enriched batch in CSV, JSON, Commerce CSV, or Audit JSON format."""
+    """Export an enriched batch in CSV, JSON, Commerce CSV, Audit JSON, or Unilog 252-column template format."""
     batch_dict = catalogue_store.get_batch(organization_id, batch_id)
     if not batch_dict:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -454,6 +455,13 @@ def export_batch_endpoint(
             media_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{filename_base}_commerce.csv"'},
         )
+    elif format == "unilog_template":
+        content = export_unilog_template(enriched)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename_base}_unilog_252.csv"'},
+        )
     elif format == "json":
         validation = validate_batch(enriched)
         content = export_json(enriched, validation=validation, review_queue=queue)
@@ -471,6 +479,7 @@ def export_batch_endpoint(
         )
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format '{format}'")
+
 
 
 # ---------------------------------------------------------------------------

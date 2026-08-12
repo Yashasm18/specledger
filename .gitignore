@@ -31,6 +31,9 @@ data/ground_truth/*.tsv
 data/ground_truth/*.xlsx
 data/ground_truth/*.json
 !data/ground_truth/.gitkeep
+Unihack_*.csv
+Unihack_*.xlsx
+
 
 # Object storage artifacts
 object-data/
@@ -51,6 +54,5 @@ Synthetic_Valve_Datasheet*.pdf
 *.avi
 *.mkv
 *.gif
-demo-video.*
-demo_video.*
+
 

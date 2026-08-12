@@ -281,3 +281,10 @@ def export_audit_json(
         "rows": audit_rows,
     }
     return json.dumps(output, indent=indent, ensure_ascii=False)
+
+
+def export_unilog_template(enriched: EnrichedBatch) -> str:
+    """Export enriched batch in Unilog's official 252-column CSV template format."""
+    from .unilog_exporter import export_unilog_csv
+    return export_unilog_csv(enriched)
+

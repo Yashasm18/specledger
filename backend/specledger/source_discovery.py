@@ -76,6 +76,7 @@ SHOPPING_URL_PATTERNS = re.compile(
 # ---------------------------------------------------------------------------
 
 MANUFACTURER_DOMAINS: dict[str, list[str]] = {
+    # Industrial Valves & Fluid Handling
     "Parker Hannifin": ["parker.com"],
     "Emerson Electric": ["emerson.com"],
     "Honeywell": ["honeywell.com"],
@@ -90,13 +91,64 @@ MANUFACTURER_DOMAINS: dict[str, list[str]] = {
     "Cameron (Schlumberger)": ["slb.com", "c-a-m.com"],
     "Pentair": ["pentair.com"],
     "ITT Inc.": ["itt.com"],
-    "Bray International": ["bfrvalves.com", "bfrvalves.com"],
+    "Bray International": ["bfrvalves.com"],
     "Swagelok": ["swagelok.com"],
     "Victaulic": ["victaulic.com"],
     "Graco": ["graco.com"],
     "Grundfos": ["grundfos.com"],
     "Xylem": ["xylem.com"],
+
+    # Tools, Abrasives & Machinery (Unilog Input Dataset)
+    "Freud": ["freudtools.com", "diablotools.com"],
+    "Freud Inc": ["freudtools.com", "diablotools.com"],
+    "3M": ["3m.com"],
+    "3 M Co": ["3m.com"],
+    "Jam Industrial Supply LLC": ["3m.com", "jamindustrialsupply.com"],
+    "Mirka Abrasives Inc": ["mirka.com"],
+    "Milwaukee Accessory": ["milwaukeetool.com"],
+    "Milwaukee": ["milwaukeetool.com"],
+    "Black & Decker/dewlt": ["dewalt.com", "blackanddecker.com"],
+    "Dewalt": ["dewalt.com"],
+    "Makita Usa Inc": ["makitatools.com"],
+    "Makita": ["makitatools.com"],
+    "Festool USA": ["festoolusa.com"],
+    "Festool": ["festoolusa.com"],
+    "Kreg Tool Company": ["kregtool.com"],
+    "Saw Stop LLC": ["sawstop.com"],
+    "Oliver Machinery Company": ["olivermachinery.net"],
+    "Woodpeckers Inc": ["woodpeck.com"],
+    "Bow Products": ["bowproducts.com"],
+    "Wera Tools NA Inc": ["wera.de", "weratools.com"],
+    "King Canada Inc": ["kingcanada.com"],
+    "Woodstock Intl": ["grizzly.com", "woodstockint.com"],
+
+    # Lighting & Electrical
+    "Phillips Lighting": ["lighting.philips.com", "signify.com"],
+    "Satco Prod Inc": ["satco.com"],
+    "Kichler Lighting": ["kichler.com"],
+    "Leviton Mfg Co": ["leviton.com"],
+    "Southwire/g Turner": ["southwire.com"],
+    "Hunter Fan Co": ["hunterfan.com"],
+
+    # Building Materials
+    "Boise Cascade Building Materials": ["bc.com"],
+    "Emseal Joint Systems Ltd": ["emseal.com"],
+    "Rees Cast Stone Company": ["reescaststone.com"],
+
+    # Consumer Appliances & Electronics (Unilog Sample Output Dataset)
+    "Appliance Dealers Cooperative": ["frigidaire.com", "whirlpool.com", "geappliances.com"],
+    "Frigidaire": ["frigidaire.com"],
+    "Whirlpool Corporation": ["whirlpool.com"],
+    "Whirlpool": ["whirlpool.com"],
+    "GE": ["geappliances.com"],
+    "GE Appliances": ["geappliances.com"],
+    "LG": ["lg.com"],
+    "KitchenAid": ["kitchenaid.com"],
+    "Speed Queen": ["speedqueen.com"],
+    "Rheem Manufacturing": ["rheem.com"],
+    "V & V Appliance Parts Inc": ["vvappliance.com"],
 }
+
 
 
 @dataclass(frozen=True)
