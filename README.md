@@ -151,11 +151,14 @@ The FastAPI backend exposes comprehensive endpoints under `/catalogue`:
 
 ## 🖥️ Web Dashboard (React + Vite)
 
-The frontend application provides a modern, dark-mode, glassmorphic review workspace for catalogue engineers:
+The frontend application provides an enterprise-grade, dark-mode, control-center workspace for catalogue managers and data engineers running on `http://localhost:5174`:
 
-- **Live Processing Pipeline:** Ingest → Extract → Validate → Approve progress indicator.
-- **Evidence Review Workspace:** Side-by-side view comparing raw supplier values, normalized values, confidence scores, and source evidence citations.
-- **Toast Notifications:** Real-time updates for batch uploads, task status, and review approvals.
+- **Dedicated Functional Views:** Seamless navigation across Overview (`⌘ 1`), Full Catalogue (`⌘ 2`), Priority Review Queue (`⌘ 3`), Batch Telemetry & Cost (`⌘ 4`), Schemas (`⌘ 5`), Evidence Library (`⌘ 6`), and Audit Trail (`⌘ 7`).
+- **Live Human Governance Queue:** Inline `Approve` / `Reject` / `Correct` actions connected live to `POST /catalogue/batches/{id}/rows/{row_number}/review`.
+- **Evidence Review Workspace Modal:** Side-by-side view comparing raw supplier values, normalized values, confidence scores, and source evidence citations.
+- **Batch Telemetry & Operational Cost Modeling:** Displays throughput (rows/sec), p50/p95 latencies, cost per SKU, and projected monthly cost at **150,000 SKUs** and **750,000 SKUs**.
+- **Source Provenance & Marketplace Compliance:** Displays discovered manufacturer web URLs alongside explicit reseller blocking badges (blocking Amazon/eBay per UniHack rules).
+- **Multi-Format One-Click Exports:** Instant export controls for **Unilog 252-Column CSV**, **PIM Commerce CSV**, **Enriched CSV**, and **Audit JSON**.
 
 ### Running the Application Locally
 
@@ -186,7 +189,7 @@ npm run dev
 #### 3. Run Automated Tests
 ```bash
 .venv/bin/python -m pytest tests/ -v
-# 233 passed in ~1.2 seconds
+# 238 passed in ~1.3 seconds
 ```
 
 ---
