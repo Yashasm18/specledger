@@ -457,7 +457,7 @@ specledger/
 │   └── package.json            # Vite & React dependencies
 ├── migrations/
 │   └── 007_catalogue_reference.sql # PostgreSQL schema for catalogue & reference data
-├── tests/                      # 238 comprehensive unit & integration tests
+├── tests/                      # 239 comprehensive unit & integration tests
 │   ├── test_unilog_pipeline.py # Unilog ingestion, web enrichment & 252-column export tests
 │   ├── test_catalogue_api.py
 │   ├── test_catalogue_persistence.py
@@ -469,9 +469,10 @@ specledger/
 │   ├── test_enrichment.py
 │   ├── test_evaluator.py
 │   └── test_reference_data.py
-├── DEMO.md                     # 3-minute video recording & presentation pitch script
-├── UNIHACK_SESSION_REQUIREMENTS_HANDOFF.md # Complete hackathon specification breakdown
-└── README.md                   # Comprehensive technical documentation & benchmark proofs
+├── LICENSE                     # Official MIT Open-Source License
+├── pytest.ini                  # Pytest test discovery & execution configuration
+├── .pylintrc                   # Static analysis & code quality rules
+└── README.md                   # Comprehensive technical documentation & architecture
 ```
 
 ---

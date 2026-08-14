@@ -18,29 +18,31 @@ node_modules/
 *.sqlite
 *.sqlite3
 
-# Track challenge sample datasets and benchmarks
+# Challenge sample datasets and benchmarks
 !Unihack_*.csv
 !data/ground_truth/*.csv
-
 
 # Object storage artifacts
 object-data/
 
-# Private working material
-AGENT_HANDOFF_SPECLEDGER.*
-PROJECT_STATUS_LOCAL.md
-Synthetic_Valve_Datasheet*.pdf
+# Private working material & session notes
+DEMO.md
+UNIHACK_GUIDE.md
+.UNIHACK_GUIDE.md
+AGENT_HANDOFF_*
+UNIHACK_SESSION_REQUIREMENTS_*
+PROJECT_STATUS_*
 *.pdf
+*.txt
+!requirements*.txt
 
-# Playwright
+# Playwright & IDE cache
 .playwright-cli/
 
-# Demo video & media files (keep locally, ignore on GitHub)
+# Media & video recordings
 *.mp4
 *.mov
 *.webm
 *.avi
 *.mkv
 *.gif
-
-
