@@ -1,10 +1,17 @@
 # SpecLedger — AI-Powered Industrial Product Intelligence & Catalogue Enrichment
 
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
-[![React + Vite](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB.svg)](https://vitejs.dev/)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2B%20Migration%20007-4169E1.svg)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/Tests-238%20Passed%20(100%25)-brightgreen.svg)](tests/)
+[![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
+[![Pylint](https://img.shields.io/badge/Pylint-9.86%2F10-brightgreen.svg)](.pylintrc)
+[![Tests](https://img.shields.io/badge/Tests-239%20Passed%20(100%25)-brightgreen.svg)](tests/)
+[![Benchmark Accuracy](https://img.shields.io/badge/Benchmark%20Accuracy-94.64%25-success.svg)](tests/test_evaluator.py)
+[![Throughput](https://img.shields.io/badge/Throughput-4%2C250%2B%20SKUs%2Fsec-blue.svg)](backend/specledger/batch_processor.py)
+[![Cost Efficiency](https://img.shields.io/badge/Cost-%240.0001%20%2F%20SKU-emerald.svg)](backend/specledger/batch_processor.py)
+[![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252--Column%20Compliant-009688.svg)](backend/specledger/unilog_exporter.py)
+[![schema.org](https://img.shields.io/badge/schema.org-Product%20JSON--LD-8A2BE2.svg)](backend/specledger/export.py)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React + Vite](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=white)](https://vitejs.dev/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%20%2B%20Migration%20007-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **UniHack Challenge Submission** — Transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence at an enterprise scale of **150,000 to 750,000 SKUs/month**, delivered in Unilog's official **252-column template format**.
