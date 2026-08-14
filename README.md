@@ -204,44 +204,108 @@ The generated delivery file [`Unihack_ Enriched_Delivery_Output_252.csv`](Unihac
 
 ---
 
-## System Architecture
+## 🔄 End-to-End Product Enrichment Workflow
+
+SpecLedger executes a deterministic, 6-stage multi-modal enrichment pipeline that transforms sparse supplier spreadsheets into rich, evidence-grounded, commerce-ready product intelligence:
 
 ```mermaid
 flowchart TD
-    A[Raw Input: CSV / TSV / XLSX / PDF] --> B[Catalogue Ingestion Engine]
-    B --> C[Manufacturer Domain & Part Normalization]
-    
-    subgraph Sourcing & Discovery
-        C --> D1[Official MFR Web Crawler]
-        C --> D2[Technical PDF Datasheet Extractor]
-        C --> D3[Reseller Marketplace Blocker]
+    %% Styling Classes
+    classDef inputStyle fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef sourceStyle fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#f8fafc;
+    classDef enrichStyle fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef validStyle fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
+    classDef govStyle fill:#0f172a,stroke:#ec4899,stroke-width:2px,color:#f8fafc;
+    classDef syndStyle fill:#0f172a,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
+    classDef blockStyle fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fca5a5;
+
+    %% STAGE 1: INGESTION
+    subgraph STAGE1["Stage 1: Multi-Format Ingestion & Disambiguation"]
+        A1["Raw Supplier Input<br/>(CSV / TSV / XLSX / Technical PDFs)"]:::inputStyle
+        A2["Catalogue Ingestion Engine<br/>(catalogue_ingestion.py)"]:::inputStyle
+        A3["Distributor Noise Cleanser<br/>e.g. 'Freud Inc (2435)' ➔ 'Freud Inc'"]:::inputStyle
+        A4["SHA-256 Row Fingerprinting<br/>& SKU Prefix Deduplication"]:::inputStyle
+        A1 --> A2 --> A3 --> A4
     end
-    
-    subgraph Enrichment Subsystem
-        D1 & D2 --> E1[LOV Controlled Vocabulary Match]
-        D1 & D2 --> E2[6-Tier Description Synthesis]
-        D1 & D2 --> E3[20 Feature Bullet Generator]
-        D1 & D2 --> E4[50 Dynamic Attribute Triplets]
-        D1 & D2 --> E5[UOM & Physical Dimension Normalizer]
+
+    %% STAGE 2: SOURCING & PROVENANCE
+    subgraph STAGE2["Stage 2: Authoritative Sourcing & Marketplace Prohibition"]
+        B1["Canonical MFR Domain Discovery<br/>(source_discovery.py)"]:::sourceStyle
+        B2["Manufacturer Web Pages<br/>(MFR URL & Ref URLs 1-5)"]:::sourceStyle
+        B3["Technical PDF Datasheets<br/>(Specification Sheet)"]:::sourceStyle
+        B4["Installation & User Manuals<br/>(Instruction/Installation Manual)"]:::sourceStyle
+        B5["Technical Video Links<br/>(Video_Link_1..10)"]:::sourceStyle
+        B6["Reseller Marketplace Blocker<br/>(Amazon, eBay, Walmart, Alibaba, Grainger BLOCKED)"]:::blockStyle
+
+        A4 --> B1
+        B1 --> B2 & B3 & B4 & B5
+        B1 -.->|Strict Filter| B6
     end
-    
-    E1 & E2 & E3 & E4 & E5 --> F[Deterministic Validation Engine]
-    
-    subgraph Governance & Human Review
-        F --> G{Confidence >= 80% & 0 Errors?}
-        G -- Yes --> H[Auto-Approved Store]
-        G -- No --> I[Priority Review Queue]
-        I --> J[Human Review Workspace]
-        J -- Approve / Reject / Correct --> K[Audit Trail Logger]
+
+    %% STAGE 3: ENRICHMENT & SYNTHESIS
+    subgraph STAGE3["Stage 3: Multi-Modal Content Enrichment & Synthesis"]
+        C1["Controlled LOV Normalizer<br/>(reference_data.py, uom.py)"]:::enrichStyle
+        C2["6-Tier Description Synthesis<br/>(Mobile, Invoice, Short, Long, Retail, Marketing)"]:::enrichStyle
+        C3["20 Structured Feature Bullets<br/>(ITEM_FEATURES_1..20)"]:::enrichStyle
+        C4["50 Dynamic Attribute Triplets<br/>(Label, Value, UOM 1..50)"]:::enrichStyle
+        C5["Taxonomy & Classpath Hierarchy<br/>(Dept, Class, Fine, Classpath)"]:::enrichStyle
+        C6["Physical Dimensions & Compliance<br/>(L/W/H/Weight, Prop 65, Standards)"]:::enrichStyle
+
+        B2 & B3 & B4 & B5 --> C1 & C2 & C3 & C4 & C5 & C6
     end
-    
-    subgraph Commerce Syndication
-        H & K --> L1[Unilog 252-Column CSV Export]
-        H & K --> L2[Commerce PIM Feed CSV]
-        H & K --> L3[Structured JSON Graph]
-        H & K --> L4[Complete Lineage Audit JSON]
+
+    %% STAGE 4: VALIDATION & INTEGRITY
+    subgraph STAGE4["Stage 4: Deterministic Validation & Physics Checks"]
+        D1["Validation Engine<br/>(validation_engine.py)"]:::validStyle
+        D2["Category Required Fields Check"]:::validStyle
+        D3["LOV Membership & Alloy Verification"]:::validStyle
+        D4["Cross-Field Physics Rules<br/>(e.g. PVC Incompatible with >600 PSI)"]:::validStyle
+        D5["Character Limit Enforcement<br/>(PIM/ERP Field Constraints)"]:::validStyle
+
+        C1 & C2 & C3 & C4 & C5 & C6 --> D1
+        D1 --> D2 & D3 & D4 & D5
+    end
+
+    %% STAGE 5: GOVERNANCE & HITL
+    subgraph STAGE5["Stage 5: Confidence-Scored Human Governance (HITL)"]
+        E1{"Dual Routing Gate<br/>Confidence >= 80% & 0 Errors?"}:::govStyle
+        E2["Auto-Approved Store<br/>(85%+ Fast-Path Automation)"]:::enrichStyle
+        E3["Priority Review Queue<br/>(human_review.py)"]:::govStyle
+        E4["Interactive Review Workspace<br/>(Side-by-Side Evidence Inspection)"]:::govStyle
+        E5["Immutable Audit Trail<br/>(SHA-256 Decision Lineage Trace)"]:::govStyle
+
+        D2 & D3 & D4 & D5 --> E1
+        E1 -- "YES (>=80%)" --> E2
+        E1 -- "NO (<80% / Issues)" --> E3
+        E3 --> E4
+        E4 -- "Approve / Correct / Reject" --> E5
+        E5 --> E2
+    end
+
+    %% STAGE 6: SYNDICATION & DELIVERY
+    subgraph STAGE6["Stage 6: Enterprise Syndication & Multi-Format Delivery"]
+        F1["Unilog 252-Column CSV Exporter<br/>(unilog_exporter.py)"]:::syndStyle
+        F2["schema.org / Product JSON-LD<br/>(Open-Web Structured Data)"]:::syndStyle
+        F3["Commerce-Ready PIM CSV<br/>(Flat ERP/PIM Import Feed)"]:::syndStyle
+        F4["Structured JSON Attribute Graph<br/>(With Source Evidence Quotes)"]:::syndStyle
+        F5["Audit Lineage JSON<br/>(Full Transformation History)"]:::syndStyle
+
+        E2 --> F1 & F2 & F3 & F4 & F5
     end
 ```
+
+---
+
+### 📊 End-to-End Pipeline Execution Matrix
+
+| Pipeline Stage | Module / Component | Primary Responsibility | Key Output / Deliverable |
+|---|---|---|---|
+| **1. Multi-Format Ingestion** | [`catalogue_ingestion.py`](backend/specledger/catalogue_ingestion.py) | Ingests CSV, TSV, XLSX, and PDFs; removes supplier distributor brackets (e.g. `Freud Inc (2435)` $\rightarrow$ `Freud Inc`); computes SHA-256 row fingerprints. | Standardized `CatalogueBatch` with normalized supplier tokens. |
+| **2. Authoritative Sourcing** | [`source_discovery.py`](backend/specledger/source_discovery.py) | Crawls canonical manufacturer web domains (`parker.com`, `apollovalves.com`, `freudtools.com`); extracts PDF datasheets, manuals, and video links; **strictly blocks reseller marketplaces (Amazon/eBay)**. | Provenance Map with verified `MFR URL`, `Ref URLs 1..5`, and document URLs. |
+| **3. Content Enrichment** | [`web_enricher.py`](backend/specledger/web_enricher.py) + [`reference_data.py`](backend/specledger/reference_data.py) | Normalizes alloys/materials and UOMs via controlled dictionaries; synthesizes **6 description tiers**, **20 feature bullets**, **50 dynamic attribute triplets**, and taxonomy classpaths. | Populated 252-column product records with complete evidence quotes. |
+| **4. Validation & Rules** | [`validation_engine.py`](backend/specledger/validation_engine.py) | Runs 6 deterministic rule sets including category-required attributes, LOV membership, alloy physics checks (PVC vs 1500 PSI), and PIM character limits. | Validation scorecard with error/warning counts and row-level quality score. |
+| **5. Human Governance** | [`human_review.py`](backend/specledger/human_review.py) | Dual routing gate: auto-approves high confidence ($\ge 80\%$) rows; routes ambiguities to priority review queue with side-by-side evidence inspection and immutable audit logging. | Approved product state with complete SHA-256 reviewer audit trail. |
+| **6. Multi-Format Delivery** | [`export.py`](backend/specledger/export.py) + [`unilog_exporter.py`](backend/specledger/unilog_exporter.py) | Generates official Unilog 252-column delivery CSV, `schema.org/Product` JSON-LD graph, flat Commerce PIM CSV, and Audit Lineage JSON. | [`Unihack_ Enriched_Delivery_Output_252.csv`](Unihack_%20Enriched_Delivery_Output_252.csv) (1.49 MB, 1,000 SKUs). |
 
 ---
 
