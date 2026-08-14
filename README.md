@@ -108,8 +108,8 @@ SpecLedger crawls and resolves canonical product data exclusively from verified 
 | **Boise Cascade** | `https://www.bc.com` | Engineered wood products, structural lumber | ✅ Authoritative Verified |
 | **Victaulic** | `https://www.victaulic.com` | Grooved mechanical piping, couplings | ✅ Authoritative Verified |
 
-#### 🛡️ Marketplace Sourcing Prohibition Protocol:
-The following reseller domains are blocked by rule (`source_discovery.py`):
+####  Marketplace Sourcing Prohibition Protocol:
+The follwing reseller domains are blocked by rule (`source_discovery.py`):
 `amazon.com`, `ebay.com`, `walmart.com`, `alibaba.com`, `aliexpress.com`, `grainger.com`, `zoro.com`, `homedepot.com`, `lowes.com`.
 
 ---
