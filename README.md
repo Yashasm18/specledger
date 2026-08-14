@@ -13,6 +13,7 @@
 
 ## 📑 Table of Contents
 - [Executive Summary](#executive-summary)
+- [Dual-Mode Deployment Architecture](#-dual-mode-enterprise-deployment-architecture)
 - [Empirical Proofs & Benchmark Results](#empirical-proofs--benchmark-results)
 - [Official Unilog 1,000-SKU Dataset Verification](#official-unilog-1000-sku-dataset-verification)
 - [Hackathon Evaluation Criteria Alignment (100% Coverage)](#hackathon-evaluation-criteria-alignment-100-coverage)
@@ -36,6 +37,36 @@ Industrial B2B commerce platforms (such as Unilog CX1 PIM) process hundreds of t
 - **Strict Marketplace Prohibition:** In strict compliance with UniHack requirements, **Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and consumer shopping sites are blocked**. All enrichment data is derived from manufacturer-authoritative sources.
 - **Automated Operational Efficiency (85%+ Auto-Approval):** High-confidence records ($\ge 80\%$ confidence, 0 errors) are auto-approved, while edge cases and conflicts are routed to a human governance review workspace.
 - **Enterprise Scale:** Processes **4,250+ SKUs/second**, scaling from **150,000 to 750,000 SKUs/month** with zero headcount increase.
+
+---
+
+## 🏛️ Dual-Mode Enterprise Deployment Architecture
+
+SpecLedger is engineered as a **dual-mode enterprise platform**, providing both **headless standalone automation** for machine-to-machine ETL pipelines and an **interactive visual Control Center** for human catalog governance:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   SPECLEOGER PLATFORM                                       │
+├─────────────────────────────────────────────────────────────┬───────────────────────────────┤
+│                  MODE A: STANDALONE HEADLESS API            │    MODE B: WEB CONTROL CENTER │
+│                  (Automated Batch Pipeline)                 │    (Human Governance Web UI)  │
+├─────────────────────────────────────────────────────────────┼───────────────────────────────┤
+│ • Pure Headless Engine (FastAPI + Python Core)             │ • React 18 + TypeScript + Vite│
+│ • Direct ERP / PIM / ETL Integration via REST API           │ • Dark-Mode Ergonomic UI      │
+│ • Zero Browser / UI Dependency                             │ • Priority Human Review Queue │
+│ • 4,250+ SKUs/sec Batch Throughput                          │ • Side-by-Side Evidence Modal │
+│ • Auto-Approves 85%+ High-Confidence Data                   │ • 1-Click Multi-Format Export │
+│ • Nightly Cron / Serverless Worker Ready                    │ • Real-Time Telemetry & Health│
+└─────────────────────────────────────────────────────────────┴───────────────────────────────┘
+```
+
+### Mode A: Standalone Headless API & Batch Engine
+- **Target Users:** Data Engineers, Automated ETL Pipelines, PIM/ERP Integrations, Nightly Cron Jobs.
+- **How it Works:** Ingests raw CSV/XLSX spreadsheets via REST API (`POST /catalogue/ingest`), discovers manufacturer sources, executes deterministic LOV normalization, validates cross-field integrity, and immediately exports the 252-column template (`GET /catalogue/batches/{id}/export?format=unilog_template`) with 0 human intervention required for the 85%+ auto-approved rows.
+
+### Mode B: Interactive Web Control Center
+- **Target Users:** Catalog Managers, Domain Specialists, Compliance Officers.
+- **How it Works:** A responsive web application (`http://localhost:5174`) providing 7 dedicated views (Overview, Full Catalogue, Priority Review Queue, Batch Telemetry, Schemas, Evidence Library, and Audit Trail). Specialists review the 10-15% ambiguous edge cases, inspect exact source evidence snippets, and submit immutable sign-offs with one click.
 
 ---
 
@@ -162,7 +193,7 @@ flowchart TD
 - Computes SHA-256 source fingerprints for row-level idempotency and version control.
 
 ### 2. Domain-Agnostic Web Extraction (`web_enricher.py`, `source_discovery.py`)
-- **Broad Domain Coverage:** Expands beyond industrial valves to cover abrasives, tools, woodworking machinery, electrical, lighting, building materials, and consumer appliances (Freud, 3M, Mirka, Milwaukee, Dewalt, Makita, Frigidaire, Whirlpool, GE, LG, Speed Queen, Rheem, Leviton, Kichler, Boise Cascade, etc.).
+- **Broad Domain Coverage:** Expands beyond industrial valves to cover abrasives, tools, woodworking machinery, electrical, lighting, building supplies, and consumer appliances (Freud, 3M, Mirka, Milwaukee, Dewalt, Makita, Frigidaire, Whirlpool, GE, LG, Speed Queen, Rheem, Leviton, Kichler, Boise Cascade, etc.).
 - **Source Lineage:** Attaches explicit manufacturer URLs (`MFR URL`, `Ref URL 1..5`) to every record.
 - **Dynamic Attribute Generation:** Builds 6 description levels, 20 feature bullet points, 50 dynamic key-value-unit attribute triplets, physical dimensions, and media/document links.
 
@@ -314,6 +345,7 @@ specledger/
 
 ## 🏆 Summary of Accomplishments
 
+- **Dual-Mode Enterprise Architecture** supporting both standalone headless pipelines (4,250+ SKUs/sec) and interactive human governance web UI.
 - **238 / 238 Unit Tests Passing** (100% pass rate in ~1.2s).
 - **Official 1,000-Row Dataset Enriched & Verified** in **0.235 seconds** (**4,251 rows/sec**).
 - **Official 252-Column Unilog Template Exporter** generating [`Unihack_ Enriched_Delivery_Output_252.csv`](Unihack_%20Enriched_Delivery_Output_252.csv) (1.49 MB).
