@@ -1,4 +1,4 @@
-name: Pylint & Code Quality
+name: CI & Code Quality
 
 on:
   push:
@@ -7,11 +7,13 @@ on:
     branches: [ "main" ]
 
 jobs:
-  lint:
+  test-and-lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
+    env:
+      PYTHONPATH: .
     steps:
     - name: Check out repository
       uses: actions/checkout@v4
@@ -27,11 +29,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        pip install pylint pytest
 
-    - name: Run Test Suite
+    - name: Run Pytest Test Suite
       run: |
-        pytest tests/ -v
+        pytest -v
 
     - name: Analyze code with Pylint
       run: |

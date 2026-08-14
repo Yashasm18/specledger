@@ -1,3 +1,4 @@
-# Framework dependencies will be added after the standard-library domain core is stable.
-# Keeping milestone 1 dependency-free makes the core workflow reproducible locally.
-
+pytest>=8.0.0
+httpx>=0.27.0
+openpyxl>=3.1.0
+pylint>=3.0.0
