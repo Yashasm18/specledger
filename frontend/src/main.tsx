@@ -97,25 +97,59 @@ function App() {
     fetchLatestBatch();
   }, []);
 
-  // Keyboard shortcut listener (Cmd/Ctrl + 1..7)
+  // Comprehensive Keyboard shortcut listener (Cmd/Ctrl + 1..7, Alphabet commands O, C, R, I, S, E, A, Escape)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
-        const keyMap: Record<string, typeof activeTab> = {
-          "1": "overview",
-          "2": "catalogue",
-          "3": "review",
-          "4": "imports",
-          "5": "schemas",
-          "6": "evidence",
-          "7": "audit",
-        };
-        if (keyMap[e.key]) {
+      const activeEl = document.activeElement;
+      const isInput = activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA";
+
+      // Escape always closes the 252-Column Inspector Modal
+      if (e.key === "Escape") {
+        setInspectorProduct(null);
+        return;
+      }
+
+      // If user is typing in search/form inputs, don't hijack keystrokes
+      if (isInput) return;
+
+      const key = e.key.toLowerCase();
+      const hasModifier = e.metaKey || e.ctrlKey || e.altKey;
+
+      const actionMap: Record<string, typeof activeTab> = {
+        "1": "overview",
+        "o": "overview",
+        "2": "catalogue",
+        "c": "catalogue",
+        "3": "review",
+        "r": "review",
+        "4": "imports",
+        "i": "imports",
+        "5": "schemas",
+        "s": "schemas",
+        "6": "evidence",
+        "e": "evidence",
+        "7": "audit",
+        "a": "audit",
+      };
+
+      if (actionMap[key]) {
+        if (hasModifier) {
           e.preventDefault();
-          setActiveTab(keyMap[e.key]);
         }
+        setActiveTab(actionMap[key]);
+        const tabNames: Record<string, string> = {
+          overview: "Overview",
+          catalogue: "Product Catalogue",
+          review: "Human Review Queue",
+          imports: "Imports & Telemetry",
+          schemas: "Schemas & Taxonomy",
+          evidence: "Evidence Library",
+          audit: "Audit Trail",
+        };
+        setNotice(`Navigated to ${tabNames[actionMap[key]]} (${hasModifier ? "⌘ " : ""}${key.toUpperCase()})`);
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -1722,7 +1756,7 @@ function App() {
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
             <span>Overview</span>
-            <kbd>⌘ 1</kbd>
+            <kbd>⌘ O</kbd>
           </a>
           <a
             className={activeTab === "catalogue" ? "active" : ""}
@@ -1730,7 +1764,7 @@ function App() {
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
             <span>Catalogue ({displayRows.length})</span>
-            <kbd>⌘ 2</kbd>
+            <kbd>⌘ C</kbd>
           </a>
           <a
             className={activeTab === "review" ? "active" : ""}
@@ -1740,7 +1774,7 @@ function App() {
             <span>Human review</span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {reviewCount > 0 && <i>{reviewCount}</i>}
-              <kbd>⌘ 3</kbd>
+              <kbd>⌘ R</kbd>
             </span>
           </a>
           <a
@@ -1749,7 +1783,7 @@ function App() {
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
             <span>Imports & telemetry</span>
-            <kbd>⌘ 4</kbd>
+            <kbd>⌘ I</kbd>
           </a>
         </div>
 
@@ -1761,7 +1795,7 @@ function App() {
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
             <span>Schemas & taxonomy</span>
-            <kbd>⌘ 5</kbd>
+            <kbd>⌘ S</kbd>
           </a>
           <a
             className={activeTab === "evidence" ? "active" : ""}
@@ -1769,7 +1803,7 @@ function App() {
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
             <span>Evidence library</span>
-            <kbd>⌘ 6</kbd>
+            <kbd>⌘ E</kbd>
           </a>
           <a
             className={activeTab === "audit" ? "active" : ""}
@@ -1777,7 +1811,7 @@ function App() {
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
             <span>Audit trail</span>
-            <kbd>⌘ 7</kbd>
+            <kbd>⌘ A</kbd>
           </a>
         </div>
 
