@@ -63,6 +63,7 @@ def _ensure_seed_batch(organization_id: str = "default") -> str | None:
         return summaries[0]["batch_id"]
 
     seed_paths = [
+        "data/challenge/Unihack_ Sample Dataset - Input.csv",
         "Unihack_ Sample Dataset - Input.csv",
         "data/ground_truth/synthetic_200_valves.csv",
     ]

@@ -21,6 +21,9 @@ def test_clean_manufacturer_name():
 
 def _get_input_path() -> Path | None:
     repo_root = Path(__file__).resolve().parent.parent
+    data_path = repo_root / "data" / "challenge" / "Unihack_ Sample Dataset - Input.csv"
+    if data_path.exists():
+        return data_path
     local_path = repo_root / "Unihack_ Sample Dataset - Input.csv"
     if local_path.exists():
         return local_path

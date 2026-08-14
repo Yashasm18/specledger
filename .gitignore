@@ -19,8 +19,9 @@ node_modules/
 *.sqlite3
 
 # Challenge sample datasets and benchmarks
-!Unihack_*.csv
+!data/challenge/*.csv
 !data/ground_truth/*.csv
+!data/reference/*.csv
 
 # Object storage artifacts
 object-data/
