@@ -1122,11 +1122,27 @@ function App() {
 
       {/* Left Sidebar */}
       <aside>
-        <div className="logo">
-          <span>SL</span>
+        <div className="logo" style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 8px 24px" }}>
+          <img
+            src="/logo.png"
+            alt="SpecLedger Logo"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              boxShadow: "0 0 14px rgba(56, 189, 248, 0.45)",
+              objectFit: "contain",
+              border: "1px solid rgba(56, 189, 248, 0.3)"
+            }}
+          />
           <div>
-            SpecLedger
-            <small>PRODUCT INTELLIGENCE</small>
+            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: "#ffffff", display: "flex", alignItems: "center", gap: 6 }}>
+              SpecLedger
+              <span style={{ fontSize: 9, background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "1px 5px", borderRadius: 4, border: "1px solid rgba(56, 189, 248, 0.3)", fontWeight: 700 }}>v2.0</span>
+            </div>
+            <small style={{ display: "block", color: "#94a3b8", fontSize: 8, letterSpacing: "0.12em", fontWeight: 700, marginTop: 2 }}>
+              PRODUCT INTELLIGENCE
+            </small>
           </div>
         </div>
 
