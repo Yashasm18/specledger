@@ -398,3 +398,31 @@
   from { opacity: 0; transform: translateY(16px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Sidebar Nav Layout Fix (prevents badge from attaching/overlapping with ⌘ command) */
+.nav-group a {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.nav-group a kbd {
+  float: none !important;
+  margin-left: auto !important;
+  font-size: 9px !important;
+  color: #6c7890 !important;
+}
+
+.nav-group a i {
+  float: none !important;
+  margin-left: 0 !important;
+  margin-right: 8px !important;
+  background: #c88431 !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+  padding: 1px 7px !important;
+  font-style: normal !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}

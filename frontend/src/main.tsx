@@ -1689,30 +1689,37 @@ function App() {
           <a
             className={activeTab === "overview" ? "active" : ""}
             onClick={() => setActiveTab("overview")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Overview <kbd>⌘ 1</kbd>
+            <span>Overview</span>
+            <kbd>⌘ 1</kbd>
           </a>
           <a
             className={activeTab === "catalogue" ? "active" : ""}
             onClick={() => setActiveTab("catalogue")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Catalogue ({displayRows.length}) <kbd>⌘ 2</kbd>
+            <span>Catalogue ({displayRows.length})</span>
+            <kbd>⌘ 2</kbd>
           </a>
           <a
             className={activeTab === "review" ? "active" : ""}
             onClick={() => setActiveTab("review")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Human review {reviewCount > 0 && <i>{reviewCount}</i>} <kbd>⌘ 3</kbd>
+            <span>Human review</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {reviewCount > 0 && <i>{reviewCount}</i>}
+              <kbd>⌘ 3</kbd>
+            </span>
           </a>
           <a
             className={activeTab === "imports" ? "active" : ""}
             onClick={() => setActiveTab("imports")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Imports & telemetry <kbd>⌘ 4</kbd>
+            <span>Imports & telemetry</span>
+            <kbd>⌘ 4</kbd>
           </a>
         </div>
 
@@ -1721,23 +1728,26 @@ function App() {
           <a
             className={activeTab === "schemas" ? "active" : ""}
             onClick={() => setActiveTab("schemas")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Schemas & taxonomy <kbd>⌘ 5</kbd>
+            <span>Schemas & taxonomy</span>
+            <kbd>⌘ 5</kbd>
           </a>
           <a
             className={activeTab === "evidence" ? "active" : ""}
             onClick={() => setActiveTab("evidence")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Evidence library <kbd>⌘ 6</kbd>
+            <span>Evidence library</span>
+            <kbd>⌘ 6</kbd>
           </a>
           <a
             className={activeTab === "audit" ? "active" : ""}
             onClick={() => setActiveTab("audit")}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            Audit trail <kbd>⌘ 7</kbd>
+            <span>Audit trail</span>
+            <kbd>⌘ 7</kbd>
           </a>
         </div>
 
