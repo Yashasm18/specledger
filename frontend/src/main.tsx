@@ -456,7 +456,7 @@ function App() {
         verified: "94.6%",
         cost: "$0.0001 / SKU"
       });
-      setNotice("⚡ 1,000-SKU Unilog Batch Benchmark completed in 0.235s (4,251.8 rows/sec)!");
+      setNotice("1,000-SKU Unilog Batch Benchmark completed in 0.235s (4,251.8 rows/sec)!");
     }, 1000);
   };
 
@@ -587,19 +587,19 @@ function App() {
                 All Categories ({displayRows.length})
               </button>
               <button className={`category-chip ${categoryFilter === "valves" ? "active" : ""}`} onClick={() => setCategoryFilter("valves")}>
-                🚰 Plumbing & Valves
+                Plumbing & Valves
               </button>
               <button className={`category-chip ${categoryFilter === "abrasives" ? "active" : ""}`} onClick={() => setCategoryFilter("abrasives")}>
-                🪚 Abrasives & Tools
+                Abrasives & Tools
               </button>
               <button className={`category-chip ${categoryFilter === "electrical" ? "active" : ""}`} onClick={() => setCategoryFilter("electrical")}>
-                ⚡ Electrical & Automation
+                Electrical & Automation
               </button>
               <button className={`category-chip ${categoryFilter === "hvac" ? "active" : ""}`} onClick={() => setCategoryFilter("hvac")}>
-                ❄️ HVAC & Heating
+                HVAC & Heating
               </button>
               <button className={`category-chip ${categoryFilter === "appliances" ? "active" : ""}`} onClick={() => setCategoryFilter("appliances")}>
-                🏠 Commercial Appliances
+                Commercial Appliances
               </button>
             </div>
 
@@ -797,7 +797,7 @@ function App() {
             <div style={{ background: "#172232", borderRadius: 10, padding: "18px 22px", color: "#ffffff", marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <h4 style={{ margin: 0, fontSize: 14, color: "#38bdf8", letterSpacing: "-0.02em" }}>
-                  🏆 Ground-Truth Benchmark Evaluation (200 Industrial SKUs)
+                  Ground-Truth Benchmark Evaluation (200 Industrial SKUs)
                 </h4>
                 <span style={{ background: "rgba(16,185,129,0.2)", color: "#34d399", padding: "3px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
                   94.64% Overall Exact Match
@@ -1109,7 +1109,7 @@ function App() {
             <div className="benchmark-banner">
               <div className="benchmark-banner-header">
                 <div>
-                  <span className="eyebrow" style={{ color: "#38bdf8" }}>⚡ LIVE BATCH BENCHMARK RUNNER · UNILOG CX1 1,000-SKU CHALLENGE</span>
+                  <span className="eyebrow" style={{ color: "#38bdf8" }}>LIVE BATCH BENCHMARK RUNNER · UNILOG CX1 1,000-SKU CHALLENGE</span>
                   <h3 style={{ margin: "4px 0 0", fontSize: 18, color: "#ffffff" }}>
                     Sub-Second Industrial Enrichment Pipeline
                   </h3>
@@ -1133,7 +1133,7 @@ function App() {
                       gap: 6
                     }}
                   >
-                    {isBenchmarking ? "⚡ Processing 1,000 SKUs..." : "▶ Run 1,000-SKU Benchmark"}
+                    {isBenchmarking ? "Processing 1,000 SKUs..." : "Run 1,000-SKU Benchmark"}
                   </button>
                   <button
                     className="view"
@@ -1345,19 +1345,19 @@ function App() {
             {/* Modal Tabs */}
             <div className="spec-modal-tabs">
               <button className={`spec-tab-btn ${inspectorTab === "diff" ? "active" : ""}`} onClick={() => setInspectorTab("diff")}>
-                🔀 6-to-252 Transformation
+                6-to-252 Transformation
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "triplets" ? "active" : ""}`} onClick={() => setInspectorTab("triplets")}>
-                🏷️ 50 Dynamic Spec Triplets ({inspectedTriplets.length})
+                50 Dynamic Spec Triplets ({inspectedTriplets.length})
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "descriptions" ? "active" : ""}`} onClick={() => setInspectorTab("descriptions")}>
-                📝 6 Description Hierarchy Tiers
+                6 Description Hierarchy Tiers
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "features" ? "active" : ""}`} onClick={() => setInspectorTab("features")}>
-                ⚡ 20 Feature Bullets
+                20 Feature Bullets
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "evidence" ? "active" : ""}`} onClick={() => setInspectorTab("evidence")}>
-                🛡️ Verified Sourcing & Safety
+                Verified Sourcing & Safety
               </button>
             </div>
 
@@ -1570,14 +1570,11 @@ function App() {
               {inspectorTab === "evidence" && (
                 <div>
                   <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 14, marginBottom: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ color: "#16a34a", fontSize: 16 }}>🛡️</span>
-                      <div>
-                        <strong style={{ color: "#15803d", fontSize: 13 }}>Authoritative Provenance Verified</strong>
-                        <small style={{ display: "block", color: "#166534" }}>
-                          Data sourced exclusively from official manufacturer portal. Reseller marketplaces (Amazon, eBay, Walmart) were blocked.
-                        </small>
-                      </div>
+                    <div>
+                      <strong style={{ color: "#15803d", fontSize: 13, display: "block" }}>Authoritative Provenance Verified</strong>
+                      <small style={{ display: "block", color: "#166534", marginTop: 2 }}>
+                        Data sourced exclusively from official manufacturer portal. Reseller marketplaces (Amazon, eBay, Walmart) were blocked.
+                      </small>
                     </div>
                   </div>
 
@@ -1694,28 +1691,28 @@ function App() {
             onClick={() => setActiveTab("overview")}
             style={{ cursor: "pointer" }}
           >
-            ✦ Overview <kbd>⌘ 1</kbd>
+            Overview <kbd>⌘ 1</kbd>
           </a>
           <a
             className={activeTab === "catalogue" ? "active" : ""}
             onClick={() => setActiveTab("catalogue")}
             style={{ cursor: "pointer" }}
           >
-            ☰ Catalogue ({displayRows.length}) <kbd>⌘ 2</kbd>
+            Catalogue ({displayRows.length}) <kbd>⌘ 2</kbd>
           </a>
           <a
             className={activeTab === "review" ? "active" : ""}
             onClick={() => setActiveTab("review")}
             style={{ cursor: "pointer" }}
           >
-            ✓ Human review {reviewCount > 0 && <i>{reviewCount}</i>} <kbd>⌘ 3</kbd>
+            Human review {reviewCount > 0 && <i>{reviewCount}</i>} <kbd>⌘ 3</kbd>
           </a>
           <a
             className={activeTab === "imports" ? "active" : ""}
             onClick={() => setActiveTab("imports")}
             style={{ cursor: "pointer" }}
           >
-            ⚡ Imports & telemetry <kbd>⌘ 4</kbd>
+            Imports & telemetry <kbd>⌘ 4</kbd>
           </a>
         </div>
 
@@ -1726,21 +1723,21 @@ function App() {
             onClick={() => setActiveTab("schemas")}
             style={{ cursor: "pointer" }}
           >
-            ❖ Schemas & taxonomy <kbd>⌘ 5</kbd>
+            Schemas & taxonomy <kbd>⌘ 5</kbd>
           </a>
           <a
             className={activeTab === "evidence" ? "active" : ""}
             onClick={() => setActiveTab("evidence")}
             style={{ cursor: "pointer" }}
           >
-            ◎ Evidence library <kbd>⌘ 6</kbd>
+            Evidence library <kbd>⌘ 6</kbd>
           </a>
           <a
             className={activeTab === "audit" ? "active" : ""}
             onClick={() => setActiveTab("audit")}
             style={{ cursor: "pointer" }}
           >
-            ⌁ Audit trail <kbd>⌘ 7</kbd>
+            Audit trail <kbd>⌘ 7</kbd>
           </a>
         </div>
 
@@ -1773,7 +1770,7 @@ function App() {
             <span className="crumb">
               Workspace / {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
             </span>
-            <h1>Good evening, Yashas <span>✦</span></h1>
+            <h1>Good evening, Yashas</h1>
           </div>
 
           <div className="header-actions">
@@ -1788,8 +1785,9 @@ function App() {
               className="icon"
               title="Export Commerce PIM Syndication Feed"
               onClick={() => handleExport("commerce_csv")}
+              style={{ fontSize: 10, fontWeight: 700 }}
             >
-              🛒
+              PIM
             </button>
             <button
               className="primary"
