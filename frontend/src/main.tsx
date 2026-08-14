@@ -83,6 +83,8 @@ function App() {
   const [batchList, setBatchList] = useState<any[]>([]);
   const [liveRows, setLiveRows] = useState<any[]>([]);
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
+  const [reviewedRowIds, setReviewedRowIds] = useState<Set<number>>(new Set());
+  const reviewedRowIdsRef = useRef<Set<number>>(new Set());
   const [batchSources, setBatchSources] = useState<any[]>([]);
 
   // 252-Column Inspector Modal State
@@ -182,7 +184,8 @@ function App() {
           const pendingRes = await fetch(`http://localhost:8000/catalogue/batches/${latestId}/review/pending`);
           if (pendingRes.ok) {
             const pending = await pendingRes.json();
-            setPendingReviews(pending.pending_rows || []);
+            const rawPending = pending.pending_rows || [];
+            setPendingReviews(rawPending.filter((r: any) => !reviewedRowIdsRef.current.has(r.row_number)));
           }
           const sourcesRes = await fetch(`http://localhost:8000/catalogue/batches/${latestId}/sources`);
           if (sourcesRes.ok) {
@@ -467,6 +470,8 @@ function App() {
     const reviewerName = import.meta.env.VITE_REVIEWER_NAME || "Yashas M (Owner)";
     const batchId = activeBatch?.batch_id || "latest";
 
+    reviewedRowIdsRef.current.add(rowNumber);
+    setReviewedRowIds(new Set(reviewedRowIdsRef.current));
     setPendingReviews((prev) => prev.filter((item) => item.row_number !== rowNumber));
     setLiveRows((prev) =>
       prev.map((r) =>
@@ -484,7 +489,6 @@ function App() {
       });
       if (res.ok) {
         setNotice(`Row #${rowNumber} ${action}d successfully.`);
-        await fetchLatestBatch();
       } else {
         setNotice(`Row #${rowNumber} marked as ${action}d locally.`);
       }
@@ -493,13 +497,31 @@ function App() {
     }
   };
 
-  const handleBulkApprove = () => {
+  const handleBulkApprove = async () => {
     const count = pendingReviews.length;
+    const ids = pendingReviews.map((r) => r.row_number);
+    ids.forEach((id) => reviewedRowIdsRef.current.add(id));
+    setReviewedRowIds(new Set(reviewedRowIdsRef.current));
     setPendingReviews([]);
     setLiveRows((prev) =>
       prev.map((r) => ({ ...r, overall_status: "verified", review_state: "approved" }))
     );
     setNotice(`Bulk approved ${count} pending items (≥80% confidence).`);
+
+    const batchId = activeBatch?.batch_id || "latest";
+    try {
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`http://localhost:8000/catalogue/batches/${batchId}/rows/${id}/review`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "approve", reviewer: "Yashas M (Owner)", comment: "Bulk approved via workspace" })
+          })
+        )
+      );
+    } catch {
+      // Locally recorded
+    }
   };
 
   // Trigger Live 1,000-SKU Benchmark Demo
