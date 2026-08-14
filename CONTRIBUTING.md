@@ -4,7 +4,7 @@ Thank you for your interest in contributing to **SpecLedger**! We welcome contri
 
 ---
 
-## 🛠️ Development Setup
+## Development Setup
 
 1. **Clone the Repository:**
    ```bash
@@ -28,7 +28,7 @@ Thank you for your interest in contributing to **SpecLedger**! We welcome contri
 
 ---
 
-## 🧪 Testing & Code Quality
+## Testing & Code Quality
 
 Before submitting a pull request, ensure all tests and lint checks pass:
 
@@ -42,7 +42,7 @@ pylint --rcfile=.pylintrc backend/
 
 ---
 
-## 📋 Pull Request Process
+## Pull Request Process
 
 1. Fork the repository and create a feature branch (`git checkout -b feature/your-feature-name`).
 2. Adhere to Python PEP 8 standards, type hints, and Pylint configuration.
