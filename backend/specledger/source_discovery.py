@@ -135,6 +135,43 @@ MANUFACTURER_DOMAINS: dict[str, list[str]] = {
     "Emseal Joint Systems Ltd": ["emseal.com"],
     "Rees Cast Stone Company": ["reescaststone.com"],
 
+    # HVAC & Commercial Heating & Refrigeration
+    "Rheem Manufacturing": ["rheem.com"],
+    "Rheem": ["rheem.com"],
+    "Carrier Corporation": ["carrier.com"],
+    "Carrier": ["carrier.com"],
+    "Trane Technologies": ["trane.com"],
+    "Trane": ["trane.com"],
+    "Lennox International": ["lennox.com"],
+    "Lennox": ["lennox.com"],
+    "Copeland": ["copeland.com"],
+    "Daikin Applied": ["daikin.com", "daikinapplied.com"],
+    "Bradford White": ["bradfordwhite.com"],
+    "Goodman Manufacturing": ["goodmanmfg.com"],
+
+    # Plumbing, Fixtures & Piping
+    "Kohler Co.": ["kohler.com"],
+    "Kohler": ["kohler.com"],
+    "Moen Incorporated": ["moen.com"],
+    "Moen": ["moen.com"],
+    "Delta Faucet Company": ["deltafaucet.com"],
+    "Delta Faucet": ["deltafaucet.com"],
+    "Charlotte Pipe and Foundry": ["charlottepipe.com"],
+    "Sloan Valve Company": ["sloan.com"],
+    "Oatey": ["oatey.com"],
+
+    # Electrical, Power Distribution & Automation
+    "Schneider Electric": ["se.com", "schneider-electric.com"],
+    "Square D": ["se.com"],
+    "Eaton Corporation": ["eaton.com"],
+    "Eaton": ["eaton.com"],
+    "ABB Ltd": ["abb.com"],
+    "ABB": ["abb.com"],
+    "Siemens Industry": ["siemens.com"],
+    "Siemens": ["siemens.com"],
+    "Hubbell Incorporated": ["hubbell.com"],
+    "Hubbell": ["hubbell.com"],
+
     # Consumer Appliances & Electronics (Unilog Sample Output Dataset)
     "Appliance Dealers Cooperative": ["frigidaire.com", "whirlpool.com", "geappliances.com"],
     "Frigidaire": ["frigidaire.com"],
@@ -145,7 +182,6 @@ MANUFACTURER_DOMAINS: dict[str, list[str]] = {
     "LG": ["lg.com"],
     "KitchenAid": ["kitchenaid.com"],
     "Speed Queen": ["speedqueen.com"],
-    "Rheem Manufacturing": ["rheem.com"],
     "V & V Appliance Parts Inc": ["vvappliance.com"],
 }
 

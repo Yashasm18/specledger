@@ -130,35 +130,64 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
     desc_l = desc.lower()
     mfr_l = manufacturer.lower()
 
-    if any(kw in desc_l for kw in ("dishwasher", "dryer", "washer", "laundry", "refrigerator", "oven", "range", "heater kit")):
+    # 1. HVAC & Refrigeration
+    if any(kw in desc_l for kw in ("water heater", "heat pump", "furnace", "boiler", "compressor", "refrigerant", "hvac", "thermostat", "air conditioner", "condenser", "rheem", "carrier", "trane", "lennox")):
+        dept = "HVAC & Commercial Heating"
+        cls = "Water Heaters & HVAC"
+        fine = "Commercial Water Heating" if "water heater" in desc_l else "Heating & Cooling Systems"
+        path = f"HVAC & Commercial Equipment > {cls} > {fine}"
+        return dept, cls, fine, path
+
+    # 2. Plumbing & Flow Control
+    if any(kw in desc_l for kw in ("valve", "ball valve", "check valve", "butterfly valve", "gate valve", "pipe fitting", "faucet", "coupling", "flange", "drain", "trap", "backflow")):
+        dept = "Plumbing & Flow Control"
+        cls = "Industrial Valves & Fittings"
+        fine = "Ball Valves" if "ball" in desc_l else ("Check Valves" if "check" in desc_l else "Valves & Actuators")
+        path = f"Plumbing & Industrial Piping > {cls} > {fine}"
+        return dept, cls, fine, path
+
+    # 3. Electrical & Power Distribution
+    if any(kw in desc_l for kw in ("breaker", "panelboard", "switch", "receptacle", "enclosure", "transformer", "conduit", "relay", "starter", "leviton", "eaton", "schneider", "square d")):
+        dept = "Electrical & Automation"
+        cls = "Wiring Devices & Distribution"
+        fine = "Industrial Switches & Receptacles" if any(k in desc_l for k in ("switch", "receptacle")) else "Circuit Protection"
+        path = f"Electrical Supplies > {cls} > {fine}"
+        return dept, cls, fine, path
+
+    # 4. Major Appliances & Residential Equipment
+    if any(kw in desc_l for kw in ("dishwasher", "dryer", "washer", "laundry", "refrigerator", "oven", "range", "heater kit", "frigidaire", "whirlpool", "maytag")):
         dept = "Appliances"
         cls = "Large Appliances"
         fine = "Dishwashers" if "dishwasher" in desc_l else ("Dryers & Washers" if any(k in desc_l for k in ("dryer", "washer")) else "Major Appliances")
         path = f"Appliances & Consumer Electronics > Kitchen Appliances > {fine}"
         return dept, cls, fine, path
 
-    if any(kw in desc_l for kw in ("sanding belt", "cut-off disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive")):
+    # 5. Abrasives & Sanding Media
+    if any(kw in desc_l for kw in ("sanding belt", "cut-off disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "sandpaper", "freud", "mirka", "3m")):
         dept = "Abrasives & Cutting Tools"
         cls = "Abrasives"
         fine = "Sanding Belts & Discs" if "belt" in desc_l or "disc" in desc_l else "Coated Abrasives"
         path = f"Industrial Supplies > Abrasives > {fine}"
         return dept, cls, fine, path
 
-    if any(kw in desc_l for kw in ("planer", "jointer", "shaper", "miter sled", "fence", "stock feeder", "sanders", "router")):
+    # 6. Woodworking & Power Tools
+    if any(kw in desc_l for kw in ("planer", "jointer", "shaper", "miter sled", "fence", "stock feeder", "sanders", "router", "drill", "impact driver", "saw", "milwaukee", "dewalt", "makita")):
         dept = "Power Tools & Machinery"
-        cls = "Woodworking Machinery"
-        fine = "Planers & Jointers" if "planer" in desc_l or "jointer" in desc_l else "Stationary Machinery"
+        cls = "Woodworking & Construction Tools"
+        fine = "Planers & Jointers" if "planer" in desc_l or "jointer" in desc_l else "Power Tools"
         path = f"Tools & Equipment > Machinery > {fine}"
         return dept, cls, fine, path
 
-    if any(kw in desc_l for kw in ("lighting", "lamp", "led", "fixture", "bulb", "chandelier", "sconce")):
+    # 7. Lighting & Fixtures
+    if any(kw in desc_l for kw in ("lighting", "lamp", "led", "fixture", "bulb", "chandelier", "sconce", "kichler")):
         dept = "Electrical & Lighting"
         cls = "Lighting Fixtures"
         fine = "Commercial Lighting"
         path = "Electrical > Lighting > Commercial & Residential Lighting"
         return dept, cls, fine, path
 
-    if any(kw in desc_l for kw in ("tape", "mortar", "sealant", "joint")):
+    # 8. Building Supplies & Adhesives
+    if any(kw in desc_l for kw in ("tape", "mortar", "sealant", "joint", "lumber", "plywood", "boise cascade")):
         dept = "Building Materials"
         cls = "Adhesives & Tapes"
         fine = "Specialty Tapes" if "tape" in desc_l else "Masonry & Mortar"
