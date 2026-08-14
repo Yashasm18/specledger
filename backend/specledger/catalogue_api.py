@@ -55,6 +55,91 @@ _batch_results: dict[str, BatchProcessingResult] = {}
 _source_cache = SourceCache()
 
 
+def _ensure_seed_batch(organization_id: str = "default") -> str | None:
+    """Ensure at least one sample or ground truth batch is loaded in store."""
+    summaries = catalogue_store.list_batches(organization_id)
+    if summaries:
+        return summaries[0]["batch_id"]
+
+    seed_paths = [
+        "Unihack_ Sample Dataset - Input.csv",
+        "data/ground_truth/synthetic_200_valves.csv",
+    ]
+    for sp in seed_paths:
+        if Path(sp).exists():
+            try:
+                raw_batch = read_catalogue(sp)
+                batch = CatalogueBatch(Path(sp).name, raw_batch.columns, raw_batch.rows)
+                batch_id = str(uuid4())
+                result = process_batch(
+                    batch=batch,
+                    store=_reference_store,
+                    source_cache=_source_cache,
+                    batch_id=batch_id,
+                )
+                _batch_results[batch_id] = result
+                _review_queues[batch_id] = result.review_queue
+                enriched = result.enriched
+                validation = result.validation
+
+                batch_dict = {
+                    "batch_id": batch_id,
+                    "organization_id": organization_id,
+                    "source_name": Path(sp).name,
+                    "columns": list(enriched.columns),
+                    "row_count": enriched.row_count,
+                    "total_fields": enriched.total_fields,
+                    "verified_rate": round(enriched.verified_rate, 4),
+                    "rows": [
+                        {
+                            "row_number": row.row_number,
+                            "source_fingerprint": row.source_fingerprint,
+                            "overall_status": row.overall_status,
+                            "overall_confidence": row.overall_confidence,
+                            "verified_count": row.verified_count,
+                            "review_count": row.review_count,
+                            "review_state": (_review_queues[batch_id].get_row(batch_id, row.row_number).state.value
+                                            if batch_id in _review_queues and _review_queues[batch_id].get_row(batch_id, row.row_number)
+                                            else "pending_review"),
+                            "fields": [
+                                {
+                                    "column": f.column,
+                                    "raw_value": f.raw_value,
+                                    "canonical_value": f.canonical_value,
+                                    "confidence": f.confidence,
+                                    "status": f.status,
+                                    "role": f.role,
+                                    "normalized_unit": f.normalized_unit,
+                                    "evidence": {
+                                        "source_file": f.evidence.source_file,
+                                        "source_row": f.evidence.source_row,
+                                        "source_column": f.evidence.source_column,
+                                        "raw_value": f.evidence.raw_value,
+                                        "transformation": f.evidence.transformation,
+                                    },
+                                }
+                                for f in row.fields
+                            ],
+                        }
+                        for row in enriched.rows
+                    ],
+                }
+                catalogue_store.save_batch(batch_dict)
+                return batch_id
+            except Exception:
+                pass
+    return None
+
+
+def _resolve_batch_id(batch_id: str, organization_id: str = "default") -> str:
+    """Resolve 'latest' or unknown alias to most recent batch ID."""
+    if batch_id == "latest":
+        resolved = _ensure_seed_batch(organization_id)
+        if resolved:
+            return resolved
+    return batch_id
+
+
 # ---------------------------------------------------------------------------
 # Request / Response Models
 # ---------------------------------------------------------------------------
@@ -284,17 +369,18 @@ async def ingest_catalogue(
 @router.get("/batches/{batch_id}")
 def get_batch(batch_id: str, organization_id: str = Query(default="default")) -> dict[str, Any]:
     """Retrieve a previously ingested batch with full enrichment and review state."""
-    batch = catalogue_store.get_batch(organization_id, batch_id)
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    batch = catalogue_store.get_batch(organization_id, real_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     # Attach live review queue state if available
-    queue = _review_queues.get(batch_id)
+    queue = _review_queues.get(real_id)
     if queue:
-        batch["review_summary"] = queue.get_batch_summary(batch_id)
+        batch["review_summary"] = queue.get_batch_summary(real_id)
 
     # Attach processing metrics if available
-    result = _batch_results.get(batch_id)
+    result = _batch_results.get(real_id)
     if result:
         batch["metrics"] = result.metrics.summary()
         batch["cost"] = result.cost.summary()
@@ -305,14 +391,15 @@ def get_batch(batch_id: str, organization_id: str = Query(default="default")) ->
 @router.get("/batches/{batch_id}/rows/{row_number}")
 def get_batch_row(batch_id: str, row_number: int, organization_id: str = Query(default="default")) -> dict[str, Any]:
     """Retrieve a single row from a batch with field details and review state."""
-    batch = catalogue_store.get_batch(organization_id, batch_id)
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    batch = catalogue_store.get_batch(organization_id, real_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
     for row in batch["rows"]:
         if row["row_number"] == row_number:
-            queue = _review_queues.get(batch_id)
+            queue = _review_queues.get(real_id)
             if queue:
-                reviewable = queue.get_row(batch_id, row_number)
+                reviewable = queue.get_row(real_id, row_number)
                 if reviewable:
                     row["review_detail"] = reviewable.to_dict()
             return row
@@ -323,6 +410,9 @@ def get_batch_row(batch_id: str, row_number: int, organization_id: str = Query(d
 def list_batches(organization_id: str = Query(default="default")) -> dict[str, Any]:
     """List all ingested batches (summary only)."""
     summaries = catalogue_store.list_batches(organization_id)
+    if not summaries:
+        _ensure_seed_batch(organization_id)
+        summaries = catalogue_store.list_batches(organization_id)
     return {"batches": summaries, "count": len(summaries)}
 
 
@@ -334,15 +424,17 @@ def list_batches(organization_id: str = Query(default="default")) -> dict[str, A
 def list_pending_review(
     batch_id: str,
     limit: int = Query(default=50, ge=1, le=200),
+    organization_id: str = Query(default="default"),
 ) -> dict[str, Any]:
     """List rows pending human review for a batch, ordered by priority."""
-    queue = _review_queues.get(batch_id)
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    queue = _review_queues.get(real_id)
     if not queue:
-        return {"batch_id": batch_id, "pending_rows": [], "count": 0}
+        return {"batch_id": real_id, "pending_rows": [], "count": 0}
 
-    pending = queue.get_pending(batch_id, limit=limit)
+    pending = queue.get_pending(real_id, limit=limit)
     return {
-        "batch_id": batch_id,
+        "batch_id": real_id,
         "count": len(pending),
         "pending_rows": [r.to_dict() for r in pending],
     }
@@ -356,33 +448,34 @@ def review_row_endpoint(
     organization_id: str = Query(default="default"),
 ) -> dict[str, Any]:
     """Approve, reject, or correct a single catalogue row."""
-    queue = _review_queues.get(batch_id)
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    queue = _review_queues.get(real_id)
     if not queue:
         # Reconstruct queue from batch if available
-        batch = catalogue_store.get_batch(organization_id, batch_id)
+        batch = catalogue_store.get_batch(organization_id, real_id)
         if not batch:
             raise HTTPException(status_code=404, detail="Batch not found")
 
     try:
         if payload.action == "approve":
-            updated = approve_row(queue, batch_id, row_number, payload.reviewer, payload.comment)
+            updated = approve_row(queue, real_id, row_number, payload.reviewer, payload.comment)
         elif payload.action == "reject":
-            updated = reject_row(queue, batch_id, row_number, payload.reviewer, payload.comment)
+            updated = reject_row(queue, real_id, row_number, payload.reviewer, payload.comment)
         elif payload.action == "correct":
             if not payload.corrections:
                 raise HTTPException(status_code=400, detail="Corrections dict required for 'correct' action")
-            updated = correct_row(queue, batch_id, row_number, payload.reviewer, payload.corrections, payload.comment)
+            updated = correct_row(queue, real_id, row_number, payload.reviewer, payload.corrections, payload.comment)
         else:
             raise HTTPException(status_code=400, detail=f"Invalid review action '{payload.action}'")
 
         # Persist review state change
         catalogue_store.update_row_review_state(
-            organization_id, batch_id, row_number,
+            organization_id, real_id, row_number,
             updated.state.value, payload.reviewer, payload.corrections,
         )
 
         return {
-            "batch_id": batch_id,
+            "batch_id": real_id,
             "row_number": row_number,
             "review_state": updated.state.value,
             "updated_row": updated.to_dict(),
@@ -401,12 +494,13 @@ def get_batch_sources(
     organization_id: str = Query(default="default"),
 ) -> dict[str, Any]:
     """Retrieve manufacturer source discovery results for a batch."""
-    result = _batch_results.get(batch_id)
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    result = _batch_results.get(real_id)
     if not result:
-        return {"batch_id": batch_id, "source_count": 0, "sources": []}
+        return {"batch_id": real_id, "source_count": 0, "sources": []}
 
     return {
-        "batch_id": batch_id,
+        "batch_id": real_id,
         "source_count": len(result.sources),
         "sources": [s.to_dict() for s in result.sources],
     }
@@ -423,7 +517,8 @@ def export_batch_endpoint(
     organization_id: str = Query(default="default"),
 ) -> Response:
     """Export an enriched batch in CSV, JSON, Commerce CSV, Audit JSON, or Unilog 252-column template format."""
-    batch_dict = catalogue_store.get_batch(organization_id, batch_id)
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    batch_dict = catalogue_store.get_batch(organization_id, real_id)
     if not batch_dict:
         raise HTTPException(status_code=404, detail="Batch not found")
 
