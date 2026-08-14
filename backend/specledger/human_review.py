@@ -20,12 +20,11 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Sequence
 from uuid import uuid4
 
 from .enrichment import EnrichedBatch, EnrichedRow
 from .validation_engine import (
-    BatchValidationResult, RowValidationResult, validate_batch,
+    BatchValidationResult, RowValidationResult,
 )
 
 

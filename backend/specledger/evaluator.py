@@ -17,10 +17,10 @@ import csv
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from .catalogue_ingestion import canonical_key
-from .enrichment import EnrichedBatch, EnrichedRow, EnrichedField
+from .enrichment import EnrichedBatch
 
 
 @dataclass(frozen=True)

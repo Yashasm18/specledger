@@ -6,7 +6,6 @@ import json
 import sqlite3
 from threading import RLock
 from pathlib import Path
-from typing import Any
 
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
 

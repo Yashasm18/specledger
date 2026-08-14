@@ -13,7 +13,6 @@ Provides endpoints for:
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 from pathlib import Path
@@ -24,16 +23,15 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, Query, Response
 from pydantic import BaseModel, Field
 
 from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows
-from .enrichment import enrich_batch, EnrichedBatch
-from .evaluator import evaluate, load_ground_truth_csv, EvaluationReport, GroundTruthRow
+from .enrichment import enrich_batch
+from .evaluator import evaluate, load_ground_truth_csv
 from .reference_data import ReferenceStore
 from .uom import normalize_uom, normalize_material
-from .validation_engine import validate_batch, validate_row, BatchValidationResult
+from .validation_engine import validate_batch
 from .human_review import (
     route_batch_for_review, approve_row, reject_row, correct_row,
-    ReviewQueue, ReviewState, ReviewError,
+    ReviewQueue, ReviewError,
 )
-from .source_discovery import discover_sources_simulated, is_blocked_source
 from .batch_processor import process_batch, BatchProcessingResult, SourceCache
 from .export import (
     export_csv, export_json, export_commerce_csv, export_audit_json,

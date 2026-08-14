@@ -14,7 +14,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .api import SpecLedgerService, product_summary
+from .api import SpecLedgerService
 from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
 from .repository import ProductRepository
@@ -41,9 +41,8 @@ batch_service = BatchImportService(repository, job_repository)
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     yield
-    close = getattr(repository, "close", None)
-    if close:
-        close()
+    if hasattr(repository, "close"):
+        repository.close()
     job_repository.close()
     if task_queue:
         task_queue.close()

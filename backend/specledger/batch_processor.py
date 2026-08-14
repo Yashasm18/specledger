@@ -17,11 +17,11 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Sequence
+from typing import Callable
 from uuid import uuid4
 
 from .catalogue_ingestion import CatalogueBatch
-from .enrichment import enrich_batch, EnrichedBatch, EnrichedRow
+from .enrichment import enrich_batch, EnrichedBatch
 from .reference_data import ReferenceStore
 from .source_discovery import discover_sources_simulated, SourceDiscoveryResult
 from .validation_engine import validate_batch, BatchValidationResult

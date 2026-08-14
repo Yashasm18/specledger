@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
-from typing import Any
-
 from .batch import ImportJob, ItemState, JobState, product_fingerprint
 from .models import Product
 from .postgres_repository import PostgresRepository

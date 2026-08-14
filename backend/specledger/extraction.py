@@ -36,7 +36,7 @@ def validate_facts(facts: list[ExtractedFact], required: frozenset[str] = DEFAUL
     for name, values in grouped.items():
         distinct = {value.value.casefold() for value in values}
         if len(distinct) > 1:
-                issues.append({"code": "SOURCE_CONFLICT", "attribute": name, "severity": "error",
+            issues.append({"code": "SOURCE_CONFLICT", "attribute": name, "severity": "error",
                            "message": f"Multiple source values found for {name}",
                            "pages": sorted(value.page for value in values)})
     for name in sorted(required - grouped.keys()):
