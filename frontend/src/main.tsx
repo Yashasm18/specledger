@@ -1641,7 +1641,11 @@ function App() {
       {/* Left Sidebar */}
       <aside>
         <div className="logo">
-          <span>SL</span>
+          <img
+            src="/favicon.png"
+            alt="SpecLedger Logo"
+            style={{ width: 32, height: 32, borderRadius: 8, objectFit: "contain", display: "block" }}
+          />
           <div>
             SpecLedger
             <small>PRODUCT INTELLIGENCE</small>
