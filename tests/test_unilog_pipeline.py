@@ -19,10 +19,21 @@ def test_clean_manufacturer_name():
     assert clean_manufacturer_name(None) is None
 
 
+def _get_input_path() -> Path | None:
+    repo_root = Path(__file__).resolve().parent.parent
+    local_path = repo_root / "Unihack_ Sample Dataset - Input.csv"
+    if local_path.exists():
+        return local_path
+    downloads_path = Path("/Users/yashas/Downloads/Unihack_ Sample Dataset - Input.csv")
+    if downloads_path.exists():
+        return downloads_path
+    return None
+
+
 def test_unilog_input_ingestion():
-    input_path = Path("/Users/yashas/Downloads/Unihack_ Sample Dataset - Input.csv")
-    if not input_path.exists():
-        pytest.skip("Unilog input file not present in Downloads")
+    input_path = _get_input_path()
+    if input_path is None:
+        pytest.skip("Unilog input file not present")
 
     batch = read_catalogue(input_path)
     assert batch.row_count == 1000
@@ -68,9 +79,9 @@ def test_domain_agnostic_web_enricher():
 def test_unilog_252_exporter():
     assert len(UNILOG_252_HEADERS) == 252
 
-    input_path = Path("/Users/yashas/Downloads/Unihack_ Sample Dataset - Input.csv")
-    if not input_path.exists():
-        pytest.skip("Unilog input file not present in Downloads")
+    input_path = _get_input_path()
+    if input_path is None:
+        pytest.skip("Unilog input file not present")
 
     batch = read_catalogue(input_path)
     # Take first 5 rows for test speed
