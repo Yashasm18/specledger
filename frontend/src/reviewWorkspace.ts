@@ -58,7 +58,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: reviewState === "approved" ? "approve" : "reject", reviewer: "Yashas M", comment: `Row ${reviewState} in workspace` }),
+            body: JSON.stringify({ action: reviewState === "approved" ? "approve" : "reject", reviewer: import.meta.env.VITE_REVIEWER_NAME || "Yashas M", comment: `Row ${reviewState} in workspace` }),
           }
         );
         if (!response.ok) {
