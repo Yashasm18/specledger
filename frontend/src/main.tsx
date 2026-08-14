@@ -199,7 +199,7 @@ function App() {
     }
   };
 
-  // Toast Notification Stack
+  // Toast Notification Stack (Fast Evaporating with Dismiss Button)
   useEffect(() => {
     if (!notice) return;
     let stack = document.getElementById("specledger-toast-stack");
@@ -213,37 +213,82 @@ function App() {
       stack.style.zIndex = "9999";
       stack.style.display = "flex";
       stack.style.flexDirection = "column";
-      stack.style.gap = "8px";
-      stack.style.pointerEvents = "none";
+      stack.style.gap = "6px";
+      stack.style.maxWidth = "360px";
       document.body.appendChild(stack);
     }
+
+    // Cap visible toasts at 3 to prevent clutter
+    while (stack.children.length >= 3) {
+      const oldest = stack.firstElementChild;
+      if (oldest) oldest.remove();
+    }
+
     const toast = document.createElement("div");
     toast.className = "specledger-toast";
-    toast.textContent = notice;
     toast.style.background = "#172232";
     toast.style.color = "#ffffff";
-    toast.style.padding = "10px 16px";
+    toast.style.padding = "8px 12px 8px 14px";
     toast.style.borderRadius = "8px";
     toast.style.fontSize = "11px";
     toast.style.fontFamily = "Manrope, sans-serif";
-    toast.style.boxShadow = "0 8px 24px rgba(0,0,0,0.2)";
+    toast.style.boxShadow = "0 8px 24px rgba(0,0,0,0.25)";
     toast.style.border = "1px solid rgba(255,255,255,0.15)";
+    toast.style.display = "flex";
+    toast.style.alignItems = "center";
+    toast.style.justifyContent = "space-between";
+    toast.style.gap = "10px";
     toast.style.opacity = "0";
     toast.style.transform = "translateY(8px)";
-    toast.style.transition = "all 0.25s ease-out";
+    toast.style.transition = "all 0.2s ease-out";
+    toast.style.cursor = "pointer";
+
+    const textSpan = document.createElement("span");
+    textSpan.textContent = notice;
+    textSpan.style.flex = "1";
+    textSpan.style.wordBreak = "break-word";
+    toast.appendChild(textSpan);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.title = "Dismiss";
+    closeBtn.style.background = "transparent";
+    closeBtn.style.border = "none";
+    closeBtn.style.color = "rgba(255,255,255,0.6)";
+    closeBtn.style.cursor = "pointer";
+    closeBtn.style.fontSize = "12px";
+    closeBtn.style.padding = "2px 4px";
+    closeBtn.style.lineHeight = "1";
+    closeBtn.style.borderRadius = "4px";
+    closeBtn.style.transition = "color 0.15s ease";
+    closeBtn.onmouseenter = () => (closeBtn.style.color = "#ffffff");
+    closeBtn.onmouseleave = () => (closeBtn.style.color = "rgba(255,255,255,0.6)");
+
+    const dismiss = (e?: Event) => {
+      if (e) e.stopPropagation();
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(-4px)";
+      setTimeout(() => {
+        toast.remove();
+        if (stack && stack.childElementCount === 0) stack.remove();
+      }, 200);
+    };
+
+    closeBtn.onclick = dismiss;
+    toast.onclick = dismiss;
+    toast.appendChild(closeBtn);
+
     stack.appendChild(toast);
     requestAnimationFrame(() => {
       toast.style.opacity = "1";
       toast.style.transform = "translateY(0)";
     });
+
+    // Evaporate fast: 1.8 seconds auto-dismiss
     const timer = window.setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.style.transform = "translateY(-4px)";
-      window.setTimeout(() => {
-        toast.remove();
-        if (stack && stack.childElementCount === 0) stack.remove();
-      }, 250);
-    }, 4500);
+      dismiss();
+    }, 1800);
+
     return () => window.clearTimeout(timer);
   }, [notice]);
 
