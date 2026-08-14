@@ -39,6 +39,24 @@ const UNILOG_SAMPLE_HEADERS = [
   "Product Image", "Specification Sheet", "Country Of Origin", "Discontinued"
 ];
 
+const DownloadIcon = ({ size = 12 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ display: "inline-block", verticalAlign: "-1px" }}
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 function App() {
   const [selected, setSelected] = useState(0);
   const [activeTab, setActiveTab] = useState<"overview" | "catalogue" | "review" | "imports" | "schemas" | "evidence" | "audit">("overview");
@@ -555,28 +573,28 @@ function App() {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <button
-                  className="view"
+                  className="export-btn primary-accent"
                   onClick={() => handleExport("unilog_template")}
-                  style={{ background: "rgba(99, 102, 241, 0.15)", borderColor: "rgba(99, 102, 241, 0.4)", color: "#818cf8", padding: "6px 12px", borderRadius: 6 }}
                   title="Download official Unilog 252-column delivery CSV"
                 >
-                  Unilog 252-Col CSV ↓
+                  <DownloadIcon size={12} />
+                  Unilog 252-Col CSV
                 </button>
                 <button
-                  className="view"
+                  className="export-btn emerald-accent"
                   onClick={() => handleExport("commerce_csv")}
-                  style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981", padding: "6px 12px", borderRadius: 6 }}
                   title="Download Commerce PIM CSV feed"
                 >
-                  PIM Commerce CSV ↓
+                  <DownloadIcon size={12} />
+                  PIM Commerce CSV
                 </button>
                 <button
-                  className="view"
+                  className="export-btn amber-accent"
                   onClick={() => handleExport("audit")}
-                  style={{ background: "rgba(245, 158, 11, 0.12)", color: "#f59e0b", padding: "6px 12px", borderRadius: 6 }}
                   title="Download complete audit lineage JSON"
                 >
-                  Audit Lineage ↓
+                  <DownloadIcon size={12} />
+                  Audit Lineage
                 </button>
               </div>
             </div>
@@ -658,9 +676,9 @@ function App() {
                         e.stopPropagation();
                         openInspector(r[6] || r);
                       }}
-                      style={{ background: "rgba(40,114,227,0.1)", color: "#2872e3", border: "1px solid rgba(40,114,227,0.2)", borderRadius: 4, padding: "2px 6px", fontSize: 9, cursor: "pointer", fontWeight: 700 }}
+                      style={{ background: "rgba(40,114,227,0.08)", color: "#2872e3", border: "1px solid rgba(40,114,227,0.25)", borderRadius: 4, padding: "3px 7px", fontSize: 10, cursor: "pointer", fontWeight: 700 }}
                     >
-                      252 Specs ↳
+                      Inspect 252 Specs
                     </button>
                   </span>
                 </div>
@@ -742,10 +760,10 @@ function App() {
                         </button>
                         <button
                           onClick={() => openInspector(rowObj || { row_number: item.row_number, 0: sku, 1: "Product Item", 2: "Apollo Valves", 3: "Industrial Valves" })}
-                          style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10 }}
+                          style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10, fontWeight: 600 }}
                           title="Open 252-Column Spec Inspector"
                         >
-                          252 Specs ↳
+                          Inspect 252 Specs
                         </button>
                       </span>
                     </div>
@@ -848,8 +866,9 @@ function App() {
                     <span style={{ color: "#10b981", fontWeight: 700 }}>{Math.round((b.verified_rate || 0.95) * 100)}%</span>
                     <span><mark className="ready">● Completed</mark></span>
                     <span style={{ display: "flex", gap: 6 }}>
-                      <button className="view" onClick={() => handleExport("unilog_template")}>
-                        Export 252-Col ↓
+                      <button className="export-btn primary-accent" onClick={() => handleExport("unilog_template")}>
+                        <DownloadIcon size={12} />
+                        Export 252-Col
                       </button>
                     </span>
                   </div>
@@ -860,7 +879,12 @@ function App() {
                   <span>1,000 rows</span>
                   <span style={{ color: "#10b981", fontWeight: 700 }}>94.6%</span>
                   <span><mark className="ready">● Completed</mark></span>
-                  <span><button className="view" onClick={() => handleExport("unilog_template")}>Export 252-Col ↓</button></span>
+                  <span>
+                    <button className="export-btn primary-accent" onClick={() => handleExport("unilog_template")}>
+                      <DownloadIcon size={12} />
+                      Export 252-Col
+                    </button>
+                  </span>
                 </div>
               )}
             </div>
@@ -877,19 +901,19 @@ function App() {
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button
-                  className="view"
+                  className="export-btn emerald-accent"
                   onClick={() => handleExport("schema_org")}
-                  style={{ background: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.4)", color: "#34d399", padding: "6px 12px", borderRadius: 6, fontWeight: 600 }}
                   title="Export standard schema.org/Product JSON-LD graph"
                 >
-                  Export schema.org JSON-LD ↓
+                  <DownloadIcon size={12} />
+                  Export schema.org JSON-LD
                 </button>
                 <button
-                  className="view"
+                  className="export-btn primary-accent"
                   onClick={() => handleExport("unilog_template")}
-                  style={{ background: "rgba(99, 102, 241, 0.15)", color: "#818cf8", padding: "6px 12px", borderRadius: 6 }}
                 >
-                  Export 252-Col Specification ↓
+                  <DownloadIcon size={12} />
+                  Export 252-Col Specification
                 </button>
               </div>
             </div>
@@ -918,11 +942,12 @@ function App() {
                 </p>
                 <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>✓ LOV Material mapping active (Apollo, Parker, Victaulic)</small>
                 <button
-                  className="view"
-                  style={{ marginTop: 12, width: "100%", textAlign: "center", fontSize: 11 }}
+                  className="export-btn"
+                  style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
                   onClick={() => triggerClientDownload(JSON.stringify({ schema: "Industrial Valves", version: "1.0", standard: "schema.org/Product", fields: ["Size", "Pressure_Rating", "Material", "Connection", "UOM"] }, null, 2), "Valve_Schema.json", "application/json")}
                 >
-                  Download Schema JSON ↓
+                  <DownloadIcon size={11} />
+                  Download Schema JSON
                 </button>
               </div>
 
@@ -933,11 +958,12 @@ function App() {
                 </p>
                 <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>✓ Multi-brand schema active (Freud, Mirka, 3M)</small>
                 <button
-                  className="view"
-                  style={{ marginTop: 12, width: "100%", textAlign: "center", fontSize: 11 }}
+                  className="export-btn"
+                  style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
                   onClick={() => triggerClientDownload(JSON.stringify({ schema: "Abrasives & Sanding Media", version: "1.0", standard: "schema.org/Product", fields: ["Grit_Size", "Diameter", "Backing_Material", "Grain_Type", "Hole_Pattern"] }, null, 2), "Abrasives_Schema.json", "application/json")}
                 >
-                  Download Schema JSON ↓
+                  <DownloadIcon size={11} />
+                  Download Schema JSON
                 </button>
               </div>
 
@@ -948,11 +974,12 @@ function App() {
                 </p>
                 <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>✓ Tool telemetry active (Milwaukee, DeWalt, Makita)</small>
                 <button
-                  className="view"
-                  style={{ marginTop: 12, width: "100%", textAlign: "center", fontSize: 11 }}
+                  className="export-btn"
+                  style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
                   onClick={() => triggerClientDownload(JSON.stringify({ schema: "Power Tools & Machinery", version: "1.0", standard: "schema.org/Product", fields: ["Voltage", "Amp_Hours", "Motor_Type", "Chuck_Size", "Max_RPM", "Weight"] }, null, 2), "PowerTools_Schema.json", "application/json")}
                 >
-                  Download Schema JSON ↓
+                  <DownloadIcon size={11} />
+                  Download Schema JSON
                 </button>
               </div>
             </div>
@@ -976,15 +1003,15 @@ function App() {
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button
-                  className="view"
+                  className="export-btn primary-accent"
                   onClick={() => triggerClientDownload(JSON.stringify({ sources: batchSources.length > 0 ? batchSources : [
                     { manufacturer: "Apollo Valves", url: "https://www.apollovalves.com/products/vlv-600", status: "verified" },
                     { manufacturer: "Parker Hannifin", url: "https://www.parker.com/literature/datasheet.pdf", status: "verified" },
                     { manufacturer: "Amazon.com", url: "https://www.amazon.com/dp/B08XXXXXX", status: "blocked_reseller" }
                   ] }, null, 2), "Evidence_Map.json", "application/json")}
-                  style={{ background: "rgba(99, 102, 241, 0.15)", color: "#818cf8", padding: "6px 12px", borderRadius: 6 }}
                 >
-                  Download Evidence Map (JSON) ↓
+                  <DownloadIcon size={12} />
+                  Download Evidence Map (JSON)
                 </button>
                 <span style={{ background: "#fef3c7", color: "#b45309", padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
                   Marketplace Prohibition Active (Amazon/eBay Blocked)
@@ -1049,11 +1076,11 @@ function App() {
                 <h3>Audit Trail & Decision Lineage</h3>
               </div>
               <button
-                className="view"
+                className="export-btn amber-accent"
                 onClick={() => handleExport("audit")}
-                style={{ background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", padding: "6px 12px", borderRadius: 6 }}
               >
-                Export Audit Log (JSON) ↓
+                <DownloadIcon size={12} />
+                Export Audit Log (JSON)
               </button>
             </div>
 
@@ -1136,11 +1163,12 @@ function App() {
                     {isBenchmarking ? "Processing 1,000 SKUs..." : "Run 1,000-SKU Benchmark"}
                   </button>
                   <button
-                    className="view"
+                    className="export-btn"
                     onClick={() => handleExport("unilog_template")}
-                    style={{ background: "rgba(255,255,255,0.1)", color: "#ffffff", padding: "8px 14px", borderRadius: 6, fontSize: 11 }}
+                    style={{ background: "rgba(255,255,255,0.12)", color: "#ffffff", borderColor: "rgba(255,255,255,0.25)" }}
                   >
-                    252-Col CSV ↓
+                    <DownloadIcon size={12} />
+                    252-Col CSV
                   </button>
                 </div>
               </div>
@@ -1222,26 +1250,28 @@ function App() {
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <button
-                    className="view"
+                    className="export-btn primary-accent"
                     onClick={() => handleExport("unilog_template")}
-                    style={{ background: "rgba(99, 102, 241, 0.15)", borderColor: "rgba(99, 102, 241, 0.4)", color: "#818cf8", padding: "4px 10px", borderRadius: 6 }}
                     title="Export Unilog 252-Column CSV"
                   >
-                    Unilog 252-Col CSV ↓
+                    <DownloadIcon size={12} />
+                    Unilog 252-Col CSV
                   </button>
                   <button
-                    className="view"
+                    className="export-btn emerald-accent"
                     onClick={() => handleExport("commerce_csv")}
                     title="Export Commerce PIM CSV"
                   >
-                    Export PIM CSV ↓
+                    <DownloadIcon size={12} />
+                    Export PIM CSV
                   </button>
                   <button
-                    className="view"
+                    className="export-btn amber-accent"
                     onClick={() => handleExport("audit")}
                     title="Download audit trail JSON"
                   >
-                    Audit Lineage ↓
+                    <DownloadIcon size={12} />
+                    Audit Lineage
                   </button>
                 </div>
               </div>
@@ -1283,9 +1313,9 @@ function App() {
                           e.stopPropagation();
                           openInspector(r[6] || r);
                         }}
-                        style={{ background: "rgba(40,114,227,0.1)", color: "#2872e3", border: "1px solid rgba(40,114,227,0.2)", borderRadius: 4, padding: "2px 6px", fontSize: 9, cursor: "pointer", fontWeight: 700 }}
+                        style={{ background: "rgba(40,114,227,0.08)", color: "#2872e3", border: "1px solid rgba(40,114,227,0.25)", borderRadius: 4, padding: "3px 7px", fontSize: 10, cursor: "pointer", fontWeight: 700 }}
                       >
-                        252 Specs ↳
+                        Inspect 252 Specs
                       </button>
                     </span>
                   </div>
@@ -1788,8 +1818,9 @@ function App() {
               className="icon"
               title="Export Unilog 252-Column Delivery CSV"
               onClick={() => handleExport("unilog_template")}
+              style={{ display: "grid", placeItems: "center" }}
             >
-              ↓
+              <DownloadIcon size={14} />
             </button>
             <button
               className="icon"

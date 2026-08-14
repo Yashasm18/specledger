@@ -426,3 +426,61 @@
   font-size: 10px !important;
   font-weight: 700 !important;
 }
+
+/* Polished Export & Download Action Buttons */
+.export-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  padding: 5px 11px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+}
+
+.export-btn:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  transform: translateY(-1px);
+}
+
+.export-btn.primary-accent {
+  background: rgba(40, 114, 227, 0.08) !important;
+  border-color: rgba(40, 114, 227, 0.25) !important;
+  color: #2872e3 !important;
+}
+
+.export-btn.primary-accent:hover {
+  background: rgba(40, 114, 227, 0.15) !important;
+  border-color: #2872e3 !important;
+}
+
+.export-btn.emerald-accent {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  color: #10b981 !important;
+}
+
+.export-btn.emerald-accent:hover {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: #10b981 !important;
+}
+
+.export-btn.amber-accent {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  color: #d97706 !important;
+}
+
+.export-btn.amber-accent:hover {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: #d97706 !important;
+}
