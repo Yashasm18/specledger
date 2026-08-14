@@ -1988,24 +1988,26 @@ function App() {
         {showWorkspaceMenu && (
           <div style={{ background: "#172232", border: "1px solid #2c374b", borderRadius: 6, padding: 6, marginTop: 4, fontSize: 11 }}>
             <div
-              style={{ padding: "6px 8px", cursor: "pointer", color: workspaceName === "Unilog CX1 Workspace" ? "#38bdf8" : "#aeb7c7" }}
+              style={{ padding: "6px 8px", cursor: "pointer", color: workspaceName === "Unilog CX1 Workspace" ? "#38bdf8" : "#aeb7c7", fontWeight: workspaceName === "Unilog CX1 Workspace" ? 700 : 500 }}
               onClick={() => {
                 setWorkspaceName("Unilog CX1 Workspace");
+                setCategoryFilter("all");
                 setShowWorkspaceMenu(false);
-                setNotice("Switched to Unilog CX1 Workspace");
+                setNotice("Switched to Unilog CX1 Master Workspace (All Categories)");
               }}
             >
-              ✓ Unilog CX1 Workspace
+              {workspaceName === "Unilog CX1 Workspace" ? "✓ " : ""}Unilog CX1 Workspace
             </div>
             <div
-              style={{ padding: "6px 8px", cursor: "pointer", color: workspaceName === "Industrial Valves PIM" ? "#38bdf8" : "#aeb7c7" }}
+              style={{ padding: "6px 8px", cursor: "pointer", color: workspaceName === "Industrial Valves PIM" ? "#38bdf8" : "#aeb7c7", fontWeight: workspaceName === "Industrial Valves PIM" ? 700 : 500 }}
               onClick={() => {
                 setWorkspaceName("Industrial Valves PIM");
+                setCategoryFilter("valves");
                 setShowWorkspaceMenu(false);
-                setNotice("Switched to Industrial Valves PIM");
+                setNotice("Switched to Industrial Valves PIM Workspace (Valves & Fluidics)");
               }}
             >
-              Industrial Valves PIM
+              {workspaceName === "Industrial Valves PIM" ? "✓ " : ""}Industrial Valves PIM
             </div>
           </div>
         )}
