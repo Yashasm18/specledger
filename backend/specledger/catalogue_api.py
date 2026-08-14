@@ -35,7 +35,10 @@ from .human_review import (
 )
 from .source_discovery import discover_sources_simulated, is_blocked_source
 from .batch_processor import process_batch, BatchProcessingResult, SourceCache
-from .export import export_csv, export_json, export_commerce_csv, export_audit_json, export_unilog_template
+from .export import (
+    export_csv, export_json, export_commerce_csv, export_audit_json,
+    export_unilog_template, export_schema_org_jsonld,
+)
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
 
 
@@ -513,10 +516,10 @@ def get_batch_sources(
 @router.get("/batches/{batch_id}/export")
 def export_batch_endpoint(
     batch_id: str,
-    format: Literal["csv", "json", "commerce_csv", "audit", "unilog_template"] = Query(default="csv"),
+    format: Literal["csv", "json", "commerce_csv", "audit", "unilog_template", "schema_org", "jsonld"] = Query(default="csv"),
     organization_id: str = Query(default="default"),
 ) -> Response:
-    """Export an enriched batch in CSV, JSON, Commerce CSV, Audit JSON, or Unilog 252-column template format."""
+    """Export an enriched batch in CSV, JSON, Commerce CSV, Audit JSON, Unilog 252-column template, or schema.org JSON-LD format."""
     real_id = _resolve_batch_id(batch_id, organization_id)
     batch_dict = catalogue_store.get_batch(organization_id, real_id)
     if not batch_dict:
@@ -556,6 +559,13 @@ def export_batch_endpoint(
             content=content,
             media_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{filename_base}_unilog_252.csv"'},
+        )
+    elif format in ("schema_org", "jsonld"):
+        content = export_schema_org_jsonld(enriched)
+        return Response(
+            content=content,
+            media_type="application/ld+json",
+            headers={"Content-Disposition": f'attachment; filename="{filename_base}_schema_org.jsonld"'},
         )
     elif format == "json":
         validation = validate_batch(enriched)

@@ -288,3 +288,80 @@ def export_unilog_template(enriched: EnrichedBatch) -> str:
     from .unilog_exporter import export_unilog_csv
     return export_unilog_csv(enriched)
 
+
+# ---------------------------------------------------------------------------
+# schema.org / Product JSON-LD export (Standard E-Commerce Structured Data)
+# ---------------------------------------------------------------------------
+
+def export_schema_org_jsonld(enriched: EnrichedBatch, indent: int = 2) -> str:
+    """Export enriched batch as standard schema.org/Product JSON-LD graph.
+
+    Complies with schema.org Product, Brand, Organization, and PropertyValue
+    international standards for e-commerce search indexing and PIM syndication.
+    """
+    products: list[dict[str, Any]] = []
+
+    for row in enriched.rows:
+        field_map = row.field_map
+
+        def get_val(col_name: str) -> str | None:
+            f = field_map.get(col_name)
+            return f.canonical_value if f and f.canonical_value else None
+
+        mfr = get_val("manufacturer") or get_val("part_manuf") or "Industrial Manufacturer"
+        brand = get_val("brand") or get_val("unilog_brand") or get_val("e1_brand") or mfr
+        part_num = get_val("part_number") or get_val("mfg_part_num") or f"SKU-{row.row_number}"
+        desc = get_val("description") or get_val("part_desc") or f"{mfr} {part_num}"
+        category = get_val("category") or get_val("classpath") or "Industrial Supplies"
+
+        # Build additionalProperty array conforming to schema.org/PropertyValue
+        additional_props: list[dict[str, Any]] = []
+        for prop_key, label, uom_key in [
+            ("material", "Body Material", None),
+            ("size", "Nominal Size", "uom"),
+            ("pressure_rating", "Pressure Rating", None),
+            ("temperature_range", "Temperature Range", None),
+            ("connection_type", "Connection Type", None),
+        ]:
+            val = get_val(prop_key)
+            if val:
+                prop_dict: dict[str, Any] = {
+                    "@type": "PropertyValue",
+                    "name": label,
+                    "value": val,
+                }
+                if uom_key:
+                    uom_val = get_val(uom_key)
+                    if uom_val:
+                        prop_dict["unitText"] = uom_val
+                additional_props.append(prop_dict)
+
+        product_ld: dict[str, Any] = {
+            "@context": "https://schema.org/",
+            "@type": "Product",
+            "name": f"{brand} {part_num} - {desc}".strip(),
+            "sku": part_num,
+            "mpn": part_num,
+            "description": desc,
+            "category": category,
+            "brand": {
+                "@type": "Brand",
+                "name": brand,
+            },
+            "manufacturer": {
+                "@type": "Organization",
+                "name": mfr,
+            },
+        }
+
+        if additional_props:
+            product_ld["additionalProperty"] = additional_props
+
+        products.append(product_ld)
+
+    graph_output = {
+        "@context": "https://schema.org/",
+        "@graph": products,
+    }
+    return json.dumps(graph_output, indent=indent, ensure_ascii=False)
+

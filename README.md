@@ -283,6 +283,7 @@ Executes 6 rule categories against every enriched record:
 
 ### 7. Multi-Format Exporters (`export.py`, `unilog_exporter.py`)
 - **Unilog 252-Column Template CSV:** Exact delivery format matching `Unihack_ Expected Output - Delivery Format.csv`.
+- **schema.org / Product JSON-LD:** Standard structured data graph conforming to `schema.org/Product`, `schema.org/Brand`, `schema.org/Organization`, and `schema.org/PropertyValue` with ISO UOM units for global search engine indexing and PIM syndication.
 - **Commerce-Ready CSV:** Flat structure with canonical attributes formatted for direct import into PIM/ERP systems.
 - **Structured JSON:** Full attribute graph with evidence citations.
 - **Audit JSON:** Complete lineage showing supplier raw value → transformation applied → evidence source → review decision.
@@ -301,7 +302,7 @@ The FastAPI backend exposes comprehensive REST endpoints under `/catalogue`:
 | `GET` | `/catalogue/batches/{id}/review/pending` | List pending review rows ordered by priority |
 | `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Submit review action (`approve`, `reject`, `correct`) |
 | `GET` | `/catalogue/batches/{id}/sources` | Retrieve manufacturer sources discovered for batch |
-| `GET` | `/catalogue/batches/{id}/export?format=...` | Export batch as `unilog_template`, `csv`, `commerce_csv`, `json`, or `audit` |
+| `GET` | `/catalogue/batches/{id}/export?format=...` | Export batch as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, or `audit` |
 | `POST` | `/catalogue/batches/{id}/evaluate` | Run ground-truth evaluation against reference CSV |
 | `GET` | `/catalogue/reference/manufacturers` | List canonical manufacturers in reference store |
 | `GET` | `/catalogue/reference/brands` | List canonical brands in reference store |

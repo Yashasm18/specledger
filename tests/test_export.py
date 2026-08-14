@@ -208,5 +208,34 @@ class AuditExportTests(ExportHelpers):
         assert mfg_transform["evidence"]["source_file"] == "test.csv"
 
 
+class SchemaOrgExportTests(ExportHelpers):
+    def test_schema_org_jsonld_structure(self) -> None:
+        from backend.specledger.export import export_schema_org_jsonld
+        enriched = self._make_enriched([
+            {
+                "Manufacturer": "Parker Hannifin",
+                "Part Number": "V-100",
+                "Description": "2-way brass ball valve 150 psi",
+                "Material": "Brass",
+                "Size": "1/2 inch",
+                "Pressure Rating": "150 PSI",
+            },
+        ])
+        json_str = export_schema_org_jsonld(enriched)
+        data = json.loads(json_str)
+        assert data["@context"] == "https://schema.org/"
+        assert "@graph" in data
+        assert len(data["@graph"]) == 1
+        product = data["@graph"][0]
+        assert product["@type"] == "Product"
+        assert product["sku"] == "V-100"
+        assert product["mpn"] == "V-100"
+        assert product["manufacturer"]["name"] == "Parker Hannifin"
+        assert product["brand"]["name"] == "Parker Hannifin"
+        assert "additionalProperty" in product
+        prop_names = [p["name"] for p in product["additionalProperty"]]
+        assert "Body Material" in prop_names
+
+
 if __name__ == "__main__":
     unittest.main()
