@@ -1,0 +1,2450 @@
+{
+  "summary": {
+    "ground_truth_rows": 200,
+    "predicted_rows": 200,
+    "matched_rows": 200,
+    "unmatched_rows": 0,
+    "overall_exact_accuracy": 0.93,
+    "overall_normalized_accuracy": 0.93,
+    "complete_row_accuracy": 0.75,
+    "average_row_accuracy": 0.9759
+  },
+  "field_metrics": {
+    "manufacturer": {
+      "field_name": "manufacturer",
+      "total": 200,
+      "exact_matches": 183,
+      "normalized_matches": 0,
+      "missing_correct": 13,
+      "missing_incorrect": 4,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.915,
+      "normalized_accuracy": 0.915
+    },
+    "brand": {
+      "field_name": "brand",
+      "total": 200,
+      "exact_matches": 186,
+      "normalized_matches": 0,
+      "missing_correct": 10,
+      "missing_incorrect": 4,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.93,
+      "normalized_accuracy": 0.93
+    },
+    "category": {
+      "field_name": "category",
+      "total": 200,
+      "exact_matches": 200,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 1.0,
+      "normalized_accuracy": 1.0
+    },
+    "part_number": {
+      "field_name": "part_number",
+      "total": 200,
+      "exact_matches": 200,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 1.0,
+      "normalized_accuracy": 1.0
+    },
+    "description": {
+      "field_name": "description",
+      "total": 200,
+      "exact_matches": 200,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 1.0,
+      "normalized_accuracy": 1.0
+    },
+    "material": {
+      "field_name": "material",
+      "total": 200,
+      "exact_matches": 165,
+      "normalized_matches": 0,
+      "missing_correct": 10,
+      "missing_incorrect": 4,
+      "false_positives": 21,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.825,
+      "normalized_accuracy": 0.825
+    },
+    "size": {
+      "field_name": "size",
+      "total": 200,
+      "exact_matches": 190,
+      "normalized_matches": 0,
+      "missing_correct": 10,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.95,
+      "normalized_accuracy": 0.95
+    },
+    "uom": {
+      "field_name": "uom",
+      "total": 0,
+      "exact_matches": 0,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 200,
+      "exact_accuracy": 0.0,
+      "normalized_accuracy": 0.0
+    },
+    "pressure_rating": {
+      "field_name": "pressure_rating",
+      "total": 200,
+      "exact_matches": 179,
+      "normalized_matches": 0,
+      "missing_correct": 13,
+      "missing_incorrect": 8,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.895,
+      "normalized_accuracy": 0.895
+    },
+    "pressure_uom": {
+      "field_name": "pressure_uom",
+      "total": 200,
+      "exact_matches": 184,
+      "normalized_matches": 0,
+      "missing_correct": 12,
+      "missing_incorrect": 4,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.92,
+      "normalized_accuracy": 0.92
+    },
+    "connection_type": {
+      "field_name": "connection_type",
+      "total": 200,
+      "exact_matches": 178,
+      "normalized_matches": 0,
+      "missing_correct": 17,
+      "missing_incorrect": 5,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.89,
+      "normalized_accuracy": 0.89
+    },
+    "temperature_range": {
+      "field_name": "temperature_range",
+      "total": 200,
+      "exact_matches": 181,
+      "normalized_matches": 0,
+      "missing_correct": 16,
+      "missing_incorrect": 3,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.905,
+      "normalized_accuracy": 0.905
+    }
+  },
+  "role_metrics": {
+    "manufacturer": {
+      "field_name": "manufacturer",
+      "total": 200,
+      "exact_matches": 183,
+      "normalized_matches": 0,
+      "missing_correct": 13,
+      "missing_incorrect": 4,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.915,
+      "normalized_accuracy": 0.915
+    },
+    "brand": {
+      "field_name": "brand",
+      "total": 200,
+      "exact_matches": 186,
+      "normalized_matches": 0,
+      "missing_correct": 10,
+      "missing_incorrect": 4,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.93,
+      "normalized_accuracy": 0.93
+    },
+    "category": {
+      "field_name": "category",
+      "total": 200,
+      "exact_matches": 200,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 1.0,
+      "normalized_accuracy": 1.0
+    },
+    "part_number": {
+      "field_name": "part_number",
+      "total": 200,
+      "exact_matches": 200,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 1.0,
+      "normalized_accuracy": 1.0
+    },
+    "description": {
+      "field_name": "description",
+      "total": 200,
+      "exact_matches": 200,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 1.0,
+      "normalized_accuracy": 1.0
+    },
+    "material": {
+      "field_name": "material",
+      "total": 200,
+      "exact_matches": 165,
+      "normalized_matches": 0,
+      "missing_correct": 10,
+      "missing_incorrect": 4,
+      "false_positives": 21,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.825,
+      "normalized_accuracy": 0.825
+    },
+    "size": {
+      "field_name": "size",
+      "total": 200,
+      "exact_matches": 190,
+      "normalized_matches": 0,
+      "missing_correct": 10,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.95,
+      "normalized_accuracy": 0.95
+    },
+    "uom": {
+      "field_name": "uom",
+      "total": 0,
+      "exact_matches": 0,
+      "normalized_matches": 0,
+      "missing_correct": 0,
+      "missing_incorrect": 0,
+      "false_positives": 0,
+      "not_evaluated": 200,
+      "exact_accuracy": 0.0,
+      "normalized_accuracy": 0.0
+    },
+    "pressure": {
+      "field_name": "pressure",
+      "total": 200,
+      "exact_matches": 179,
+      "normalized_matches": 0,
+      "missing_correct": 13,
+      "missing_incorrect": 8,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.895,
+      "normalized_accuracy": 0.895
+    },
+    "other": {
+      "field_name": "other",
+      "total": 600,
+      "exact_matches": 543,
+      "normalized_matches": 0,
+      "missing_correct": 45,
+      "missing_incorrect": 12,
+      "false_positives": 0,
+      "not_evaluated": 0,
+      "exact_accuracy": 0.905,
+      "normalized_accuracy": 0.905
+    }
+  },
+  "row_results": [
+    {
+      "row_number": 2,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "connection_type",
+          "expected": "NPT",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 3,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 4,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 5,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 6,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 7,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 8,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 9,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 10,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 11,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_rating",
+          "expected": "400",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 12,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Ductile Iron",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 13,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_rating",
+          "expected": "200",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 14,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 15,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 16,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 17,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 18,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 19,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 20,
+      "total_fields": 11,
+      "exact_matches": 9,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.8182,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Ductile Iron",
+          "predicted": "DI",
+          "type": "mismatch"
+        },
+        {
+          "column": "pressure_rating",
+          "expected": "800",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 21,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 22,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 23,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 24,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 25,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 26,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "temperature_range",
+          "expected": "-40\u00b0F to 400\u00b0F",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 27,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 28,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_uom",
+          "expected": "psi",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 29,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 30,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 31,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 32,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 33,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "manufacturer",
+          "expected": "Crane Co.",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 34,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 35,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_uom",
+          "expected": "CWP",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 36,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 37,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 38,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 39,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 40,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 41,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 42,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 43,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 44,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 45,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 46,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 47,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 48,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 49,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 50,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 51,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 52,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 53,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 54,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "brand",
+          "expected": "Apollo",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 55,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 56,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 57,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 58,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 59,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 60,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 61,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 62,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 63,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 64,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 65,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 66,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 67,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 68,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 69,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 70,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 71,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 72,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 73,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "manufacturer",
+          "expected": "Milwaukee Valve",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 74,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 75,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 76,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 77,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 78,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 79,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 80,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 81,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 82,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 83,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 84,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 85,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 86,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 87,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 88,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 89,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 90,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 91,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "brand",
+          "expected": "Fisher",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 92,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "brand",
+          "expected": "Victaulic",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 93,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 94,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 95,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 96,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "connection_type",
+          "expected": "Flanged",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 97,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "temperature_range",
+          "expected": "0\u00b0C to 200\u00b0C",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 98,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "temperature_range",
+          "expected": "-20\u00b0F to 350\u00b0F",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 99,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 100,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 101,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 102,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 103,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 104,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 105,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 106,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 107,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "manufacturer",
+          "expected": "Bray International",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 108,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 109,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 110,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 111,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 112,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "connection_type",
+          "expected": "Flanged",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 113,
+      "total_fields": 11,
+      "exact_matches": 9,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.8182,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        },
+        {
+          "column": "pressure_rating",
+          "expected": "200",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 114,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 115,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 116,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 117,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 118,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 119,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 120,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 121,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 122,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 123,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 124,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "connection_type",
+          "expected": "Compression",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 125,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 126,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 127,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Ductile Iron",
+          "predicted": "DI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 128,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 129,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 130,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 131,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 132,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "connection_type",
+          "expected": "FNPT",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 133,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 134,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_rating",
+          "expected": "1000",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 135,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 136,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 137,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 138,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 139,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 140,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 141,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 142,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 143,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 144,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 145,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 146,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 147,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 148,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 149,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 150,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 151,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 152,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 153,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_uom",
+          "expected": "psi",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 154,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 155,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 156,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 157,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 158,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 159,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "brand",
+          "expected": "Swagelok",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 160,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 161,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 162,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 163,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_rating",
+          "expected": "1500",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 164,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 165,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 166,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 167,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 168,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 169,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 170,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 171,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 172,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Stainless Steel 304",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 173,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 174,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 175,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 176,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 177,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 178,
+      "total_fields": 11,
+      "exact_matches": 9,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.8182,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "manufacturer",
+          "expected": "Nibco",
+          "predicted": null,
+          "type": "missing_incorrect"
+        },
+        {
+          "column": "pressure_uom",
+          "expected": "psi",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 179,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 180,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 181,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 182,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 183,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 184,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 185,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 186,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_rating",
+          "expected": "1500",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 187,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 188,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 189,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 190,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 191,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 192,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 193,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 194,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 195,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 196,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 197,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Cast Iron",
+          "predicted": "CI",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 198,
+      "total_fields": 11,
+      "exact_matches": 11,
+      "normalized_matches": 0,
+      "partial_accuracy": 1.0,
+      "is_complete_match": true,
+      "mismatches": []
+    },
+    {
+      "row_number": 199,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Carbon Steel",
+          "predicted": "CS",
+          "type": "mismatch"
+        }
+      ]
+    },
+    {
+      "row_number": 200,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "pressure_rating",
+          "expected": "400",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    },
+    {
+      "row_number": 201,
+      "total_fields": 11,
+      "exact_matches": 10,
+      "normalized_matches": 0,
+      "partial_accuracy": 0.9091,
+      "is_complete_match": false,
+      "mismatches": [
+        {
+          "column": "material",
+          "expected": "Brass",
+          "predicted": null,
+          "type": "missing_incorrect"
+        }
+      ]
+    }
+  ]
+}

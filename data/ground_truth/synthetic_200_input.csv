@@ -1,0 +1,201 @@
+Manufacturer,Brand,Category,Part Number,Description,Material,Size,UOM,Pressure Rating,Pressure UOM,Connection Type,Temperature Range
+Velan Inc,N/A,Globe Valve,VEL-GL-34-0001,"3/4 in Carbon Steel Globe Valve, 200 CWP",carbon steel,3/4,,200,CWP,N/A,0°C to 200°C
+KITZ Corp,Milwaukee,Centrifugal Pump,KIT-CE-6-0002,"6 in Cast Iron Centrifugal Pump, 800 psi",cast iron,6,in,800,psi,FNPT,-40°F to 400°F
+VICTAULIC,Swagelok,Globe Valve,VIC-GL-3-0003,"3 in Stainless Steel 316 Globe Valve, 200 psi",316 Stainless Steel,3,in,200,psi,Compression,-40°F to 400°F
+VELAN,Milwaukee,Centrifugal Pump,VEL-CE-3-0004,"3 in Bronze Centrifugal Pump, 400 psi",bronze,3,in,400,,Flanged,-20°C to 180°C
+Apollo Valve,Milwaukee,Butterfly Valve,APO-BU-34-0005,"3/4 in Stainless Steel 316 Butterfly Valve, 1000 WOG",SS316,3/4,in,1000,WOG,FNPT,0°F to 250°F
+Nibco,Sharpe,Centrifugal Pump,NIB-CE-4-0006,"4 in Cast Iron Centrifugal Pump, 1000 CWP",CI,4,in,N/A,CWP,NPT,-20°C to 180°C
+Crane Company,Kitz,Check Valve,CRA-CH-2-0007,"2 in Cast Iron Check Valve, 600 CWP",Cast Iron,2,in,600,CWP,Threaded,-40°F to 400°F
+VICTAULIC,Victaulic,Reducer,VIC-RE-2-0008,"2 in Stainless Steel 316 Reducer, 200 psi",SS316,2,in,200,psi,Threaded,0°F to 250°F
+VELAN,Fisher,Tee Fitting,VEL-TE-2-12-0009,"2-1/2 mm Stainless Steel 304 Tee Fitting, 1000 psi",304 Stainless Steel,2-1/2,mm,1000,psi,n/a,
+Milwaukee,NIBCO,Ball Valve,MIL-BA-6-0010,"6 in Bronze Ball Valve, 400 psi",BRONZE,6,in,n/a,psi,NPT,0°F to 250°F
+BRAY,Swagelok,Ball Valve,BRA-BA-1-14-0011,"1-1/4 in Ductile Iron Ball Valve, 1000 WOG",n/a,1-1/4,in,1000,WOG,Threaded,-20°F to 350°F
+APOLLO,Watts,Gate Valve,APO-GA-2-0012,"2 mm Bronze Gate Valve, 200 psi",bronze,2,mm,--,psi,Compression,--
+APOLLO,,Coupling,APO-CO-1-0013,"1 in PVC Coupling, 1500 psi",pvc,,in,,psi,FNPT,0°F to 250°F
+Parker-Hannifin,Victaulic,Gate Valve,PAR-GA-3-0014,"3 in Bronze Gate Valve, 400 WOG",bronze,3,in,400,WOG,NPT,0°C to 200°C
+Flowserve Corp,Milwaukee,Needle Valve,FLO-NE-2-0015,"2 in Stainless Steel 304 Needle Valve, 200 psi",304 Stainless Steel,2,in,200,psi,Flanged,0°C to 200°C
+Honeywell Inc,Fisher,Centrifugal Pump,HON-CE-3-0016,"3 mm Stainless Steel 304 Centrifugal Pump, 150 CWP",304 SS,3,mm,150,CWP,BSP,-20°F to 350°F
+VELAN,Milwaukee,Globe Valve,VEL-GL-38-0017,"3/8 in Brass Globe Valve, 600 psi",brass,3/8,in,600,n/a,NPT,0°F to 250°F
+Victaulic Company,Watts,Globe Valve,VIC-GL-1-12-0018,"1-1/2 in Cast Iron Globe Valve, 150 psi",cast iron,1-1/2,in,150,psi,BSP,-20°F to 350°F
+Victaulic Company,NIBCO,Tee Fitting,VIC-TE-14-0019,"1/4 in Ductile Iron Tee Fitting, 800 WOG",DI,1/4,in,N/A,WOG,Threaded,-40°F to 400°F
+BRAY,NIBCO,Needle Valve,BRA-NE-1-12-0020,"1-1/2 in Carbon Steel Needle Valve, 600 psi",CS,1-1/2,in,--,psi,Threaded,0°F to 250°F
+Crane Company,Apollo,Check Valve,CRA-CH-6-0021,"6 in Stainless Steel 316 Check Valve, 1000 CWP",316 Stainless,6,,1000,CWP,Solder,-20°F to 350°F
+Velan Inc,NIBCO,Ball Valve,VEL-BA-3-0022,"3 in Stainless Steel 316 Ball Valve, 200 psi",316 SS,3,in,200,psi,Solder,0°F to 250°F
+KITZ Corp,Milwaukee,Ball Valve,KIT-BA-1-0023,"1 in Stainless Steel 304 Ball Valve, 1000 CWP",304 SS,1,in,1000,CWP,Solder,0°F to 250°F
+VELAN,Grundfos,Gate Valve,VEL-GA-34-0024,"3/4 in Stainless Steel 304 Gate Valve, 300 psi",304 Stainless,3/4,in,300,psi,NPT,-40°F to 400°F
+HONEYWELL,Apollo,Elbow Fitting,HON-EL-34-0025,"3/4 in Ductile Iron Elbow Fitting, 1500 psi",ductile iron,3/4,in,1500,psi,Solder,n/a
+SWAGELOK,Victaulic,Butterfly Valve,SWA-BU-12-0026,"1/2 in PVC Butterfly Valve, 1500 psi",pvc,1/2,in,1500,psi,Threaded,-40°F to 400°F
+VICTAULIC,Victaulic,Gate Valve,VIC-GA-1-12-0027,"1-1/2 in Carbon Steel Gate Valve, 400 psi",,1-1/2,in,400,N/A,--,-20°C to 180°C
+KITZ,,Globe Valve,KIT-GL-1-12-0028,"1-1/2 in Stainless Steel 304 Globe Valve, 400 WOG",304 Stainless,1-1/2,in,400,WOG,FNPT,0°F to 250°F
+PARKER HANNIFIN,Swagelok,Needle Valve,PAR-NE-38-0029,"3/8 in Brass Needle Valve, 300 WOG",brass,3/8,in,300,WOG,FNPT,-20°F to 350°F
+NIBCO Inc,Apollo,Centrifugal Pump,NIB-CE-34-0030,"3/4 in Stainless Steel 316 Centrifugal Pump, 150 psi",SS316,3/4,in,150,psi,FNPT,-40°F to 400°F
+KITZ,Grundfos,Flange,KIT-FL-12-0031,"1/2 in Bronze Flange, 200 CWP",bronze,1/2,in,200,CWP,NPT,0°F to 250°F
+N/A,n/a,Centrifugal Pump,CRA-CE-1-14-0032,"1-1/4 mm Brass Centrifugal Pump, 1000 psi",brass,1-1/4,mm,1000,psi,NPT,0°C to 200°C
+Honeywell Inc,Victaulic,Coupling,HON-CO-2-0033,"2 in PVC Coupling, 600 psi",PVC,2,in,600,psi,n/a,-40°F to 400°F
+HONEYWELL,Fisher,Globe Valve,HON-GL-1-0034,"1 mm Stainless Steel 316 Globe Valve, 600 CWP",316 Stainless,1,mm,600,n/a,NPT,0°C to 200°C
+EMERSON,Milwaukee,Needle Valve,EME-NE-1-0035,"1 mm Carbon Steel Needle Valve, 800 WOG",CS,1,mm,800,WOG,Solder,0°C to 200°C
+PENTAIR,Victaulic,Flange,PEN-FL-34-0036,"3/4 in Cast Iron Flange, 1500 psi",CI,3/4,in,1500,psi,,0°C to 200°C
+Crane Company,Apollo,Reducer,CRA-RE-6-0037,"6 in Stainless Steel 304 Reducer, 1500 psi",304 SS,6,--,1500,psi,Threaded,-20°F to 350°F
+EMERSON,Grundfos,Ball Valve,EME-BA-12-0038,"1/2 mm Cast Iron Ball Valve, 600 psi",Cast Iron,1/2,mm,600,psi,FNPT,-20°F to 350°F
+Apollo,Milwaukee,Ball Valve,APO-BA-34-0039,"3/4 in Bronze Ball Valve, 600 psi",,3/4,in,600,psi,FNPT,-40°F to 400°F
+NIBCO Inc,Sharpe,Globe Valve,NIB-GL-1-12-0040,"1-1/2 in Carbon Steel Globe Valve, 400 psi",N/A,1-1/2,in,400,psi,BSP,-40°F to 400°F
+n/a,Victaulic,Check Valve,CRA-CH-3-0041,"3 in Bronze Check Valve, 1000 psi",bronze,3,in,--,psi,Solder,0°F to 250°F
+BRAY,Watts,Needle Valve,BRA-NE-1-0042,"1 in PVC Needle Valve, 1000 WOG",PVC,1,in,1000,WOG,NPT,-20°C to 180°C
+MILWAUKEE VALVE,Apollo,Globe Valve,MIL-GL-1-14-0043,"1-1/4 in Stainless Steel 304 Globe Valve, 1000 CWP",304 Stainless,1-1/4,in,1000,CWP,Threaded,-20°F to 350°F
+n/a,Watts,Union,MIL-UN-38-0044,"3/8 in PVC Union, 400 psi",pvc,3/8,in,400,psi,BSP,0°C to 200°C
+Crane Company,Victaulic,Centrifugal Pump,CRA-CE-2-0045,"2 in PVC Centrifugal Pump, 1500 CWP",PVC,2,n/a,1500,CWP,FNPT,-20°C to 180°C
+CRANE,Apollo,Globe Valve,CRA-GL-12-0046,"1/2 in PVC Globe Valve, 1500 psi",pvc,1/2,in,1500,psi,BSP,0°C to 200°C
+Watts Water,Fisher,Centrifugal Pump,WAT-CE-4-0047,"4 in Ductile Iron Centrifugal Pump, 1500 psi",ductile iron,4,in,1500,N/A,FNPT,0°C to 200°C
+Honeywell International,Sharpe,Globe Valve,HON-GL-3-0048,"3 in Stainless Steel 316 Globe Valve, 200 psi",316 Stainless,3,in,--,,Threaded,0°C to 200°C
+Flowserve Corporation,Sharpe,Ball Valve,FLO-BA-2-0049,"2 in Bronze Ball Valve, 600 psi",BRONZE,2,in,600,psi,NPT,0°F to 250°F
+SWAGELOK,Swagelok,Gate Valve,SWA-GA-3-0050,"3 in PVC Gate Valve, 400 WOG",pvc,3,in,400,WOG,Compression,0°F to 250°F
+CRANE,Swagelok,Check Valve,CRA-CH-34-0051,"3/4 in Stainless Steel 304 Check Valve, 1500 psi",304 SS,3/4,in,1500,psi,FNPT,-20°C to 180°C
+Pentair plc,Apollo,Flange,PEN-FL-1-0052,"1 in PVC Flange, 800 psi",pvc,1,in,800,psi,Compression,-40°F to 400°F
+NIBCO,--,Needle Valve,NIB-NE-38-0053,"3/8 in Cast Iron Needle Valve, 800 WOG",Cast Iron,3/8,in,800,WOG,FNPT,-40°F to 400°F
+BRAY,Milwaukee,Centrifugal Pump,BRA-CE-2-0054,"2 in Bronze Centrifugal Pump, 300 psi",BRONZE,2,N/A,300,psi,Threaded,-20°C to 180°C
+KITZ,Swagelok,Centrifugal Pump,KIT-CE-4-0055,"4 in Bronze Centrifugal Pump, 1500 psi",BRONZE,4,in,1500,psi,Solder,--
+Parker Hannifin Corp,Milwaukee,Elbow Fitting,PAR-EL-34-0056,"3/4 mm Bronze Elbow Fitting, 300 WOG",bronze,3/4,mm,300,WOG,Flanged,0°F to 250°F
+Apollo,Milwaukee,Globe Valve,APO-GL-2-0057,"2 in Carbon Steel Globe Valve, 400 psi",CS,2,in,400,psi,NPT,0°F to 250°F
+VELAN,Grundfos,Elbow Fitting,VEL-EL-34-0058,"3/4 in Stainless Steel 316 Elbow Fitting, 400 psi",316 Stainless Steel,3/4,in,400,N/A,Threaded,0°C to 200°C
+HONEYWELL,N/A,Gate Valve,HON-GA-4-0059,"4 in Bronze Gate Valve, 300 psi",BRONZE,4,in,300,N/A,BSP,-40°F to 400°F
+--,Sharpe,Gate Valve,KIT-GA-6-0060,"6 mm Brass Gate Valve, 600 WOG",Brass,6,mm,600,WOG,Compression,-20°F to 350°F
+EMERSON,Watts,Needle Valve,EME-NE-1-12-0061,"1-1/2 mm Stainless Steel 316 Needle Valve, 600 WOG",316 SS,1-1/2,mm,600,WOG,Solder,0°C to 200°C
+APOLLO,Kitz,Centrifugal Pump,APO-CE-6-0062,"6 in Ductile Iron Centrifugal Pump, 800 WOG",ductile iron,,in,800,WOG,BSP,0°F to 250°F
+MILWAUKEE VALVE,Apollo,Butterfly Valve,MIL-BU-4-0063,"4 in Stainless Steel 316 Butterfly Valve, 1000 psi",316 Stainless,4,in,1000,psi,Threaded,-20°C to 180°C
+EMERSON,Kitz,Centrifugal Pump,EME-CE-1-0064,"1 mm Bronze Centrifugal Pump, 400 WOG",bronze,1,,400,WOG,Threaded,0°C to 200°C
+Pentair plc,Milwaukee,Coupling,PEN-CO-12-0065,"1/2 in Brass Coupling, 1000 psi",BRASS,1/2,in,1000,psi,FNPT,-20°F to 350°F
+Victaulic Company,Apollo,Butterfly Valve,VIC-BU-4-0066,"4 in Brass Butterfly Valve, 600 WOG",brass,4,in,600,WOG,Compression,-20°C to 180°C
+VELAN,Milwaukee,Check Valve,VEL-CH-14-0067,"1/4 in Brass Check Valve, 600 psi",BRASS,1/4,in,600,psi,Threaded,-40°F to 400°F
+Velan Inc,Kitz,Needle Valve,VEL-NE-1-12-0068,"1-1/2 in Brass Needle Valve, 1500 psi",Brass,1-1/2,in,n/a,psi,Threaded,0°F to 250°F
+SWAGELOK,Kitz,Ball Valve,SWA-BA-1-12-0069,"1-1/2 mm Carbon Steel Ball Valve, 1000 CWP",carbon steel,1-1/2,mm,1000,CWP,NPT,-20°C to 180°C
+Watts Water,Watts,Gate Valve,WAT-GA-34-0070,"3/4 in Stainless Steel 304 Gate Valve, 300 psi",304 SS,3/4,in,300,psi,FNPT,-20°C to 180°C
+WATTS,Watts,Check Valve,WAT-CH-4-0071,"4 in PVC Check Valve, 600 CWP",pvc,n/a,in,600,CWP,NPT,0°F to 250°F
+n/a,Swagelok,Butterfly Valve,MIL-BU-2-0072,"2 mm Brass Butterfly Valve, 400 psi",brass,2,mm,400,psi,Solder,
+PENTAIR,N/A,Reducer,PEN-RE-1-14-0073,"1-1/4 in Cast Iron Reducer, 600 WOG",cast iron,1-1/4,in,600,WOG,Flanged,0°F to 250°F
+Victaulic Company,Grundfos,Coupling,VIC-CO-3-0074,"3 in Bronze Coupling, 800 psi",BRONZE,3,in,800,psi,Compression,-20°C to 180°C
+VELAN,Victaulic,Needle Valve,VEL-NE-2-12-0075,"2-1/2 in Ductile Iron Needle Valve, 150 psi",ductile iron,2-1/2,in,150,psi,BSP,-40°F to 400°F
+MILWAUKEE VALVE,Victaulic,Globe Valve,MIL-GL-3-0076,"3 in Cast Iron Globe Valve, 300 psi",CI,3,in,300,psi,FNPT,0°C to 200°C
+NIBCO Inc,NIBCO,Globe Valve,NIB-GL-34-0077,"3/4 in PVC Globe Valve, 1500 WOG",PVC,3/4,in,1500,WOG,--,0°F to 250°F
+WATTS,Victaulic,Flange,WAT-FL-1-0078,"1 in Bronze Flange, 300 psi",bronze,1,in,300,n/a,--,0°C to 200°C
+Flowserve Corp,Swagelok,Coupling,FLO-CO-14-0079,"1/4 in Carbon Steel Coupling, 200 psi",CS,1/4,in,200,psi,n/a,-40°F to 400°F
+Crane,NIBCO,Centrifugal Pump,CRA-CE-38-0080,"3/8 in Ductile Iron Centrifugal Pump, 400 psi",Ductile Iron,N/A,in,400,psi,NPT,-20°F to 350°F
+PENTAIR,Watts,Ball Valve,PEN-BA-34-0081,"3/4 mm Stainless Steel 316 Ball Valve, 1000 psi",SS316,3/4,mm,1000,N/A,Compression,n/a
+Apollo Valve,Kitz,Ball Valve,APO-BA-38-0082,"3/8 in Stainless Steel 316 Ball Valve, 400 psi",N/A,3/8,in,400,psi,Threaded,0°C to 200°C
+VELAN,Watts,Centrifugal Pump,VEL-CE-14-0083,"1/4 in PVC Centrifugal Pump, 400 psi",PVC,1/4,in,400,,Threaded,-40°F to 400°F
+SWAGELOK,Apollo,Coupling,SWA-CO-38-0084,"3/8 in Stainless Steel 304 Coupling, 1000 WOG",304 Stainless,3/8,in,1000,WOG,Compression,-20°C to 180°C
+Emerson,Swagelok,Gate Valve,EME-GA-1-14-0085,"1-1/4 in Stainless Steel 304 Gate Valve, 200 psi",304 SS,1-1/4,in,,psi,Compression,0°F to 250°F
+CRANE,Apollo,Needle Valve,CRA-NE-1-14-0086,"1-1/4 mm Ductile Iron Needle Valve, 300 psi",ductile iron,1-1/4,mm,300,psi,N/A,0°C to 200°C
+Nibco,Kitz,Ball Valve,NIB-BA-2-12-0087,"2-1/2 in Cast Iron Ball Valve, 1000 psi",Cast Iron,2-1/2,in,1000,psi,Compression,0°F to 250°F
+KITZ Corp,Milwaukee,Check Valve,KIT-CH-38-0088,"3/8 in Carbon Steel Check Valve, 200 WOG",CS,3/8,in,200,WOG,FNPT,-20°C to 180°C
+n/a,Watts,Centrifugal Pump,HON-CE-38-0089,"3/8 in Carbon Steel Centrifugal Pump, 300 psi",carbon steel,3/8,in,300,psi,Threaded,-20°C to 180°C
+PENTAIR,n/a,Check Valve,PEN-CH-12-0090,"1/2 in Bronze Check Valve, 200 WOG",bronze,1/2,in,200,WOG,Flanged,--
+Emerson Electric Co.,n/a,Gate Valve,EME-GA-1-14-0091,"1-1/4 in Cast Iron Gate Valve, 800 CWP",Cast Iron,1-1/4,in,800,CWP,BSP,-20°F to 350°F
+Honeywell International,Watts,Needle Valve,HON-NE-3-0092,"3 in Stainless Steel 316 Needle Valve, 150 psi",SS316,3,N/A,150,psi,NPT,0°C to 200°C
+Flowserve Corp,Swagelok,Ball Valve,FLO-BA-12-0093,"1/2 in Brass Ball Valve, 1000 WOG",Brass,1/2,in,1000,WOG,Flanged,-40°F to 400°F
+Emerson Electric Co.,Kitz,Ball Valve,EME-BA-2-0094,"2 in Stainless Steel 304 Ball Valve, 300 psi",304 Stainless Steel,2,in,300,psi,NPT,0°F to 250°F
+HONEYWELL,Fisher,Union,HON-UN-1-0095,"1 in PVC Union, 150 psi",pvc,,in,150,psi,--,0°C to 200°C
+PARKER HANNIFIN,Sharpe,Globe Valve,PAR-GL-1-12-0096,"1-1/2 in Stainless Steel 316 Globe Valve, 150 WOG",SS316,1-1/2,in,150,WOG,NPT,N/A
+,Sharpe,Globe Valve,HON-GL-12-0097,"1/2 in Stainless Steel 316 Globe Valve, 1000 CWP",SS316,1/2,N/A,1000,CWP,NPT,--
+Apollo,Grundfos,Centrifugal Pump,APO-CE-2-12-0098,"2-1/2 mm Stainless Steel 316 Centrifugal Pump, 1500 CWP",SS316,2-1/2,mm,1500,CWP,BSP,
+NIBCO,Milwaukee,Reducer,NIB-RE-6-0099,"6 in Carbon Steel Reducer, 1500 psi",Carbon Steel,6,in,1500,psi,Solder,0°C to 200°C
+APOLLO,NIBCO,Butterfly Valve,APO-BU-6-0100,"6 in PVC Butterfly Valve, 300 CWP",PVC,6,in,300,CWP,FNPT,0°C to 200°C
+PENTAIR,Milwaukee,Gate Valve,PEN-GA-1-0101,"1 mm Carbon Steel Gate Valve, 600 psi",CS,1,mm,600,psi,BSP,0°F to 250°F
+Milwaukee,Swagelok,Union,MIL-UN-12-0102,"1/2 in Stainless Steel 316 Union, 150 psi",316 Stainless,1/2,in,150,psi,Compression,-20°F to 350°F
+Kitz,Grundfos,Ball Valve,KIT-BA-4-0103,"4 in Carbon Steel Ball Valve, 150 psi",carbon steel,--,in,150,psi,Flanged,0°F to 250°F
+NIBCO,NIBCO,Centrifugal Pump,NIB-CE-1-0104,"1 in Stainless Steel 316 Centrifugal Pump, 200 CWP",n/a,1,in,200,CWP,--,0°C to 200°C
+Bray,Fisher,Needle Valve,BRA-NE-14-0105,"1/4 in Stainless Steel 304 Needle Valve, 600 CWP",SS304,1/4,in,600,CWP,Solder,-20°F to 350°F
+--,Sharpe,Needle Valve,BRA-NE-4-0106,"4 in PVC Needle Valve, 300 psi",PVC,4,N/A,300,psi,Compression,0°F to 250°F
+Velan Inc,Sharpe,Gate Valve,VEL-GA-1-14-0107,"1-1/4 in PVC Gate Valve, 150 psi",pvc,1-1/4,in,150,psi,Flanged,-40°F to 400°F
+NIBCO,Milwaukee,Needle Valve,NIB-NE-6-0108,"6 in Stainless Steel 304 Needle Valve, 600 psi",SS304,6,in,600,psi,Solder,-40°F to 400°F
+--,NIBCO,Centrifugal Pump,VEL-CE-2-12-0109,"2-1/2 in Bronze Centrifugal Pump, 800 psi",bronze,2-1/2,in,800,psi,Solder,-20°F to 350°F
+Kitz,Fisher,Butterfly Valve,KIT-BU-14-0110,"1/4 in PVC Butterfly Valve, 300 CWP",pvc,1/4,--,300,n/a,Flanged,-20°C to 180°C
+APOLLO,Kitz,Centrifugal Pump,APO-CE-38-0111,"3/8 in Brass Centrifugal Pump, 150 psi",Brass,3/8,in,150,psi,N/A,-40°F to 400°F
+Apollo Valve,Sharpe,Needle Valve,APO-NE-4-0112,"4 in Cast Iron Needle Valve, 200 psi",CI,,n/a,--,psi,Solder,-20°C to 180°C
+SWAGELOK,NIBCO,Globe Valve,SWA-GL-1-0113,"1 in Cast Iron Globe Valve, 200 psi",cast iron,1,,200,psi,Threaded,-20°C to 180°C
+Flowserve Corporation,Apollo,Gate Valve,FLO-GA-14-0114,"1/4 in Carbon Steel Gate Valve, 600 psi",carbon steel,1/4,in,600,psi,Threaded,0°C to 200°C
+PARKER HANNIFIN,Victaulic,Flange,PAR-FL-4-0115,"4 in Cast Iron Flange, 1500 psi",CI,4,in,1500,psi,BSP,-20°C to 180°C
+PENTAIR,Watts,Centrifugal Pump,PEN-CE-1-12-0116,"1-1/2 mm Ductile Iron Centrifugal Pump, 300 WOG",Ductile Iron,1-1/2,mm,300,WOG,FNPT,0°F to 250°F
+KITZ,Apollo,Tee Fitting,KIT-TE-2-0117,"2 in Carbon Steel Tee Fitting, 800 psi",CS,2,in,800,psi,NPT,-40°F to 400°F
+Milwaukee,Kitz,Centrifugal Pump,MIL-CE-2-12-0118,"2-1/2 in PVC Centrifugal Pump, 600 psi",PVC,2-1/2,in,600,psi,BSP,n/a
+Swagelok Company,NIBCO,Centrifugal Pump,SWA-CE-2-12-0119,"2-1/2 mm Stainless Steel 304 Centrifugal Pump, 1000 psi",304 SS,2-1/2,mm,1000,psi,FNPT,-40°F to 400°F
+Velan Inc,Fisher,Needle Valve,VEL-NE-12-0120,"1/2 in Stainless Steel 316 Needle Valve, 1500 psi",316 Stainless Steel,1/2,,,psi,Solder,
+HONEYWELL,Apollo,Check Valve,HON-CH-14-0121,"1/4 mm Stainless Steel 316 Check Valve, 1500 WOG",--,1/4,mm,1500,WOG,NPT,-20°F to 350°F
+Victaulic Company,Watts,Ball Valve,VIC-BA-34-0122,"3/4 in Cast Iron Ball Valve, 600 psi",CI,3/4,in,600,psi,BSP,-20°C to 180°C
+Velan Inc,Apollo,Check Valve,VEL-CH-2-12-0123,"2-1/2 in Ductile Iron Check Valve, 150 psi",Ductile Iron,2-1/2,in,150,psi,--,-40°F to 400°F
+--,Grundfos,Ball Valve,VIC-BA-4-0124,"4 in Bronze Ball Valve, 150 psi",bronze,4,in,150,psi,Threaded,0°F to 250°F
+--,Swagelok,Butterfly Valve,SWA-BU-1-12-0125,"1-1/2 in Stainless Steel 316 Butterfly Valve, 200 CWP",316 SS,1-1/2,in,200,CWP,Compression,N/A
+Crane Company,Fisher,Globe Valve,CRA-GL-1-12-0126,"1-1/2 in Ductile Iron Globe Valve, 1000 psi",DI,1-1/2,in,1000,psi,Threaded,0°C to 200°C
+Emerson Electric Co,Apollo,Union,EME-UN-1-0127,"1 in Stainless Steel 316 Union, 300 psi",SS316,n/a,in,300,psi,FNPT,-20°C to 180°C
+Crane,Swagelok,Ball Valve,CRA-BA-3-0128,"3 mm Carbon Steel Ball Valve, 300 WOG",Carbon Steel,3,mm,300,WOG,FNPT,-40°F to 400°F
+Pentair plc,Fisher,Gate Valve,PEN-GA-38-0129,"3/8 in PVC Gate Valve, 600 psi",PVC,3/8,in,600,psi,Flanged,0°F to 250°F
+KITZ,NIBCO,Gate Valve,KIT-GA-1-14-0130,"1-1/4 in Ductile Iron Gate Valve, 1500 CWP",Ductile Iron,1-1/4,in,1500,CWP,Threaded,-40°F to 400°F
+Parker Hannifin Corp,Fisher,Tee Fitting,PAR-TE-1-0131,"1 in PVC Tee Fitting, 1000 WOG",PVC,1,in,1000,WOG,N/A,0°F to 250°F
+,Swagelok,Globe Valve,VIC-GL-38-0132,"3/8 in Bronze Globe Valve, 800 psi",BRONZE,3/8,in,800,psi,,0°C to 200°C
+MILWAUKEE VALVE,Victaulic,Needle Valve,MIL-NE-2-0133,"2 in Carbon Steel Needle Valve, 1000 WOG",Carbon Steel,2,in,--,WOG,Threaded,0°C to 200°C
+Watts,Milwaukee,Gate Valve,WAT-GA-1-14-0134,"1-1/4 in PVC Gate Valve, 200 WOG",PVC,1-1/4,in,200,WOG,Compression,-20°C to 180°C
+FLOWSERVE,Victaulic,Gate Valve,FLO-GA-2-12-0135,"2-1/2 in Stainless Steel 316 Gate Valve, 1500 psi",316 SS,2-1/2,in,1500,psi,Threaded,--
+Flowserve Corp,NIBCO,Needle Valve,FLO-NE-3-0136,"3 in Bronze Needle Valve, 300 psi",BRONZE,3,in,300,psi,BSP,-40°F to 400°F
+SWAGELOK,Fisher,Needle Valve,SWA-NE-3-0137,"3 mm Stainless Steel 304 Needle Valve, 200 psi",304 SS,3,mm,200,psi,BSP,-20°F to 350°F
+Milwaukee,Watts,Check Valve,MIL-CH-12-0138,"1/2 in Stainless Steel 304 Check Valve, 800 WOG",304 Stainless Steel,1/2,in,800,WOG,Solder,-20°F to 350°F
+PENTAIR,Fisher,Ball Valve,PEN-BA-34-0139,"3/4 in Brass Ball Valve, 150 psi",BRASS,3/4,in,150,psi,FNPT,0°C to 200°C
+Watts,Victaulic,Centrifugal Pump,WAT-CE-2-12-0140,"2-1/2 in PVC Centrifugal Pump, 1000 psi",PVC,2-1/2,in,1000,psi,Compression,-40°F to 400°F
+BRAY,Grundfos,Needle Valve,BRA-NE-12-0141,"1/2 mm Ductile Iron Needle Valve, 300 psi",Ductile Iron,1/2,mm,300,psi,Threaded,-40°F to 400°F
+Milwaukee,Sharpe,Check Valve,MIL-CH-1-0142,"1 in Brass Check Valve, 300 psi",brass,1,in,300,psi,FNPT,0°F to 250°F
+n/a,Sharpe,Needle Valve,VIC-NE-6-0143,"6 in Stainless Steel 304 Needle Valve, 1500 WOG",SS304,6,in,1500,WOG,--,0°C to 200°C
+Flowserve Corporation,Swagelok,Centrifugal Pump,FLO-CE-1-14-0144,"1-1/4 in Stainless Steel 304 Centrifugal Pump, 800 CWP",304 SS,1-1/4,--,800,CWP,Solder,-40°F to 400°F
+SWAGELOK,Watts,Ball Valve,SWA-BA-34-0145,"3/4 in Ductile Iron Ball Valve, 600 psi",ductile iron,3/4,in,,psi,Threaded,0°F to 250°F
+Apollo Valve,,Centrifugal Pump,APO-CE-2-0146,"2 in Carbon Steel Centrifugal Pump, 300 CWP",CS,2,in,300,CWP,FNPT,0°C to 200°C
+Pentair plc,Sharpe,Globe Valve,PEN-GL-12-0147,"1/2 in Stainless Steel 304 Globe Valve, 300 psi",304 SS,1/2,in,300,psi,NPT,0°C to 200°C
+Flowserve Corporation,Sharpe,Tee Fitting,FLO-TE-3-0148,"3 in Bronze Tee Fitting, 800 WOG",bronze,3,in,800,WOG,--,-40°F to 400°F
+VICTAULIC,Milwaukee,Butterfly Valve,VIC-BU-6-0149,"6 in Carbon Steel Butterfly Valve, 600 psi",CS,6,in,600,psi,Threaded,-40°F to 400°F
+Swagelok Company,,Butterfly Valve,SWA-BU-2-0150,"2 in Cast Iron Butterfly Valve, 150 CWP",N/A,2,in,150,CWP,NPT,-20°F to 350°F
+Emerson,Victaulic,Gate Valve,EME-GA-38-0151,"3/8 in Stainless Steel 304 Gate Valve, 200 CWP",304 SS,3/8,in,,CWP,FNPT,-40°F to 400°F
+PARKER HANNIFIN,NIBCO,Check Valve,PAR-CH-2-0152,"2 mm Bronze Check Valve, 150 psi",bronze,2,mm,150,N/A,Compression,-40°F to 400°F
+HONEYWELL,Milwaukee,Centrifugal Pump,HON-CE-1-14-0153,"1-1/4 in Brass Centrifugal Pump, 600 CWP",Brass,1-1/4,in,600,CWP,NPT,0°F to 250°F
+Emerson Electric Co,Grundfos,Ball Valve,EME-BA-6-0154,"6 mm Carbon Steel Ball Valve, 150 psi",CS,6,mm,150,psi,Threaded,-20°F to 350°F
+APOLLO,NIBCO,Check Valve,APO-CH-1-0155,"1 in Stainless Steel 316 Check Valve, 800 psi",316 Stainless,1,n/a,800,psi,Solder,-20°F to 350°F
+MILWAUKEE VALVE,Fisher,Gate Valve,MIL-GA-3-0156,"3 in Stainless Steel 304 Gate Valve, 400 WOG",304 Stainless,3,in,400,WOG,BSP,
+MILWAUKEE VALVE,Kitz,Needle Valve,MIL-NE-1-14-0157,"1-1/4 in Brass Needle Valve, 1000 psi",BRASS,n/a,in,1000,psi,NPT,-40°F to 400°F
+MILWAUKEE VALVE,N/A,Centrifugal Pump,MIL-CE-6-0158,"6 in PVC Centrifugal Pump, 200 CWP",PVC,6,in,200,CWP,FNPT,-20°C to 180°C
+Pentair plc,Kitz,Globe Valve,PEN-GL-38-0159,"3/8 in Carbon Steel Globe Valve, 300 CWP",CS,3/8,in,300,CWP,NPT,-40°F to 400°F
+Emerson Electric Co,Watts,Centrifugal Pump,EME-CE-34-0160,"3/4 in Brass Centrifugal Pump, 300 psi",,3/4,in,300,psi,Compression,-40°F to 400°F
+Milwaukee,NIBCO,Ball Valve,MIL-BA-38-0161,"3/8 in Cast Iron Ball Valve, 150 psi",Cast Iron,3/8,in,150,psi,N/A,n/a
+VICTAULIC,Fisher,Centrifugal Pump,VIC-CE-38-0162,"3/8 in Stainless Steel 316 Centrifugal Pump, 1500 psi",316 Stainless Steel,3/8,in,--,psi,FNPT,0°C to 200°C
+,Apollo,Butterfly Valve,HON-BU-4-0163,"4 in Carbon Steel Butterfly Valve, 1500 WOG",Carbon Steel,4,in,1500,WOG,Solder,-20°C to 180°C
+,Kitz,Check Valve,APO-CH-3-0164,"3 mm Stainless Steel 316 Check Valve, 800 WOG",,3,mm,800,WOG,BSP,-40°F to 400°F
+Flowserve Corporation,Watts,Needle Valve,FLO-NE-1-0165,"1 mm Carbon Steel Needle Valve, 150 psi",carbon steel,1,mm,150,psi,Solder,
+Pentair plc,Kitz,Reducer,PEN-RE-3-0166,"3 in Cast Iron Reducer, 1500 CWP",Cast Iron,3,in,N/A,CWP,BSP,-40°F to 400°F
+PENTAIR,Watts,Coupling,PEN-CO-14-0167,"1/4 in Brass Coupling, 300 psi",Brass,1/4,in,300,psi,Threaded,0°C to 200°C
+APOLLO,Fisher,Gate Valve,APO-GA-34-0168,"3/4 mm Stainless Steel 316 Gate Valve, 300 WOG",316 Stainless Steel,3/4,mm,300,WOG,n/a,0°F to 250°F
+Victaulic Company,Grundfos,Butterfly Valve,VIC-BU-2-0169,"2 in Bronze Butterfly Valve, 800 psi",BRONZE,2,in,800,psi,FNPT,0°F to 250°F
+Flowserve Corp,Sharpe,Ball Valve,FLO-BA-14-0170,"1/4 in Brass Ball Valve, 1500 WOG",Brass,1/4,in,1500,WOG,FNPT,-20°C to 180°C
+Emerson,Apollo,Globe Valve,EME-GL-38-0171,"3/8 in Stainless Steel 304 Globe Valve, 800 psi",n/a,3/8,in,800,psi,n/a,-40°F to 400°F
+Honeywell International,Grundfos,Tee Fitting,HON-TE-38-0172,"3/8 in Brass Tee Fitting, 400 psi",BRASS,3/8,in,,psi,Flanged,0°C to 200°C
+Watts,Apollo,Globe Valve,WAT-GL-34-0173,"3/4 in PVC Globe Valve, 150 psi",PVC,3/4,in,150,psi,FNPT,0°F to 250°F
+Watts,Swagelok,Check Valve,WAT-CH-1-0174,"1 in Brass Check Valve, 1500 psi",brass,1,in,1500,psi,FNPT,0°F to 250°F
+Parker-Hannifin,Swagelok,Centrifugal Pump,PAR-CE-3-0175,"3 in PVC Centrifugal Pump, 1500 psi",PVC,3,in,1500,psi,NPT,-20°C to 180°C
+Honeywell International,Watts,Tee Fitting,HON-TE-14-0176,"1/4 in Cast Iron Tee Fitting, 200 WOG",cast iron,1/4,--,200,WOG,FNPT,-40°F to 400°F
+--,Apollo,Centrifugal Pump,NIB-CE-38-0177,"3/8 in Ductile Iron Centrifugal Pump, 300 psi",ductile iron,3/8,in,300,n/a,Solder,0°C to 200°C
+Crane Company,Swagelok,Butterfly Valve,CRA-BU-14-0178,"1/4 in PVC Butterfly Valve, 600 WOG",n/a,1/4,in,600,WOG,FNPT,0°C to 200°C
+Parker,Kitz,Centrifugal Pump,PAR-CE-1-0179,"1 in Stainless Steel 304 Centrifugal Pump, 200 psi",304 Stainless Steel,1,in,200,psi,FNPT,0°F to 250°F
+Pentair plc,Fisher,Centrifugal Pump,PEN-CE-2-12-0180,"2-1/2 in Brass Centrifugal Pump, 200 psi",brass,2-1/2,in,200,psi,,
+PARKER HANNIFIN,Kitz,Centrifugal Pump,PAR-CE-2-0181,"2 mm Stainless Steel 316 Centrifugal Pump, 1000 psi",SS316,2,mm,1000,psi,Compression,-20°F to 350°F
+Swagelok Company,Sharpe,Check Valve,SWA-CH-12-0182,"1/2 mm Brass Check Valve, 400 psi",Brass,--,mm,400,,Compression,-40°F to 400°F
+Kitz,Apollo,Butterfly Valve,KIT-BU-6-0183,"6 in Stainless Steel 304 Butterfly Valve, 1000 WOG",304 Stainless,6,in,1000,,Threaded,0°F to 250°F
+Swagelok Company,Kitz,Butterfly Valve,SWA-BU-1-0184,"1 in Stainless Steel 304 Butterfly Valve, 1500 psi",304 Stainless,1,in,1500,psi,BSP,0°F to 250°F
+BRAY,Grundfos,Globe Valve,BRA-GL-6-0185,"6 in Cast Iron Globe Valve, 1500 psi",cast iron,6,in,N/A,psi,BSP,-20°C to 180°C
+NIBCO Inc,Kitz,Gate Valve,NIB-GA-1-0186,"1 in Cast Iron Gate Valve, 1500 psi",Cast Iron,1,in,1500,psi,Compression,0°F to 250°F
+Apollo Valve,Kitz,Butterfly Valve,APO-BU-2-0187,"2 in Stainless Steel 304 Butterfly Valve, 1500 psi",304 SS,2,in,1500,psi,Threaded,0°C to 200°C
+Honeywell Inc,Watts,Coupling,HON-CO-3-0188,"3 in Ductile Iron Coupling, 300 psi",ductile iron,3,in,,psi,Threaded,-40°F to 400°F
+BRAY,N/A,Ball Valve,BRA-BA-3-0189,"3 in Cast Iron Ball Valve, 1000 WOG",cast iron,3,n/a,1000,WOG,Flanged,-20°C to 180°C
+Velan Inc,NIBCO,Globe Valve,VEL-GL-12-0190,"1/2 in Stainless Steel 304 Globe Valve, 1000 CWP",304 Stainless,1/2,in,1000,CWP,Solder,0°F to 250°F
+Watts,N/A,Gate Valve,WAT-GA-1-12-0191,"1-1/2 in Cast Iron Gate Valve, 400 psi",Cast Iron,1-1/2,in,400,psi,Compression,-40°F to 400°F
+Kitz,Apollo,Ball Valve,KIT-BA-4-0192,"4 in Bronze Ball Valve, 150 psi",BRONZE,4,in,150,psi,Flanged,-20°C to 180°C
+Crane Company,Grundfos,Gate Valve,CRA-GA-38-0193,"3/8 mm Ductile Iron Gate Valve, 200 psi",Ductile Iron,3/8,mm,200,psi,NPT,-20°F to 350°F
+Victaulic Company,NIBCO,Check Valve,VIC-CH-34-0194,"3/4 in Stainless Steel 316 Check Valve, 150 psi",SS316,3/4,in,150,psi,NPT,0°C to 200°C
+Crane Company,Milwaukee,Ball Valve,CRA-BA-14-0195,"1/4 in Cast Iron Ball Valve, 800 psi",n/a,1/4,in,800,psi,Flanged,-20°F to 350°F
+VICTAULIC,Sharpe,Globe Valve,VIC-GL-38-0196,"3/8 in Cast Iron Globe Valve, 1000 WOG",CI,3/8,in,1000,WOG,BSP,-20°C to 180°C
+Emerson Electric Co,Swagelok,Union,EME-UN-12-0197,"1/2 mm PVC Union, 1000 psi",PVC,1/2,mm,1000,psi,Solder,n/a
+VELAN,Kitz,Needle Valve,VEL-NE-4-0198,"4 in Carbon Steel Needle Valve, 200 WOG",CS,4,in,200,WOG,,-40°F to 400°F
+Milwaukee,Fisher,Tee Fitting,MIL-TE-2-0199,"2 in Bronze Tee Fitting, 400 psi",bronze,2,in,n/a,psi,BSP,-20°F to 350°F
+n/a,Sharpe,Flange,WAT-FL-38-0200,"3/8 in Brass Flange, 1000 psi",n/a,3/8,n/a,1000,psi,Solder,0°C to 200°C

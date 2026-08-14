@@ -1,6 +1,4 @@
 .DS_Store
-.UNIHACK_GUIDE.md
-UNIHACK_GUIDE.md
 .env
 .env.*
 !.env.example
@@ -20,19 +18,9 @@ node_modules/
 *.sqlite
 *.sqlite3
 
-# Private data — never commit Unilog datasets, reference data, or ground truth
-data/reference/*.csv
-data/reference/*.tsv
-data/reference/*.xlsx
-data/reference/*.json
-!data/reference/.gitkeep
-data/ground_truth/*.csv
-data/ground_truth/*.tsv
-data/ground_truth/*.xlsx
-data/ground_truth/*.json
-!data/ground_truth/.gitkeep
-Unihack_*.csv
-Unihack_*.xlsx
+# Track challenge sample datasets and benchmarks
+!Unihack_*.csv
+!data/ground_truth/*.csv
 
 
 # Object storage artifacts
