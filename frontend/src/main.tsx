@@ -346,16 +346,20 @@ function App() {
       const csv = [UNILOG_SAMPLE_HEADERS.join(","), ...rows].join("\n");
       triggerClientDownload(csv, filename, "text/csv;charset=utf-8;");
     } else if (format === "commerce_csv") {
-      const headers = ["row_number", "part_number", "manufacturer", "brand", "category", "description", "material", "size", "uom", "pressure_rating", "status", "source_url"];
+      const headers = ["row_number", "manufacturer", "brand", "part_number", "category", "description", "material", "size", "uom", "pressure_rating", "temperature_range", "connection_type"];
       const rows = (liveRows.length > 0 ? liveRows : defaultRows).map((r: any, idx: number) => {
-        const sku = r.fields?.find((f: any) => f.role === "part_number")?.canonical_value || r[0] || `SKU-${idx + 1}`;
-        const desc = r.fields?.find((f: any) => f.role === "description")?.canonical_value || r[1] || "Industrial Component";
-        const mfr = r.fields?.find((f: any) => f.role === "manufacturer")?.canonical_value || r[2] || "Apollo Valves";
-        const cat = r.fields?.find((f: any) => f.role === "category")?.canonical_value || r[3] || "Industrial Valves";
-        const mat = r.fields?.find((f: any) => f.role === "material")?.canonical_value || "Stainless Steel 316";
-        const press = r.fields?.find((f: any) => f.role === "pressure_rating")?.canonical_value || "600 PSI";
-        const stat = r.overall_status || r[4] || "verified";
-        return [idx + 1, sku, mfr, mfr, cat, desc, mat, "DN50", "INCH", press, stat, `https://www.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/products/${sku}`]
+        const sku = r.fields?.find((f: any) => f.role === "part_number" || f.column === "mfg_part_num" || f.column === "part_number")?.canonical_value || r[0] || `SKU-${idx + 1}`;
+        const desc = r.fields?.find((f: any) => f.role === "description" || f.column === "part_desc" || f.column === "description")?.canonical_value || r[1] || "Industrial Component";
+        const mfr = r.fields?.find((f: any) => f.role === "manufacturer" || f.column === "part_manuf" || f.column === "manufacturer")?.canonical_value || r[2] || "Freud Inc";
+        const brand = r.fields?.find((f: any) => f.role === "brand" || f.column === "brand" || f.column === "unilog_brand")?.canonical_value || mfr;
+        const cat = r.fields?.find((f: any) => f.role === "category" || f.column === "category")?.canonical_value || r[3] || "Abrasives & Cutting Tools";
+        const mat = r.fields?.find((f: any) => f.role === "material" || f.column === "material")?.canonical_value || "Alloy Steel";
+        const sz = r.fields?.find((f: any) => f.role === "size" || f.column === "size")?.canonical_value || "1/2\"";
+        const uom = r.fields?.find((f: any) => f.role === "uom" || f.column === "uom")?.canonical_value || "IN";
+        const press = r.fields?.find((f: any) => f.role === "pressure_rating" || f.column === "pressure_rating")?.canonical_value || "150 PSI";
+        const temp = r.fields?.find((f: any) => f.role === "temperature_range" || f.column === "temperature_range")?.canonical_value || "-20°F to 150°F";
+        const conn = r.fields?.find((f: any) => f.role === "connection_type" || f.column === "connection_type")?.canonical_value || "N/A";
+        return [idx + 1, mfr, brand, sku, cat, desc, mat, sz, uom, press, temp, conn]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(",");
       });

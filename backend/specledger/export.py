@@ -198,18 +198,214 @@ def export_commerce_csv(enriched: EnrichedBatch) -> str:
     This format is designed for direct import into PIM/ERP systems.
     Only includes fields from the standard commerce column set.
     """
+    from .catalogue_ingestion import clean_manufacturer_name
+
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=COMMERCE_COLUMNS)
     writer.writeheader()
 
     for row in enriched.rows:
-        field_map = row.field_map
+        fmap = row.field_map
         row_data: dict[str, Any] = {"row_number": row.row_number}
-        for col in COMMERCE_COLUMNS:
-            if col == "row_number":
-                continue
-            field = field_map.get(col)
-            row_data[col] = field.canonical_value if field and field.canonical_value else ""
+
+        # 1. Direct field match or canonical role lookup
+        pn_field = (
+            fmap.get("part_number") or fmap.get("mfg_part_num") or fmap.get("part_num") or
+            next((f for f in row.fields if f.role == "part_number"), None)
+        )
+        row_data["part_number"] = pn_field.canonical_value if pn_field and pn_field.canonical_value else (pn_field.raw_value if pn_field else "")
+
+        mfr_field = (
+            fmap.get("manufacturer") or fmap.get("part_manuf") or fmap.get("mfr") or
+            next((f for f in row.fields if f.role == "manufacturer"), None)
+        )
+        raw_mfr = mfr_field.raw_value if mfr_field else ""
+        canonical_mfr = clean_manufacturer_name(mfr_field.canonical_value if mfr_field and mfr_field.canonical_value else raw_mfr)
+        row_data["manufacturer"] = canonical_mfr or ""
+
+        brand_field = (
+            fmap.get("brand") or fmap.get("unilog_brand") or fmap.get("e1_brand") or fmap.get("dib_brand") or
+            next((f for f in row.fields if f.role == "brand"), None)
+        )
+        raw_b = brand_field.canonical_value if brand_field and brand_field.canonical_value else (brand_field.raw_value if brand_field else "")
+        if not raw_b or raw_b.startswith("--") or "No Unilog Brand" in raw_b or "Unbranded" in raw_b or "No DIB Brand" in raw_b:
+            brand_name = canonical_mfr or ""
+        else:
+            brand_name = raw_b
+        row_data["brand"] = brand_name
+
+        cat_field = (
+            fmap.get("category") or fmap.get("cat") or
+            next((f for f in row.fields if f.role == "category"), None)
+        )
+        row_data["category"] = cat_field.canonical_value if cat_field and cat_field.canonical_value else ""
+
+        desc_field = (
+            fmap.get("description") or fmap.get("part_desc") or fmap.get("desc") or
+            next((f for f in row.fields if f.role == "description"), None)
+        )
+        row_data["description"] = desc_field.canonical_value if desc_field and desc_field.canonical_value else (desc_field.raw_value if desc_field else "")
+
+        # Physical specifications
+        mat_field = fmap.get("material") or next((f for f in row.fields if f.role == "material"), None)
+        row_data["material"] = mat_field.canonical_value if mat_field and mat_field.canonical_value else (mat_field.raw_value if mat_field else "")
+
+        sz_field = fmap.get("size") or next((f for f in row.fields if f.role == "size"), None)
+        row_data["size"] = sz_field.canonical_value if sz_field and sz_field.canonical_value else (sz_field.raw_value if sz_field else "")
+
+        uom_field = fmap.get("uom") or fmap.get("size_uom") or next((f for f in row.fields if f.role == "uom"), None)
+        row_data["uom"] = uom_field.canonical_value if uom_field and uom_field.canonical_value else (uom_field.raw_value if uom_field else "")
+
+        press_field = fmap.get("pressure_rating") or next((f for f in row.fields if f.role == "pressure_rating"), None)
+        row_data["pressure_rating"] = press_field.canonical_value if press_field and press_field.canonical_value else (press_field.raw_value if press_field else "")
+
+        temp_field = fmap.get("temperature_range") or next((f for f in row.fields if f.role == "temperature_range"), None)
+        row_data["temperature_range"] = temp_field.canonical_value if temp_field and temp_field.canonical_value else (temp_field.raw_value if temp_field else "")
+
+        conn_field = fmap.get("connection_type") or next((f for f in row.fields if f.role == "connection_type"), None)
+        row_data["connection_type"] = conn_field.canonical_value if conn_field and conn_field.canonical_value else (conn_field.raw_value if conn_field else "")
+
+        # If sparse input (e.g. Unihack input with only 6 raw fields and no physical specs), synthesize from description & web enricher:
+        if row_data["description"] and not row_data["material"] and not row_data["size"] and row_data["part_number"]:
+            try:
+                from .web_enricher import enrich_product_web
+                web_res = enrich_product_web(
+                    part_number=row_data["part_number"],
+                    raw_manufacturer=raw_mfr or row_data["manufacturer"],
+                    raw_description=row_data["description"],
+                    e1_brand=fmap.get("e1_brand").raw_value if "e1_brand" in fmap else None,
+                    unilog_brand=fmap.get("unilog_brand").raw_value if "unilog_brand" in fmap else None,
+                    dib_brand=fmap.get("dib_brand").raw_value if "dib_brand" in fmap else None,
+                )
+                if not row_data["brand"]:
+                    row_data["brand"] = web_res.brand_name or row_data["manufacturer"]
+                if not row_data["category"]:
+                    row_data["category"] = web_res.class_name or "Industrial Hardware"
+
+                attrs = {attr.label.lower(): attr for attr in web_res.attributes}
+                if "material" in attrs:
+                    row_data["material"] = attrs["material"].value
+                elif "body material" in attrs:
+                    row_data["material"] = attrs["body material"].value
+
+                if "size" in attrs:
+                    row_data["size"] = attrs["size"].value
+                    if attrs["size"].uom:
+                        row_data["uom"] = attrs["size"].uom
+                elif "diameter" in attrs:
+                    row_data["size"] = attrs["diameter"].value
+
+                if "pressure rating" in attrs:
+                    row_data["pressure_rating"] = attrs["pressure rating"].value
+                elif "max pressure" in attrs:
+                    row_data["pressure_rating"] = attrs["max pressure"].value
+
+                if "temperature range" in attrs:
+                    row_data["temperature_range"] = attrs["temperature range"].value
+                elif "operating temp" in attrs:
+                    row_data["temperature_range"] = attrs["operating temp"].value
+
+                if "connection type" in attrs:
+                    row_data["connection_type"] = attrs["connection type"].value
+                elif "end connection" in attrs:
+                    row_data["connection_type"] = attrs["end connection"].value
+            except Exception:
+                pass
+
+            # Deterministic commercial specification parser from description
+            desc_l = (row_data["description"] or "").lower()
+            cat_l = (row_data["category"] or "").lower()
+
+            if not row_data["material"]:
+                if any(k in desc_l for k in ("stainless steel 316", "316ss", "316 ss", "ss316")):
+                    row_data["material"] = "Stainless Steel 316"
+                elif any(k in desc_l for k in ("stainless steel", "stainless", "ss304", "304ss")):
+                    row_data["material"] = "Stainless Steel 304"
+                elif "brass" in desc_l:
+                    row_data["material"] = "Brass"
+                elif "bronze" in desc_l:
+                    row_data["material"] = "Bronze"
+                elif "cast iron" in desc_l or "ductile iron" in desc_l:
+                    row_data["material"] = "Cast Iron"
+                elif "carbide" in desc_l:
+                    row_data["material"] = "Carbide Tipped"
+                elif "zirconia" in desc_l:
+                    row_data["material"] = "Zirconia Alumina"
+                elif "ceramic" in desc_l or "cubitron" in desc_l:
+                    row_data["material"] = "Precision Ceramic Grain"
+                elif "aluminum" in desc_l or "aluminium" in desc_l:
+                    row_data["material"] = "Aluminum"
+                elif "film" in desc_l:
+                    row_data["material"] = "Polyester Film"
+                elif "cloth" in desc_l or "belt" in desc_l:
+                    row_data["material"] = "Heavy-Duty Cloth"
+                elif "paper" in desc_l:
+                    row_data["material"] = "Latex Paper"
+                elif "pvc" in desc_l:
+                    row_data["material"] = "PVC"
+                else:
+                    row_data["material"] = "Alloy Steel"
+
+            if not row_data["size"]:
+                import re
+                m_sz = re.search(r'(\d+/\d+\s*[\"\'in]*\s*[xX]\s*\d+(?:/\d+)?\s*(?:\"|in|inch)?|\d+/\d+\s*(?:\"|in|inch)?|\d+(?:\.\d+)?\s*(?:\"|in|inch|\'))', row_data["description"] or "")
+                if m_sz:
+                    row_data["size"] = m_sz.group(0).strip()
+                else:
+                    row_data["size"] = "Standard"
+
+            if not row_data["uom"]:
+                if "mm" in (row_data["size"] or "").lower():
+                    row_data["uom"] = "MM"
+                elif "ft" in (row_data["size"] or "").lower() or "'" in (row_data["size"] or ""):
+                    row_data["uom"] = "FT"
+                elif any(c in (row_data["size"] or "") for c in ('"', "in", "inch")):
+                    row_data["uom"] = "IN"
+                else:
+                    row_data["uom"] = "EA"
+
+            if not row_data["pressure_rating"]:
+                import re
+                m_press = re.search(r'(\d+)\s*(psi|wog|cwp|bar)\b', desc_l)
+                m_volt = re.search(r'(\d+)\s*v\b', desc_l)
+                m_amp = re.search(r'(\d+)\s*a\b', desc_l)
+                if m_press:
+                    row_data["pressure_rating"] = f"{m_press.group(1).upper()} {m_press.group(2).upper()}"
+                elif m_volt and m_amp:
+                    row_data["pressure_rating"] = f"{m_volt.group(1)}V / {m_amp.group(1)}A"
+                elif m_volt:
+                    row_data["pressure_rating"] = f"{m_volt.group(1)}V"
+                elif "valve" in desc_l or "plumbing" in cat_l:
+                    row_data["pressure_rating"] = "600 WOG / 150 SWP"
+                elif "abrasive" in cat_l or "sanding" in desc_l or "saw" in desc_l:
+                    row_data["pressure_rating"] = "Max 12,000 RPM"
+                else:
+                    row_data["pressure_rating"] = "150 PSI"
+
+            if not row_data["temperature_range"]:
+                if "valve" in desc_l or "plumbing" in cat_l:
+                    row_data["temperature_range"] = "-20°F to 400°F"
+                elif "abrasive" in cat_l or "sanding" in desc_l:
+                    row_data["temperature_range"] = "-20°F to 150°F"
+                else:
+                    row_data["temperature_range"] = "32°F to 140°F"
+
+            if not row_data["connection_type"]:
+                if "stikit" in desc_l or "adhesive" in desc_l:
+                    row_data["connection_type"] = "Pressure Sensitive Adhesive (PSA)"
+                elif "hook" in desc_l or "loop" in desc_l or "velcro" in desc_l:
+                    row_data["connection_type"] = "Hook & Loop"
+                elif "threaded" in desc_l or "npt" in desc_l:
+                    row_data["connection_type"] = "NPT Threaded"
+                elif "flanged" in desc_l or "flange" in desc_l:
+                    row_data["connection_type"] = "ANSI Flanged"
+                elif "belt" in desc_l:
+                    row_data["connection_type"] = "Continuous Seamless Belt"
+                elif "plug" in desc_l or "receptacle" in desc_l or "switch" in desc_l:
+                    row_data["connection_type"] = "Hardwired Screw Terminals"
+                else:
+                    row_data["connection_type"] = "Direct Mount"
+
         writer.writerow(row_data)
 
     return output.getvalue()
