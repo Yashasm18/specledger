@@ -484,3 +484,270 @@
   background: rgba(245, 158, 11, 0.15) !important;
   border-color: #d97706 !important;
 }
+
+/* ==========================================================================
+   Enterprise Welcome & Workspace Selector Modal
+   ========================================================================== */
+
+.welcome-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 14, 26, 0.85);
+  backdrop-filter: blur(12px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.welcome-modal {
+  background: #111a28;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 960px;
+  box-shadow: 0 30px 80px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(56, 189, 248, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #f1f5f9;
+  font-family: Inter, Manrope, -apple-system, sans-serif;
+}
+
+.welcome-header {
+  padding: 28px 32px 20px;
+  background: radial-gradient(ellipse at top, rgba(30, 58, 138, 0.4), transparent 70%), #172338;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.welcome-header .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #38bdf8;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.welcome-header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  margin: 0 0 6px;
+}
+
+.welcome-header p {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.welcome-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.welcome-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.welcome-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 28px 32px;
+  background: #0f172a;
+}
+
+.welcome-card {
+  background: #172234;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-card:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.4);
+}
+
+.welcome-card.primary-mode {
+  border-color: rgba(56, 189, 248, 0.3);
+  background: linear-gradient(180deg, #17263c 0%, #131d2e 100%);
+}
+
+.welcome-card.primary-mode:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 16px 36px -8px rgba(56, 189, 248, 0.2);
+}
+
+.welcome-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.welcome-card-badge.custom {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.welcome-card-badge.master {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.welcome-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.welcome-card-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin: 0 0 18px;
+}
+
+.welcome-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.welcome-feature-list li {
+  font-size: 12px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.welcome-feature-list li span.check {
+  color: #38bdf8;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.welcome-dropzone {
+  border: 2px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  background: rgba(56, 189, 248, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.welcome-dropzone:hover, .welcome-dropzone.drag-active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.welcome-dropzone-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #93c5fd;
+  margin: 4px 0 0;
+}
+
+.welcome-dropzone-sub {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.welcome-cta-btn {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.welcome-cta-btn.primary {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.welcome-cta-btn.primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+}
+
+.welcome-cta-btn.emerald {
+  background: #059669;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+}
+
+.welcome-cta-btn.emerald:hover {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.5);
+}
+
+.welcome-footer-info {
+  padding: 14px 32px;
+  background: #111a28;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+}
