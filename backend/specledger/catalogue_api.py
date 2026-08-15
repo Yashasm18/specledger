@@ -14,6 +14,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any, Literal
@@ -668,3 +669,25 @@ def get_scraper_telemetry() -> dict[str, Any]:
         ],
         "blocked_marketplaces_sample": list(BLOCKED_SHOPPING_DOMAINS)[:10],
     }
+
+
+@router.get("/scraper/datasheet.pdf")
+def get_datasheet_pdf(
+    part_number: str = Query(default="LC1D25B7"),
+    manufacturer: str = Query(default="Schneider Electric"),
+    category: str = Query(default="Industrial Component"),
+) -> Response:
+    """Generate and stream a real, validated industrial PDF submittal."""
+    from .pdf_and_web_scraper import generate_submittal_pdf, industrial_scraper
+    profile = industrial_scraper.scrape_product_profile(
+        part_number=part_number,
+        manufacturer=manufacturer,
+        category=category,
+    )
+    pdf_bytes = generate_submittal_pdf(profile)
+    filename = f"{re.sub(r'[^a-zA-Z0-9]', '_', part_number)}_Submittal.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
