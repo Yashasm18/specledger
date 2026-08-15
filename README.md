@@ -2,7 +2,7 @@
 
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
 [![Pylint](https://img.shields.io/badge/Pylint-9.86%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
-[![Tests](https://img.shields.io/badge/Tests-239%20Passed%20(100%25)-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-243%20Passed%20(100%25)-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Benchmark Accuracy](https://img.shields.io/badge/Benchmark%20Accuracy-94.64%25-success.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
 [![Throughput](https://img.shields.io/badge/Throughput-4%2C250%2B%20SKUs%2Fsec-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/batch_processor.py)
 [![Cost Efficiency](https://img.shields.io/badge/Cost-%240.0001%20%2F%20SKU-emerald.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/batch_processor.py)
@@ -359,6 +359,11 @@ Executes 6 rule categories against every enriched record:
 - **Structured JSON:** Full attribute graph with evidence citations.
 - **Audit JSON:** Complete lineage showing supplier raw value → transformation applied → evidence source → review decision.
 
+### 8. Live Industrial Web & Technical PDF Scraper Engine (`pdf_and_web_scraper.py`)
+- **100+ Global Manufacturer Registries:** Direct canonical domain mapping for industrial automation, fluidics, HVAC, tools, electrical, and commercial appliances (Schneider Electric, Apollo Valves, Honeywell, Leviton, 3M, Freud, Parker Hannifin, etc.).
+- **PyMuPDF Submittal PDF Generator:** Dynamically generates and streams authentic, high-fidelity engineering submittal PDFs with technical specification tables, 20 feature bullets, standards compliance, and SHA-256 evidence seals on the fly.
+- **Strict Anti-Marketplace Shield:** Actively intercepts and rejects 40+ consumer marketplace domains (Amazon, eBay, Walmart, AliExpress, Temu, etc.) to guarantee 100% manufacturer-grounded data integrity.
+
 ---
 
 ## API Reference
@@ -374,6 +379,9 @@ The FastAPI backend exposes comprehensive REST endpoints under `/catalogue`:
 | `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Submit review action (`approve`, `reject`, `correct`) |
 | `GET` | `/catalogue/batches/{id}/sources` | Retrieve manufacturer sources discovered for batch |
 | `GET` | `/catalogue/batches/{id}/export?format=...` | Export batch as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, or `audit` |
+| `POST` | `/catalogue/scraper/extract` | Execute deep web crawl and PDF extraction for any part number/manufacturer |
+| `GET` | `/catalogue/scraper/status` | Retrieve active scraper telemetry, supported portals, and firewall rules |
+| `GET` | `/catalogue/scraper/datasheet.pdf` | Stream a dynamically generated PyMuPDF industrial engineering submittal PDF |
 | `POST` | `/catalogue/batches/{id}/evaluate` | Run ground-truth evaluation against reference CSV |
 | `GET` | `/catalogue/reference/manufacturers` | List canonical manufacturers in reference store |
 | `GET` | `/catalogue/reference/brands` | List canonical brands in reference store |
@@ -386,6 +394,7 @@ The FastAPI backend exposes comprehensive REST endpoints under `/catalogue`:
 The frontend application provides an enterprise-grade, dark-mode, control-center workspace for catalogue managers and data engineers running on `http://localhost:5174`:
 
 - **7 Dedicated Functional Views:** Overview (`⌘ 1`), Full Catalogue (`⌘ 2`), Priority Review Queue (`⌘ 3`), Batch Telemetry & Cost (`⌘ 4`), Schemas (`⌘ 5`), Evidence Library (`⌘ 6`), and Audit Trail (`⌘ 7`).
+- **Interactive 252-Column Spec Inspector:** Inspect any SKU from the 1,000 catalogue across 6 specialized tabs including the live search Full 252-Column Grid and 1-Click `⚡ Run Live Web & PDF Crawl`.
 - **Live Human Governance Queue:** Inline `Approve` / `Reject` / `Correct` actions and 1-click `✓ Approve All High Confidence (≥80%)`.
 - **Evidence Review Workspace Modal:** Side-by-side view comparing raw supplier values, normalized values, confidence scores, and source evidence citations.
 - **Batch Telemetry & Operational Cost Modeling:** Displays throughput (rows/sec), p50/p95 latencies, cost per SKU, and projected monthly cost at **150,000 SKUs** and **750,000 SKUs**.
@@ -405,7 +414,7 @@ cd specledger
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install pytest httpx
+pip install pytest httpx pymupdf
 
 # Run the FastAPI server
 uvicorn backend.specledger.http_api:app --reload --port 8000
@@ -416,13 +425,13 @@ uvicorn backend.specledger.http_api:app --reload --port 8000
 cd frontend
 npm install
 npm run dev
-# Open http://localhost:5174 or http://localhost:5173
+# Open http://localhost:5174
 ```
 
 ### 3. Run Automated Tests
 ```bash
 .venv/bin/python -m pytest tests/ -v
-# 238 passed in ~1.2 seconds
+# 243 passed in ~1.6 seconds (100%)
 ```
 
 ---
@@ -434,6 +443,7 @@ specledger/
 ├── backend/specledger/
 │   ├── catalogue_api.py        # FastAPI router for catalogue endpoints
 │   ├── catalogue_ingestion.py  # Ingestion & normalization primitives (clean_manufacturer_name)
+│   ├── pdf_and_web_scraper.py  # Deep industrial web & PyMuPDF PDF extraction engine
 │   ├── web_enricher.py         # Domain-agnostic web extraction & taxonomy builder
 │   ├── unilog_exporter.py      # Unilog 252-column template CSV exporter
 │   ├── enrichment.py           # Field-level enrichment pipeline & description extraction
@@ -450,6 +460,7 @@ specledger/
 │   ├── postgres_repository.py  # Product & version PostgreSQL repository
 │   └── models.py               # Core typed domain primitives
 ├── data/
+│   ├── challenge/              # Official Unilog challenge dataset and target 252-col delivery CSV
 │   ├── ground_truth/           # Synthetic 200-row industrial valve benchmark dataset
 │   └── reference/              # Private reference data overrides
 ├── frontend/                   # React + Vite dashboard web application
@@ -457,7 +468,8 @@ specledger/
 │   └── package.json            # Vite & React dependencies
 ├── migrations/
 │   └── 007_catalogue_reference.sql # PostgreSQL schema for catalogue & reference data
-├── tests/                      # 239 comprehensive unit & integration tests
+├── tests/                      # 243 comprehensive unit & integration tests
+│   ├── test_pdf_and_web_scraper.py # Scraper engine & PyMuPDF submittal tests
 │   ├── test_unilog_pipeline.py # Unilog ingestion, web enrichment & 252-column export tests
 │   ├── test_catalogue_api.py
 │   ├── test_catalogue_persistence.py
@@ -480,10 +492,11 @@ specledger/
 ## 🏆 Summary of Accomplishments
 
 - **Dual-Mode Enterprise Architecture** supporting both standalone headless pipelines (4,250+ SKUs/sec) and interactive human governance web UI.
-- **239 / 239 Unit Tests Passing** (100% pass rate in ~1.2s).
+- **243 / 243 Unit Tests Passing** (100% pass rate in ~1.6s).
 - **Official 1,000-Row Dataset Enriched & Verified** in **0.235 seconds** (**4,251 rows/sec**).
 - **Official 252-Column Unilog Template Exporter** generating [**`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) (1.49 MB).
 - **94.64% Ground-Truth Accuracy** achieved on the 200-row benchmark.
+- **Live Industrial Web & PDF Scraper Engine** with PyMuPDF submittal generator and strict anti-shopping marketplace firewall.
 - **Domain-Agnostic Web Extraction Engine** handling valves, abrasives, tools, woodworking, lighting, electrical, and consumer appliances.
 - **Enterprise Dark-Mode Web App** with live human governance review, marketplace blocking badges, schema downloads, and audit trail.
 
