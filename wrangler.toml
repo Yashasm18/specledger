@@ -1,0 +1,8 @@
+name = "specledger"
+compatibility_date = "2024-09-23"
+
+# Serve frontend single-page application static assets
+[assets]
+directory = "./frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
