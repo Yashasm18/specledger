@@ -12,7 +12,6 @@ All extractions maintain cryptographic SHA-256 evidence hashes and citation URLs
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 import time
 from dataclasses import dataclass, field
@@ -42,6 +41,15 @@ SHOPPING_URL_PATTERNS = re.compile(
     r"(add.to.cart|buy.now|checkout|shopping|marketplace|/shop/|/store/|/cart/|/buy/|price\-compare|affiliate|referral)",
     re.IGNORECASE,
 )
+
+KNOWN_LIVE_URLS: dict[str, str] = {
+    "LC1D25B7": "https://www.se.com/us/en/product/LC1D25B7/tesys-d-contactor-3p3-no-ac-3-440-v-25-a-24-v-ac-50-60-hz-coil/",
+    "70-100-01": "https://www.apollovalves.com",
+    "T6-PRO-TH6220": "https://www.honeywellhome.com/us/en/products/air/thermostats/programmable-thermostats/t6-pro-programmable-thermostat-th6220u2000-u/",
+    "1221-2W": "https://www.leviton.com/en/products/1221-2w",
+    "D1050X": "https://www.diablotools.com/products/D1050X",
+    "Cubitron-II-984F": "https://www.3m.com/3M/en_US/p/d/v000085444/",
+}
 
 
 class DocumentCategory(Enum):
@@ -271,17 +279,6 @@ class IndustrialWebScraper:
         clean_pn = part_number.strip()
         clean_mfr = manufacturer.strip()
         slug = re.sub(r"[^a-zA-Z0-9\-]", "-", clean_pn.lower())
-
-        # Primary Manufacturer URLs
-        KNOWN_LIVE_URLS: dict[str, str] = {
-            "LC1D25B7": "https://www.se.com/us/en/product/LC1D25B7/tesys-d-contactor-3p3-no-ac-3-440-v-25-a-24-v-ac-50-60-hz-coil/",
-            "70-100-01": "https://www.apollovalves.com",
-            "T6-PRO-TH6220": "https://www.honeywellhome.com/us/en/products/air/thermostats/programmable-thermostats/t6-pro-programmable-thermostat-th6220u2000-u/",
-            "1221-2W": "https://www.leviton.com/en/products/1221-2w",
-            "D1050X": "https://www.diablotools.com/products/D1050X",
-            "Cubitron-II-984F": "https://www.3m.com/3M/en_US/p/d/v000085444/",
-        }
-
         mfr_product_url = KNOWN_LIVE_URLS.get(clean_pn, f"https://www.{domain}/products/{slug}")
         datasheet_url = f"http://localhost:8000/catalogue/scraper/datasheet.pdf?part_number={clean_pn}&manufacturer={clean_mfr}"
         manual_url = f"https://www.{domain}/docs/{slug}-install-manual.pdf"

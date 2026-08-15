@@ -1,7 +1,7 @@
 # SpecLedger — AI-Powered Industrial Product Intelligence & Catalogue Enrichment
 
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
-[![Pylint](https://img.shields.io/badge/Pylint-9.86%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
+[![Pylint](https://img.shields.io/badge/Pylint-9.91%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Tests](https://img.shields.io/badge/Tests-243%20Passed%20(100%25)-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Benchmark Accuracy](https://img.shields.io/badge/Benchmark%20Accuracy-94.64%25-success.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
 [![Throughput](https://img.shields.io/badge/Throughput-4%2C250%2B%20SKUs%2Fsec-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/batch_processor.py)
