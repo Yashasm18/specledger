@@ -73,6 +73,21 @@ SEED_MANUFACTURERS: list[dict] = [
     {"canonical": "Graco", "aliases": ["Graco Inc", "Graco Inc."]},
     {"canonical": "Grundfos", "aliases": ["Grundfos Pumps", "Grundfos Holding"]},
     {"canonical": "Xylem", "aliases": ["Xylem Inc", "Xylem Water Solutions"]},
+    # Electrical, Power Distribution & Automation
+    {"canonical": "Schneider Electric", "aliases": ["Square D", "Schneider Electric Corp", "Schneider Electric Corporation", "Schneider", "TeSys"]},
+    {"canonical": "Leviton", "aliases": ["Leviton Mfg Co", "Leviton Manufacturing", "Leviton Manufacturing Co."]},
+    {"canonical": "Eaton", "aliases": ["Eaton Corporation", "Eaton Corp", "Cutler-Hammer"]},
+    {"canonical": "ABB", "aliases": ["ABB Inc", "ABB Ltd", "ABB Group"]},
+    {"canonical": "Hubbell", "aliases": ["Hubbell Incorporated", "Hubbell Inc", "Kellems", "Wiring Device-Kellems"]},
+    {"canonical": "Siemens", "aliases": ["Siemens Industry", "Siemens AG"]},
+    # Abrasives, Cutting & Tools
+    {"canonical": "Freud", "aliases": ["Freud Inc", "Freud Tools", "Diablo", "Diablo Tools"]},
+    {"canonical": "3M", "aliases": ["3M Company", "3M Co", "3 M Co", "Cubitron", "Scotch-Brite"]},
+    {"canonical": "Mirka", "aliases": ["Mirka Abrasives", "Mirka Abrasives Inc", "Mirka USA", "Abranet"]},
+    {"canonical": "Milwaukee Tool", "aliases": ["Milwaukee", "Milwaukee Electric Tool", "Milwaukee Accessory"]},
+    {"canonical": "DeWalt", "aliases": ["DEWALT", "DeWalt Industrial Tool Co", "Black & Decker/dewlt"]},
+    {"canonical": "Makita", "aliases": ["Makita USA", "Makita Usa Inc"]},
+    {"canonical": "Festool", "aliases": ["Festool USA", "Festool LLC"]},
 ]
 
 SEED_BRANDS: list[dict] = [

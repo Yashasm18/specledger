@@ -237,6 +237,8 @@ def evaluate(predicted: EnrichedBatch, ground_truth: Sequence[GroundTruthRow]) -
 
         for enriched_field in enriched_row.fields:
             col = _COLUMN_ALIASES.get(canonical_key(enriched_field.column), enriched_field.column)
+            if col not in gt_row.values and enriched_field.role in gt_row.values:
+                col = enriched_field.role
             predicted_value = enriched_field.canonical_value
             expected_value = gt_row.values.get(col)
 

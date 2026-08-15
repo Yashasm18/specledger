@@ -177,12 +177,32 @@ MANUFACTURER_DOMAINS: dict[str, list[str]] = {
     "Frigidaire": ["frigidaire.com"],
     "Whirlpool Corporation": ["whirlpool.com"],
     "Whirlpool": ["whirlpool.com"],
-    "GE": ["geappliances.com"],
-    "GE Appliances": ["geappliances.com"],
-    "LG": ["lg.com"],
-    "KitchenAid": ["kitchenaid.com"],
-    "Speed Queen": ["speedqueen.com"],
-    "V & V Appliance Parts Inc": ["vvappliance.com"],
+    # Fasteners, Anchors & Structural Hardware
+    "Simpson Strong-Tie": ["strongtie.com"],
+    "Hilti": ["hilti.com", "hilti.group"],
+    "Unbrako": ["unbrako.com"],
+    "Holo-Krome": ["holo-krome.com"],
+
+    # Bearings & Power Transmission
+    "SKF": ["skf.com"],
+    "Timken": ["timken.com"],
+    "NSK": ["nsk.com", "nskamericas.com"],
+    "Gates": ["gates.com"],
+    "Regal Rexnord": ["regalrexnord.com"],
+
+    # Sensors, Vision & Industrial Instrumentation
+    "Keyence": ["keyence.com"],
+    "Banner Engineering": ["bannerengineering.com"],
+    "Sick": ["sick.com"],
+    "IFM Efector": ["ifm.com"],
+    "Turck": ["turck.us", "turck.com"],
+
+    # Welding, Cutting & Workplace Safety
+    "Lincoln Electric": ["lincolnelectric.com"],
+    "Miller Electric": ["millerwelds.com"],
+    "Hypertherm": ["hypertherm.com"],
+    "MSA Safety": ["msasafety.com"],
+    "Ansell": ["ansell.com"],
 }
 
 

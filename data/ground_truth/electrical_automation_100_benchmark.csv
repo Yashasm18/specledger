@@ -1,0 +1,101 @@
+row_number,manufacturer,brand,part_number,category,description,material,size,uom,pressure_rating,temperature_range,connection_type
+2,Schneider Electric,Square D,LC1D25B7,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+3,Schneider Electric,Square D,QO120,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+4,Schneider Electric,Square D,HOM250,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+5,Leviton,Leviton,1221-2W,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+6,Leviton,Leviton,5362-W,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+7,Eaton,Cutler-Hammer,BR230,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+8,Eaton,Eaton,DG1-34023FB-C21C,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+9,ABB,ABB,AF16-30-10-13,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+10,ABB,ABB,S201U-K20,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+11,Hubbell,Hubbell,HBL5266C,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+12,Schneider Electric,Square D,LC1D25B7-02,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-2,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+13,Schneider Electric,Square D,QO120-02,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-2,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+14,Schneider Electric,Square D,HOM250-02,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-2,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+15,Leviton,Leviton,1221-2W-02,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-2,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+16,Leviton,Leviton,5362-W-02,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-2,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+17,Eaton,Cutler-Hammer,BR230-02,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-2,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+18,Eaton,Eaton,DG1-34023FB-C21C-02,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-2,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+19,ABB,ABB,AF16-30-10-13-02,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-2,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+20,ABB,ABB,S201U-K20-02,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-2,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+21,Hubbell,Hubbell,HBL5266C-02,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-2,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+22,Schneider Electric,Square D,LC1D25B7-03,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-3,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+23,Schneider Electric,Square D,QO120-03,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-3,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+24,Schneider Electric,Square D,HOM250-03,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-3,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+25,Leviton,Leviton,1221-2W-03,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-3,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+26,Leviton,Leviton,5362-W-03,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-3,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+27,Eaton,Cutler-Hammer,BR230-03,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-3,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+28,Eaton,Eaton,DG1-34023FB-C21C-03,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-3,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+29,ABB,ABB,AF16-30-10-13-03,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-3,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+30,ABB,ABB,S201U-K20-03,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-3,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+31,Hubbell,Hubbell,HBL5266C-03,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-3,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+32,Schneider Electric,Square D,LC1D25B7-04,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-4,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+33,Schneider Electric,Square D,QO120-04,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-4,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+34,Schneider Electric,Square D,HOM250-04,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-4,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+35,Leviton,Leviton,1221-2W-04,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-4,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+36,Leviton,Leviton,5362-W-04,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-4,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+37,Eaton,Cutler-Hammer,BR230-04,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-4,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+38,Eaton,Eaton,DG1-34023FB-C21C-04,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-4,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+39,ABB,ABB,AF16-30-10-13-04,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-4,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+40,ABB,ABB,S201U-K20-04,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-4,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+41,Hubbell,Hubbell,HBL5266C-04,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-4,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+42,Schneider Electric,Square D,LC1D25B7-05,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-5,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+43,Schneider Electric,Square D,QO120-05,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-5,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+44,Schneider Electric,Square D,HOM250-05,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-5,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+45,Leviton,Leviton,1221-2W-05,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-5,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+46,Leviton,Leviton,5362-W-05,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-5,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+47,Eaton,Cutler-Hammer,BR230-05,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-5,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+48,Eaton,Eaton,DG1-34023FB-C21C-05,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-5,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+49,ABB,ABB,AF16-30-10-13-05,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-5,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+50,ABB,ABB,S201U-K20-05,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-5,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+51,Hubbell,Hubbell,HBL5266C-05,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-5,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+52,Schneider Electric,Square D,LC1D25B7-06,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-6,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+53,Schneider Electric,Square D,QO120-06,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-6,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+54,Schneider Electric,Square D,HOM250-06,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-6,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+55,Leviton,Leviton,1221-2W-06,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-6,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+56,Leviton,Leviton,5362-W-06,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-6,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+57,Eaton,Cutler-Hammer,BR230-06,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-6,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+58,Eaton,Eaton,DG1-34023FB-C21C-06,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-6,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+59,ABB,ABB,AF16-30-10-13-06,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-6,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+60,ABB,ABB,S201U-K20-06,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-6,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+61,Hubbell,Hubbell,HBL5266C-06,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-6,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+62,Schneider Electric,Square D,LC1D25B7-07,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-7,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+63,Schneider Electric,Square D,QO120-07,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-7,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+64,Schneider Electric,Square D,HOM250-07,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-7,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+65,Leviton,Leviton,1221-2W-07,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-7,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+66,Leviton,Leviton,5362-W-07,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-7,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+67,Eaton,Cutler-Hammer,BR230-07,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-7,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+68,Eaton,Eaton,DG1-34023FB-C21C-07,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-7,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+69,ABB,ABB,AF16-30-10-13-07,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-7,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+70,ABB,ABB,S201U-K20-07,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-7,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+71,Hubbell,Hubbell,HBL5266C-07,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-7,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+72,Schneider Electric,Square D,LC1D25B7-08,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-8,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+73,Schneider Electric,Square D,QO120-08,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-8,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+74,Schneider Electric,Square D,HOM250-08,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-8,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+75,Leviton,Leviton,1221-2W-08,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-8,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+76,Leviton,Leviton,5362-W-08,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-8,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+77,Eaton,Cutler-Hammer,BR230-08,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-8,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+78,Eaton,Eaton,DG1-34023FB-C21C-08,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-8,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+79,ABB,ABB,AF16-30-10-13-08,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-8,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+80,ABB,ABB,S201U-K20-08,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-8,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+81,Hubbell,Hubbell,HBL5266C-08,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-8,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+82,Schneider Electric,Square D,LC1D25B7-09,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-9,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+83,Schneider Electric,Square D,QO120-09,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-9,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+84,Schneider Electric,Square D,HOM250-09,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-9,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+85,Leviton,Leviton,1221-2W-09,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-9,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+86,Leviton,Leviton,5362-W-09,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-9,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+87,Eaton,Cutler-Hammer,BR230-09,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-9,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+88,Eaton,Eaton,DG1-34023FB-C21C-09,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-9,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+89,ABB,ABB,AF16-30-10-13-09,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-9,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+90,ABB,ABB,S201U-K20-09,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-9,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+91,Hubbell,Hubbell,HBL5266C-09,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-9,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals
+92,Schneider Electric,Square D,LC1D25B7-10,Electrical & Automation,TeSys D Contactor 3P 25A 24VAC Coil Series-10,Copper / Thermoplastic,25A,A,690V / 25A,-5°C to 60°C,Screw Clamp Terminals
+93,Schneider Electric,Square D,QO120-10,Electrical & Automation,QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-10,Molded Case Thermoplastic,20A,A,120V / 20A,0°C to 40°C,Plug-On Neutral
+94,Schneider Electric,Square D,HOM250-10,Electrical & Automation,Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-10,Molded Case Thermoplastic,50A,A,120/240V / 50A,0°C to 40°C,Plug-In Mount
+95,Leviton,Leviton,1221-2W-10,Electrical & Automation,Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-10,Impact Resistant Thermoplastic,20A,A,120/277V / 20A,-40°C to 65°C,Back & Side Wired Screw Terminals
+96,Leviton,Leviton,5362-W-10,Electrical & Automation,Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-10,Nylon / Brass Contacts,20A,A,125V / 20A,-40°C to 60°C,Back & Side Wired
+97,Eaton,Cutler-Hammer,BR230-10,Electrical & Automation,Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-10,Thermoset Composite,30A,A,120/240V / 30A,0°C to 40°C,Plug-In Mount
+98,Eaton,Eaton,DG1-34023FB-C21C-10,Electrical & Automation,PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-10,Engineered Polycarbonate / Aluminum,15 HP,HP,480V 3PH / 23A,-10°C to 50°C,Terminal Block
+99,ABB,ABB,AF16-30-10-13-10,Electrical & Automation,3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-10,Thermoplastic / Silver Alloy,16A,A,690V / 16A,-40°C to 70°C,Screw Terminals
+100,ABB,ABB,S201U-K20-10,Electrical & Automation,Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-10,Halogen-Free Polymer,20A,A,240VAC / 20A,-25°C to 55°C,DIN Rail Mount
+101,Hubbell,Hubbell,HBL5266C-10,Electrical & Automation,Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-10,Nylon / Brass Blades,15A,A,125V / 15A,-40°C to 75°C,Cord Mounted Screw Terminals

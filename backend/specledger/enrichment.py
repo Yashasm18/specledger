@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from .catalogue_ingestion import CatalogueBatch, SourceRow
+from .catalogue_ingestion import CatalogueBatch, SourceRow, clean_manufacturer_name
 from .reference_data import ReferenceStore, CanonicalMatch
 from .uom import normalize_uom, normalize_material, NormalizedUOM, NormalizedMaterial, MATERIAL_CANONICAL
 
@@ -175,29 +175,42 @@ _TEMPERATURE_KEYS = frozenset({
 
 def detect_role(column_key: str) -> str:
     """Detect the semantic role of a column based on its normalized key."""
-    if column_key in _MANUFACTURER_KEYS:
-        return "manufacturer"
-    if column_key in _BRAND_KEYS:
-        return "brand"
-    if column_key in _MATERIAL_KEYS:
-        return "material"
-    if column_key in _PRESSURE_UOM_KEYS:
-        return "pressure_uom"
-    if column_key in _UOM_KEYS:
-        return "uom"
-    if column_key in _CATEGORY_KEYS:
-        return "category"
-    if column_key in _PART_NUMBER_KEYS:
+    k = column_key.lower().strip()
+    # 1. Part number / SKU (high priority)
+    if k in _PART_NUMBER_KEYS or any(p in k for p in ("part_num", "part_no", "part_number", "sku", "item_num", "item_no", "model_num", "mfg_part", "item_code")):
         return "part_number"
-    if column_key in _DESCRIPTION_KEYS:
+    # 2. Descriptions
+    if k in _DESCRIPTION_KEYS or any(d in k for d in ("desc", "description", "product_name", "item_title", "title", "part_desc")):
         return "description"
-    if column_key in _SIZE_KEYS:
+    # 3. Brand
+    if k in _BRAND_KEYS or any(b in k for b in ("brand", "trade_name")):
+        return "brand"
+    # 4. Manufacturer
+    if k in _MANUFACTURER_KEYS or any(m in k for m in ("manufacturer", "mfr", "mfg", "vendor", "supplier", "part_manuf")):
+        return "manufacturer"
+    # 5. Material
+    if k in _MATERIAL_KEYS or any(m in k for m in ("material", "body_mat", "raw_mat")):
+        return "material"
+    # 6. Pressure UOM
+    if k in _PRESSURE_UOM_KEYS:
+        return "pressure_uom"
+    # 7. UOM / Units
+    if k in _UOM_KEYS or k.endswith("_uom") or k.endswith("_unit"):
+        return "uom"
+    # 8. Category
+    if k in _CATEGORY_KEYS or any(c in k for c in ("category", "prod_type", "taxonomy")):
+        return "category"
+    # 9. Dimensions & Sizes
+    if k in _SIZE_KEYS or any(s in k for s in ("pipe_size", "diameter", "nominal_size", "dim_size", "raw_size")):
         return "size"
-    if column_key in _PRESSURE_KEYS:
+    # 10. Pressure / Electrical Ratings
+    if k in _PRESSURE_KEYS or any(p in k for p in ("pressure", "psi", "wog", "cwp", "rating", "voltage", "amperage", "raw_rating")):
         return "pressure"
-    if column_key in _CONNECTION_TYPE_KEYS:
+    # 11. End Connections
+    if k in _CONNECTION_TYPE_KEYS or any(c in k for c in ("connection", "end_conn", "joint_type")):
         return "connection_type"
-    if column_key in _TEMPERATURE_KEYS:
+    # 12. Temperature
+    if k in _TEMPERATURE_KEYS or any(t in k for t in ("temperature", "temp_range", "temp_rating")):
         return "temperature_range"
     return "other"
 
@@ -369,7 +382,7 @@ def _enrich_field(
 
     # Role-specific enrichment
     if role == "manufacturer":
-        match = store.match_manufacturer(raw_value)
+        match = store.match_manufacturer(clean_manufacturer_name(raw_value) or raw_value)
         return _from_canonical_match(column, raw_value, match, role, source_name, row_number)
 
     if role == "brand":

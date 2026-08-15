@@ -1,0 +1,101 @@
+vendor_sku,mfr_name_raw,item_desc_raw,raw_material,raw_size,raw_rating
+LC1D25B7,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil,Copper / Thermoplastic,25A,690V / 25A
+QO120,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA,Molded Case Thermoplastic,20A,120V / 20A
+HOM250,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W,Leviton (MFR-5),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W,Leviton (MFR-6),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White,Nylon / Brass Contacts,20A,125V / 20A
+BR230,Eaton (MFR-7),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C,Eaton (MFR-8),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13,ABB (MFR-9),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20,ABB (MFR-10),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C,Hubbell (MFR-11),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-02,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-2,Copper / Thermoplastic,25A,690V / 25A
+QO120-02,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-2,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-02,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-2,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-02,Leviton (MFR-15),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-2,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-02,Leviton (MFR-16),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-2,Nylon / Brass Contacts,20A,125V / 20A
+BR230-02,Eaton (MFR-17),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-2,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-02,Eaton (MFR-18),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-2,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-02,ABB (MFR-19),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-2,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-02,ABB (MFR-20),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-2,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-02,Hubbell (MFR-21),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-2,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-03,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-3,Copper / Thermoplastic,25A,690V / 25A
+QO120-03,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-3,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-03,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-3,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-03,Leviton (MFR-25),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-3,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-03,Leviton (MFR-26),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-3,Nylon / Brass Contacts,20A,125V / 20A
+BR230-03,Eaton (MFR-27),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-3,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-03,Eaton (MFR-28),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-3,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-03,ABB (MFR-29),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-3,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-03,ABB (MFR-30),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-3,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-03,Hubbell (MFR-31),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-3,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-04,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-4,Copper / Thermoplastic,25A,690V / 25A
+QO120-04,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-4,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-04,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-4,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-04,Leviton (MFR-35),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-4,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-04,Leviton (MFR-36),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-4,Nylon / Brass Contacts,20A,125V / 20A
+BR230-04,Eaton (MFR-37),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-4,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-04,Eaton (MFR-38),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-4,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-04,ABB (MFR-39),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-4,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-04,ABB (MFR-40),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-4,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-04,Hubbell (MFR-41),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-4,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-05,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-5,Copper / Thermoplastic,25A,690V / 25A
+QO120-05,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-5,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-05,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-5,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-05,Leviton (MFR-45),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-5,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-05,Leviton (MFR-46),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-5,Nylon / Brass Contacts,20A,125V / 20A
+BR230-05,Eaton (MFR-47),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-5,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-05,Eaton (MFR-48),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-5,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-05,ABB (MFR-49),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-5,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-05,ABB (MFR-50),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-5,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-05,Hubbell (MFR-51),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-5,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-06,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-6,Copper / Thermoplastic,25A,690V / 25A
+QO120-06,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-6,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-06,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-6,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-06,Leviton (MFR-55),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-6,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-06,Leviton (MFR-56),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-6,Nylon / Brass Contacts,20A,125V / 20A
+BR230-06,Eaton (MFR-57),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-6,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-06,Eaton (MFR-58),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-6,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-06,ABB (MFR-59),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-6,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-06,ABB (MFR-60),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-6,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-06,Hubbell (MFR-61),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-6,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-07,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-7,Copper / Thermoplastic,25A,690V / 25A
+QO120-07,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-7,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-07,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-7,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-07,Leviton (MFR-65),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-7,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-07,Leviton (MFR-66),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-7,Nylon / Brass Contacts,20A,125V / 20A
+BR230-07,Eaton (MFR-67),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-7,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-07,Eaton (MFR-68),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-7,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-07,ABB (MFR-69),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-7,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-07,ABB (MFR-70),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-7,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-07,Hubbell (MFR-71),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-7,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-08,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-8,Copper / Thermoplastic,25A,690V / 25A
+QO120-08,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-8,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-08,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-8,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-08,Leviton (MFR-75),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-8,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-08,Leviton (MFR-76),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-8,Nylon / Brass Contacts,20A,125V / 20A
+BR230-08,Eaton (MFR-77),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-8,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-08,Eaton (MFR-78),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-8,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-08,ABB (MFR-79),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-8,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-08,ABB (MFR-80),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-8,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-08,Hubbell (MFR-81),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-8,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-09,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-9,Copper / Thermoplastic,25A,690V / 25A
+QO120-09,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-9,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-09,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-9,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-09,Leviton (MFR-85),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-9,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-09,Leviton (MFR-86),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-9,Nylon / Brass Contacts,20A,125V / 20A
+BR230-09,Eaton (MFR-87),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-9,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-09,Eaton (MFR-88),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-9,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-09,ABB (MFR-89),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-9,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-09,ABB (MFR-90),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-9,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-09,Hubbell (MFR-91),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-9,Nylon / Brass Blades,15A,125V / 15A
+LC1D25B7-10,Schneider Electric Corp (SCHN),TeSys D Contactor 3P 25A 24VAC Coil Series-10,Copper / Thermoplastic,25A,690V / 25A
+QO120-10,Schneider Electric Corp (SCHN),QO 20 Amp Single-Pole Circuit Breaker 120V 10kA Series-10,Molded Case Thermoplastic,20A,120V / 20A
+HOM250-10,Schneider Electric Corp (SCHN),Homeline 50 Amp Two-Pole Circuit Breaker 120/240V Series-10,Molded Case Thermoplastic,50A,120/240V / 50A
+1221-2W-10,Leviton (MFR-95),Industrial Grade Heavy Duty Single-Pole Toggle Switch 20A 120/277V White Series-10,Impact Resistant Thermoplastic,20A,120/277V / 20A
+5362-W-10,Leviton (MFR-96),Extra Heavy-Duty Industrial Spec Grade Duplex Receptacle 20A 125V White Series-10,Nylon / Brass Contacts,20A,125V / 20A
+BR230-10,Eaton (MFR-97),Type BR Double-Pole Circuit Breaker 30A 120/240V 10kAIC Series-10,Thermoset Composite,30A,120/240V / 30A
+DG1-34023FB-C21C-10,Eaton (MFR-98),PowerXL DG1 General Purpose Variable Frequency Drive 15HP 480V IP21 Series-10,Engineered Polycarbonate / Aluminum,15 HP,480V 3PH / 23A
+AF16-30-10-13-10,ABB (MFR-99),3-Pole Block Contactor 16A 100-250V AC/DC Coil 1NO Series-10,Thermoplastic / Silver Alloy,16A,690V / 16A
+S201U-K20-10,ABB (MFR-100),Miniature Circuit Breaker 1-Pole K-Curve 20A 240VAC UL489 Series-10,Halogen-Free Polymer,20A,240VAC / 20A
+HBL5266C-10,Hubbell (MFR-101),Insulgrip Straight Blade Heavy Duty Male Plug 15A 125V NEMA 5-15P Series-10,Nylon / Brass Blades,15A,125V / 15A
