@@ -67,6 +67,82 @@ const DownloadIcon = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
+interface EnterprisePersona {
+  id: "super_admin" | "lead_reviewer" | "merchant";
+  name: string;
+  shortName: string;
+  role: string;
+  badge: string;
+  org: string;
+  avatar: string;
+  avatarBg: string;
+  accentColor: string;
+  permissions: string[];
+  description: string;
+  recommendedWorkflow: string;
+}
+
+const ENTERPRISE_PERSONAS: Record<string, EnterprisePersona> = {
+  super_admin: {
+    id: "super_admin",
+    name: "Yashas M.",
+    shortName: "Yashas",
+    role: "Lead AI & Data Systems Architect",
+    badge: "Super Admin",
+    org: "SpecLedger Core Operations",
+    avatar: "YM",
+    avatarBg: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+    accentColor: "#6366f1",
+    permissions: [
+      "Unrestricted Multi-Tenant Pipeline Control",
+      "Live Web & PDF Datasheet Extraction Engine",
+      "Multi-Vertical Ground-Truth Benchmark Suites",
+      "Direct 252-Column & Commerce PIM Exports",
+      "Cryptographic Audit Ledger & SHA-256 Signatures"
+    ],
+    description: "Full administrative & systems authority. Execute automated pipelines, trigger web scraping crawlers, run live accuracy benchmarks, and oversee cryptographic audit lineage.",
+    recommendedWorkflow: "Imports & Telemetry (⌘ 4) or Multi-Vertical Benchmarking"
+  },
+  lead_reviewer: {
+    id: "lead_reviewer",
+    name: "Sarah Jenkins",
+    shortName: "Sarah",
+    role: "Senior Catalog Quality Lead",
+    badge: "Catalog Lead",
+    org: "Unilog CX1 Global Content Operations",
+    avatar: "SJ",
+    avatarBg: "linear-gradient(135deg, #10b981, #059669)",
+    accentColor: "#10b981",
+    permissions: [
+      "Human Review Queue Access (Hotkeys A, R, E)",
+      "High-Confidence Bulk Verification (≥80%)",
+      "Unilog 252-Column CX1 Delivery Export",
+      "Tamper-Evident Review Signatures in Audit Trace"
+    ],
+    description: "Dedicated to catalog curation and quality assurance. Utilize single-key triage (A/R/E), resolve low-confidence discrepancies, and sign off on Unilog 252-column feeds.",
+    recommendedWorkflow: "Human Review Queue (⌘ 3) with High-Speed Hotkeys"
+  },
+  merchant: {
+    id: "merchant",
+    name: "Alex Rivera",
+    shortName: "Alex",
+    role: "Enterprise Merchant & Commercial Distributor",
+    badge: "PIM / Merchant Ops",
+    org: "Industrial Distribution Alliance",
+    avatar: "AR",
+    avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)",
+    accentColor: "#f59e0b",
+    permissions: [
+      "Commerce Product Catalogue Browsing & Search",
+      "252-Column & 50-Triplet Deep-Dive Inspector",
+      "1-Click Commerce PIM Feed CSV (12 Columns)",
+      "Dynamic Submittal PDF Datasheet Generation"
+    ],
+    description: "Focus on commercial product intelligence. Inspect rich 6-tier descriptions, 20 engineering bullet points, download clean PIM feeds, and generate customer submittal PDFs.",
+    recommendedWorkflow: "Commerce Catalogue (⌘ 2) & 1-Click PIM Export"
+  }
+};
+
 function App() {
   const [selected, setSelected] = useState(0);
   const [activeTab, setActiveTab] = useState<"overview" | "catalogue" | "review" | "imports" | "schemas" | "evidence" | "audit">("overview");
@@ -78,6 +154,29 @@ function App() {
   const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Enterprise Persona & OAuth State
+  const [currentPersonaKey, setCurrentPersonaKey] = useState<string>(() => {
+    return localStorage.getItem("specledger_persona") || "super_admin";
+  });
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(() => {
+    return !localStorage.getItem("specledger_has_authenticated");
+  });
+
+  const currentPersona = ENTERPRISE_PERSONAS[currentPersonaKey] || ENTERPRISE_PERSONAS.super_admin;
+
+  const handleSelectPersona = (key: string, viaOAuth?: string) => {
+    setCurrentPersonaKey(key);
+    localStorage.setItem("specledger_persona", key);
+    localStorage.setItem("specledger_has_authenticated", "true");
+    setShowLoginModal(false);
+    const p = ENTERPRISE_PERSONAS[key] || ENTERPRISE_PERSONAS.super_admin;
+    if (viaOAuth) {
+      setNotice(`SSO Authenticated via ${viaOAuth} as ${p.name} (${p.badge}) · ${p.org}`);
+    } else {
+      setNotice(`Active Persona switched to ${p.name} (${p.badge}) · ${p.org}`);
+    }
+  };
 
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [batchList, setBatchList] = useState<any[]>([]);
@@ -529,7 +628,7 @@ function App() {
 
   // Human Review Actions
   const handleReviewAction = async (rowNumber: number, action: "approve" | "reject" | "correct", comment?: string) => {
-    const reviewerName = import.meta.env.VITE_REVIEWER_NAME || "Yashas M (Owner)";
+    const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
     const batchId = activeBatch?.batch_id || "latest";
 
     reviewedRowIdsRef.current.add(rowNumber);
@@ -550,7 +649,7 @@ function App() {
         body: JSON.stringify({ action, reviewer: reviewerName, comment: comment || `Row ${action}d via workspace` })
       });
       if (res.ok) {
-        setNotice(`Row #${rowNumber} ${action}d successfully.`);
+        setNotice(`Row #${rowNumber} ${action}d successfully by ${currentPersona.shortName}.`);
       } else {
         setNotice(`Row #${rowNumber} marked as ${action}d locally.`);
       }
@@ -568,16 +667,17 @@ function App() {
     setLiveRows((prev) =>
       prev.map((r) => ({ ...r, overall_status: "verified", review_state: "approved" }))
     );
-    setNotice(`Bulk approved ${count} pending items (≥80% confidence).`);
+    setNotice(`Bulk approved ${count} pending items by ${currentPersona.shortName} (≥80% confidence).`);
 
     const batchId = activeBatch?.batch_id || "latest";
+    const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
     try {
       await Promise.all(
         ids.map((id) =>
           fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${id}/review`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "approve", reviewer: "Yashas M (Owner)", comment: "Bulk approved via workspace" })
+            body: JSON.stringify({ action: "approve", reviewer: reviewerName, comment: "Bulk approved via workspace" })
           })
         )
       );
@@ -2365,18 +2465,117 @@ function App() {
           </div>
           <div
             className="user"
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-              setNotice("Account: Yashas M · Role: Catalogue Lead / Owner");
-            }}
-            style={{ cursor: "pointer" }}
-            title="Click to view user profile"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            style={{ cursor: "pointer", position: "relative" }}
+            title="Click to view profile or switch persona"
           >
-            <strong>YM</strong>
+            <strong style={{ background: currentPersona.avatarBg, color: "#fff" }}>{currentPersona.avatar}</strong>
             <span>
-              Yashas M<small>Owner</small>
+              {currentPersona.name}<small>{currentPersona.badge}</small>
             </span>
-            <b>···</b>
+            <b style={{ fontSize: 13, opacity: 0.7 }}>▾</b>
+
+            {showUserMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 8px)",
+                  left: 0,
+                  width: 250,
+                  background: "#161b22",
+                  border: "1px solid #30363d",
+                  borderRadius: 10,
+                  padding: "10px",
+                  boxShadow: "0 12px 32px rgba(0,0,0,0.6)",
+                  zIndex: 9999,
+                  textAlign: "left"
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ paddingBottom: 8, borderBottom: "1px solid #21262d", marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Active Role & Organization</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f0f6fc", marginTop: 2 }}>{currentPersona.name}</div>
+                  <div style={{ fontSize: 11, color: currentPersona.accentColor, fontWeight: 600 }}>{currentPersona.role}</div>
+                  <div style={{ fontSize: 10, color: "#8b949e", marginTop: 3 }}>🏢 {currentPersona.org}</div>
+                </div>
+
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 4px 6px" }}>Switch Persona (1-Click)</div>
+                {Object.values(ENTERPRISE_PERSONAS).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      handleSelectPersona(p.id);
+                      setShowUserMenu(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background: currentPersonaKey === p.id ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                      border: currentPersonaKey === p.id ? "1px solid rgba(99, 102, 241, 0.4)" : "1px solid transparent",
+                      color: "#f0f6fc",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      marginBottom: 3
+                    }}
+                  >
+                    <span style={{ width: 22, height: 22, borderRadius: "50%", background: p.avatarBg, display: "grid", placeItems: "center", fontSize: 10, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                      {p.avatar}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                      <div style={{ fontSize: 9, color: "#8b949e" }}>{p.badge}</div>
+                    </div>
+                  </button>
+                ))}
+
+                <div style={{ borderTop: "1px solid #21262d", marginTop: 6, paddingTop: 6, display: "flex", gap: 4 }}>
+                  <button
+                    onClick={() => {
+                      setShowLoginModal(true);
+                      setShowUserMenu(false);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background: "rgba(99, 102, 241, 0.12)",
+                      border: "1px solid rgba(99, 102, 241, 0.3)",
+                      color: "#a5b4fc",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textAlign: "center"
+                    }}
+                  >
+                    🔑 Auth Modal
+                  </button>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("specledger_has_authenticated");
+                      setShowLoginModal(true);
+                      setShowUserMenu(false);
+                    }}
+                    style={{
+                      padding: "6px 8px",
+                      borderRadius: 6,
+                      background: "rgba(239, 68, 68, 0.12)",
+                      border: "1px solid rgba(239, 68, 68, 0.3)",
+                      color: "#fca5a5",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -2388,10 +2587,33 @@ function App() {
             <span className="crumb">
               Workspace / {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
             </span>
-            <h1>Good evening, Yashas</h1>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+              <h1 style={{ margin: 0 }}>Good evening, {currentPersona.shortName}</h1>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: 12,
+                  background: currentPersona.badgeColor || "rgba(99, 102, 241, 0.2)",
+                  color: currentPersona.accentColor || "#a5b4fc",
+                  border: `1px solid ${currentPersona.accentColor || "#6366f1"}40`
+                }}
+              >
+                {currentPersona.badge}
+              </span>
+            </div>
           </div>
 
           <div className="header-actions">
+            <button
+              className="icon"
+              title="Switch Persona / Open SSO Authentication"
+              onClick={() => setShowLoginModal(true)}
+              style={{ padding: "0 10px", width: "auto", gap: 6, fontSize: 11, fontWeight: 600, color: "#c9d1d9" }}
+            >
+              <span>👤 Switch Persona</span>
+            </button>
             <button
               className="icon"
               title="Export Unilog 252-Column Delivery CSV"
@@ -2421,6 +2643,208 @@ function App() {
           {renderMainContent()}
         </div>
       </main>
+
+      {/* Enterprise Persona 1-Click Login & SSO Modal */}
+      {showLoginModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(3, 7, 18, 0.85)",
+            backdropFilter: "blur(14px)",
+            zIndex: 99999,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            overflowY: "auto"
+          }}
+        >
+          <div
+            style={{
+              background: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 820,
+              boxShadow: "0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.05)",
+              padding: "28px 32px",
+              position: "relative",
+              color: "#f8fafc"
+            }}
+          >
+            <button
+              onClick={() => setShowLoginModal(false)}
+              style={{
+                position: "absolute",
+                top: 18,
+                right: 18,
+                background: "transparent",
+                border: "none",
+                color: "#94a3b8",
+                fontSize: 20,
+                cursor: "pointer",
+                padding: "4px 8px"
+              }}
+              title="Close and continue as guest"
+            >
+              ✕
+            </button>
+
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 12px", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 20, fontSize: 11, fontWeight: 700, color: "#818cf8", marginBottom: 10 }}>
+                ⚡ SPECLENGER ENTERPRISE ACCESS GATEWAY
+              </div>
+              <h2 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 6px", color: "#ffffff", letterSpacing: "-0.02em" }}>
+                Select Your Evaluation Persona
+              </h2>
+              <p style={{ fontSize: 13, color: "#94a3b8", margin: 0, maxWidth: 560, marginInline: "auto", lineHeight: 1.5 }}>
+                Zero friction 1-click access for judges and enterprise evaluators. Switch between distinct role-based access perspectives with full feature privileges.
+              </p>
+            </div>
+
+            {/* 3 Interactive Persona Cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 14, marginBottom: 24 }}>
+              {Object.values(ENTERPRISE_PERSONAS).map((p) => {
+                const isSelected = currentPersonaKey === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => handleSelectPersona(p.id)}
+                    style={{
+                      background: isSelected ? "rgba(30, 41, 59, 0.95)" : "rgba(15, 23, 42, 0.8)",
+                      border: isSelected ? `2px solid ${p.accentColor}` : "1px solid #334155",
+                      borderRadius: 12,
+                      padding: 16,
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      transition: "all 0.15s ease",
+                      position: "relative",
+                      boxShadow: isSelected ? `0 0 20px ${p.accentColor}30` : "none"
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <span style={{ width: 36, height: 36, borderRadius: "50%", background: p.avatarBg, display: "grid", placeItems: "center", fontSize: 13, fontWeight: 800, color: "#fff" }}>
+                          {p.avatar}
+                        </span>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 10, background: `${p.accentColor}20`, color: p.accentColor, border: `1px solid ${p.accentColor}40` }}>
+                          {p.badge}
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 2px", color: "#f8fafc" }}>{p.name}</h3>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: p.accentColor, marginBottom: 4 }}>{p.role}</div>
+                      <div style={{ fontSize: 10, color: "#64748b", marginBottom: 10 }}>🏢 {p.org}</div>
+
+                      <p style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, margin: "0 0 12px" }}>
+                        {p.description}
+                      </p>
+
+                      <div style={{ borderTop: "1px solid #1e293b", paddingTop: 8, marginBottom: 12 }}>
+                        <div style={{ fontSize: 9, fontWeight: 800, color: "#64748b", textTransform: "uppercase", marginBottom: 4 }}>Key Privileges</div>
+                        {p.permissions.slice(0, 3).map((perm, idx) => (
+                          <div key={idx} style={{ fontSize: 10, color: "#cbd5e1", display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+                            <span style={{ color: p.accentColor }}>✓</span> {perm}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectPersona(p.id);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: isSelected ? p.accentColor : "rgba(255,255,255,0.06)",
+                        border: isSelected ? "none" : "1px solid #475569",
+                        color: isSelected ? "#ffffff" : "#f1f5f9",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6
+                      }}
+                    >
+                      <span>{isSelected ? "Active Persona" : `Sign In as ${p.shortName}`}</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Enterprise OAuth & Demo Controls */}
+            <div style={{ borderTop: "1px solid #1e293b", paddingTop: 18, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Or SSO Login:</span>
+                <button
+                  onClick={() => handleSelectPersona("super_admin", "Google Workspace SSO")}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid #334155",
+                    color: "#e2e8f0",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <span style={{ color: "#4285F4", fontWeight: 800 }}>G</span> Google SSO
+                </button>
+                <button
+                  onClick={() => handleSelectPersona("super_admin", "GitHub Enterprise")}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid #334155",
+                    color: "#e2e8f0",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <span>🐙</span> GitHub SSO
+                </button>
+              </div>
+
+              <div>
+                <button
+                  onClick={() => handleSelectPersona("super_admin")}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#94a3b8",
+                    fontSize: 12,
+                    textDecoration: "underline",
+                    cursor: "pointer"
+                  }}
+                >
+                  Skip login & explore in Fast Demo mode →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
