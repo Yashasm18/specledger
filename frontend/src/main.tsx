@@ -178,27 +178,29 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [inspectorProduct]);
 
+  const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8000" : "");
+
   const fetchLatestBatch = async () => {
     try {
-      const res = await fetch("http://localhost:8000/catalogue/batches");
+      const res = await fetch(`${API_BASE}/catalogue/batches`);
       if (res.ok) {
         const data = await res.json();
         setBatchList(data.batches || []);
         if (data.batches && data.batches.length > 0) {
           const latestId = data.batches[0].batch_id;
-          const batchRes = await fetch(`http://localhost:8000/catalogue/batches/${latestId}`);
+          const batchRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}`);
           if (batchRes.ok) {
             const batch = await batchRes.json();
             setActiveBatch(batch);
             setLiveRows(batch.rows || []);
           }
-          const pendingRes = await fetch(`http://localhost:8000/catalogue/batches/${latestId}/review/pending`);
+          const pendingRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/review/pending`);
           if (pendingRes.ok) {
             const pending = await pendingRes.json();
             const rawPending = pending.pending_rows || [];
             setPendingReviews(rawPending.filter((r: any) => !reviewedRowIdsRef.current.has(r.row_number)));
           }
-          const sourcesRes = await fetch(`http://localhost:8000/catalogue/batches/${latestId}/sources`);
+          const sourcesRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/sources`);
           if (sourcesRes.ok) {
             const srcData = await sourcesRes.json();
             setBatchSources(srcData.sources || []);
@@ -432,7 +434,7 @@ function App() {
     setNotice(`Exporting ${filename}…`);
 
     try {
-      const res = await fetch(`http://localhost:8000/catalogue/batches/${batchId}/export?format=${format}`);
+      const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/export?format=${format}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
@@ -465,7 +467,7 @@ function App() {
       body.append("file", file);
 
       try {
-        const response = await fetch("http://localhost:8000/catalogue/ingest?process_immediately=true", {
+        const response = await fetch(`${API_BASE}/catalogue/ingest?process_immediately=true`, {
           method: "POST",
           body,
         });
@@ -489,7 +491,7 @@ function App() {
       body.append("file", file);
 
       try {
-        const response = await fetch("http://localhost:8000/documents/intake?organization_id=default&category=generic", {
+        const response = await fetch(`${API_BASE}/documents/intake?organization_id=default&category=generic`, {
           method: "POST",
           body,
         });
@@ -508,7 +510,7 @@ function App() {
         setNotice(`Queued ${file.name} · task ${result.task_id.slice(0, 8)}`);
         const poll = window.setInterval(async () => {
           try {
-            const status = await fetch(`http://localhost:8000/documents/tasks/${result.task_id}?organization_id=default`).then((r) => r.json());
+            const status = await fetch(`${API_BASE}/documents/tasks/${result.task_id}?organization_id=default`).then((r) => r.json());
             if (status.state === "completed" || status.state === "failed") {
               window.clearInterval(poll);
               setNotice(status.state === "completed" ? `Extraction complete · ${file.name}` : `Extraction failed · ${status.error_message || "retry required"}`);
@@ -542,7 +544,7 @@ function App() {
     );
 
     try {
-      const res = await fetch(`http://localhost:8000/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
+      const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, reviewer: reviewerName, comment: comment || `Row ${action}d via workspace` })
@@ -572,7 +574,7 @@ function App() {
     try {
       await Promise.all(
         ids.map((id) =>
-          fetch(`http://localhost:8000/catalogue/batches/${batchId}/rows/${id}/review`, {
+          fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${id}/review`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "approve", reviewer: "Yashas M (Owner)", comment: "Bulk approved via workspace" })
@@ -595,7 +597,7 @@ function App() {
 
     setIsScraping(true);
     try {
-      const res = await fetch("http://localhost:8000/catalogue/scraper/extract", {
+      const res = await fetch(`${API_BASE}/catalogue/scraper/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -621,7 +623,7 @@ function App() {
   const handleModalScrape = async (pn: string, mfr: string, cat?: string) => {
     setIsModalScraping(true);
     try {
-      const res = await fetch("http://localhost:8000/catalogue/scraper/extract", {
+      const res = await fetch(`${API_BASE}/catalogue/scraper/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

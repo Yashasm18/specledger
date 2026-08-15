@@ -54,7 +54,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
     if (artifact.batch_id && artifact.row_number) {
       try {
         const response = await fetch(
-          `http://localhost:8000/catalogue/batches/${artifact.batch_id}/rows/${artifact.row_number}/review`,
+          `${API_BASE}/catalogue/batches/${artifact.batch_id}/rows/${artifact.row_number}/review`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -82,7 +82,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
       return;
     }
     const response = await fetch(
-      `http://localhost:8000/documents/${artifact.document_id}/artifact/${artifact.artifact_id}/review?organization_id=default`,
+      `${API_BASE}/documents/${artifact.document_id}/artifact/${artifact.artifact_id}/review?organization_id=default`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -115,7 +115,7 @@ window.fetch = async (...args: Parameters<typeof window.fetch>) => {
     const status = await response.clone().json().catch(() => null);
     if (status?.state === "completed" && status.document_id && !openedTasks.has(status.task_id)) {
       openedTasks.add(status.task_id);
-      const artifactRequest = status.artifact ? Promise.resolve(status.artifact) : nativeFetch(`http://localhost:8000/documents/${status.document_id}/artifact?organization_id=default`).then((artifactResponse) => artifactResponse.json());
+      const artifactRequest = status.artifact ? Promise.resolve(status.artifact) : nativeFetch(`${API_BASE}/documents/${status.document_id}/artifact?organization_id=default`).then((artifactResponse) => artifactResponse.json());
       artifactRequest.then((artifact) => {
         openReviewWorkspace(artifact);
         document.getElementById("review-launcher")?.remove();
