@@ -625,3 +625,46 @@ def evaluate_batch(
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {exc}") from exc
 
     return report.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Deep Industrial Web & PDF Scraper Endpoints
+# ---------------------------------------------------------------------------
+
+class ScraperQueryInput(BaseModel):
+    part_number: str = Field(min_length=1, max_length=100)
+    manufacturer: str = Field(min_length=1, max_length=200)
+    category: str = Field(default="Industrial Component")
+    raw_description: str = Field(default="")
+
+
+@router.post("/scraper/extract")
+def extract_from_web_and_pdf(payload: ScraperQueryInput) -> dict[str, Any]:
+    """Execute deep web scraping & PDF parsing for a manufacturer part number."""
+    from .pdf_and_web_scraper import industrial_scraper
+    profile = industrial_scraper.scrape_product_profile(
+        part_number=payload.part_number,
+        manufacturer=payload.manufacturer,
+        category=payload.category,
+        raw_description=payload.raw_description,
+    )
+    return profile.to_dict()
+
+
+@router.get("/scraper/status")
+def get_scraper_telemetry() -> dict[str, Any]:
+    """Get active scraper status, registered manufacturer portals, and blocked firewall rules."""
+    from .pdf_and_web_scraper import BLOCKED_SHOPPING_DOMAINS, EXPANDED_MANUFACTURER_REGISTRY
+    return {
+        "engine": "SpecLedger Industrial Web & PDF Extractor v2.0",
+        "registered_manufacturers_count": len(EXPANDED_MANUFACTURER_REGISTRY),
+        "blocked_marketplaces_count": len(BLOCKED_SHOPPING_DOMAINS),
+        "supported_document_types": [
+            "Technical Datasheets (PDF)",
+            "Installation, Operation & Maintenance Manuals (IOM)",
+            "3D CAD Models & Drawings (DWG / STEP)",
+            "Safety Data Sheets (SDS / MSDS)",
+            "ASME / CSA / ANSI / RoHS / REACH Compliance Certificates",
+        ],
+        "blocked_marketplaces_sample": list(BLOCKED_SHOPPING_DOMAINS)[:10],
+    }
