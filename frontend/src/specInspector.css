@@ -486,9 +486,89 @@
 }
 
 /* ==========================================================================
-   Enterprise Welcome & Workspace Selector Modal
+   Enterprise Initiation Landing Portal (Full-Page Initial Load)
    ========================================================================== */
 
+.spec-landing-page {
+  min-height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at 50% 10%, rgba(37, 99, 235, 0.18), transparent 50%),
+              radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.1), transparent 45%),
+              radial-gradient(circle at 15% 90%, rgba(14, 165, 233, 0.08), transparent 45%),
+              #0a101d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  box-sizing: border-box;
+  font-family: Inter, Manrope, -apple-system, sans-serif;
+  color: #f1f5f9;
+  position: relative;
+  overflow-y: auto;
+}
+
+.spec-landing-container {
+  width: 100%;
+  max-width: 1040px;
+  background: rgba(17, 26, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 22px;
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.85), 0 0 60px rgba(56, 189, 248, 0.12);
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.spec-landing-top-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.spec-landing-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px 14px;
+  border-radius: 30px;
+  margin-bottom: 14px;
+}
+
+.spec-landing-logo-badge img {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.spec-landing-logo-badge span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.spec-landing-top-brand h1 {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  margin: 0 0 8px;
+}
+
+.spec-landing-top-brand p {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0 auto;
+  max-width: 620px;
+  line-height: 1.5;
+}
+
+/* Modal styles remain for overlay switching inside app */
 .welcome-modal-backdrop {
   position: fixed;
   inset: 0;

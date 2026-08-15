@@ -79,10 +79,13 @@ function App() {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Enterprise Welcome & Workspace Selector Modal State
-  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(() => {
-    return !localStorage.getItem("specledger_workspace_selected");
+  // Initial Full-Screen Initiation Screen State (Default is false on fresh session)
+  const [isInitiated, setIsInitiated] = useState<boolean>(() => {
+    return localStorage.getItem("specledger_initiated") === "true";
   });
+
+  // Enterprise Welcome & Workspace Selector Modal State (for overlay switching)
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
   const [isUploadingCustom, setIsUploadingCustom] = useState(false);
   const [customDragActive, setCustomDragActive] = useState(false);
 
@@ -217,15 +220,19 @@ function App() {
       }
 
       const result = await response.json();
+      localStorage.setItem("specledger_initiated", "true");
       localStorage.setItem("specledger_workspace_selected", `custom_${result.batch_id || "batch"}`);
       setWorkspaceName(`Custom Feed · ${file.name}`);
       setNotice(`Enrichment complete · ${file.name} (${result.row_count || 100} SKUs syndicated to 252 columns)`);
+      setIsInitiated(true);
       setShowWelcomeModal(false);
       await fetchLatestBatch();
       setActiveTab("catalogue");
     } catch (error) {
+      localStorage.setItem("specledger_initiated", "true");
       setWorkspaceName(`Custom Feed · ${file.name}`);
       setNotice(`Custom feed loaded · ${error instanceof Error ? error.message : "Standardized to 252 columns"}`);
+      setIsInitiated(true);
       setShowWelcomeModal(false);
       setActiveTab("catalogue");
     } finally {
@@ -235,11 +242,21 @@ function App() {
 
   // Handler to launch master industrial reference workspace
   const handleLaunchMaster = () => {
+    localStorage.setItem("specledger_initiated", "true");
     localStorage.setItem("specledger_workspace_selected", "master");
     setWorkspaceName("Unilog CX1 Master (1,000 SKUs)");
+    setIsInitiated(true);
     setShowWelcomeModal(false);
     setNotice("Launched Enterprise Master Catalogue (1,000 Verified SKUs · 252 Columns)");
     setActiveTab("overview");
+  };
+
+  // Handler to exit back to landing page
+  const handleExitWorkspace = () => {
+    localStorage.removeItem("specledger_initiated");
+    setIsInitiated(false);
+    setShowWorkspaceMenu(false);
+    setNotice("Returned to Workspace & Operating Mode Selector");
   };
 
   const fetchLatestBatch = async () => {
@@ -1866,6 +1883,141 @@ function App() {
     `col ${col.num}`.includes(colSearch.toLowerCase())
   );
 
+  // Full-Screen Initial Landing & Operating Mode Portal
+  if (!isInitiated) {
+    return (
+      <div className="spec-landing-page">
+        {/* Hidden Custom Feed File Input */}
+        <input
+          type="file"
+          ref={customFileInputRef}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) processCustomFile(file);
+            e.target.value = "";
+          }}
+          accept=".csv,.tsv,.xlsx"
+          style={{ display: "none" }}
+        />
+
+        <div className="spec-landing-container">
+          {/* Top Brand Header */}
+          <div className="welcome-header" style={{ padding: "36px 40px 24px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+              <img
+                src="/favicon.png"
+                alt="SpecLedger Logo"
+                style={{ width: 38, height: 38, borderRadius: 8, objectFit: "contain", display: "block" }}
+              />
+              <div>
+                <span className="eyebrow" style={{ margin: 0 }}>SPECLEODGER ENTERPRISE · PRODUCT INTELLIGENCE &amp; PIM SYNDICATION</span>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>Automated Industrial Catalogue Normalization &amp; 252-Column Syndication Engine</span>
+              </div>
+            </div>
+            <h2 style={{ fontSize: 26, margin: "8px 0 6px" }}>Select Operating Workspace &amp; Feed Mode</h2>
+            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
+              Transform sparse supplier records into rich, evidence-backed, 252-column product intelligence with complete source provenance and zero marketplace contamination.
+            </p>
+          </div>
+
+          {/* Dual Operating Options */}
+          <div className="welcome-grid" style={{ padding: "32px 40px" }}>
+            {/* Option 1: Custom Supplier Feed */}
+            <div className="welcome-card primary-mode">
+              <div>
+                <div className="welcome-card-badge custom">
+                  <span>⚡ Mode 1 · Enterprise Ingestion</span>
+                </div>
+                <h3>Import Custom Supplier Catalogue</h3>
+                <p className="welcome-card-desc">
+                  Upload your organization's raw supplier spreadsheets (CSV, TSV, XLSX) for automated 252-column schema enrichment.
+                </p>
+
+                <ul className="welcome-feature-list">
+                  <li><span className="check">✓</span> <span>Automatic column role detection &amp; supplier code cleanup</span></li>
+                  <li><span className="check">✓</span> <span>Live manufacturer web &amp; technical PDF submittal crawling</span></li>
+                  <li><span className="check">✓</span> <span>Anti-marketplace firewall &amp; SHA-256 evidence provenance</span></li>
+                  <li><span className="check">✓</span> <span>Full 252-column interactive grid &amp; multi-format PIM export</span></li>
+                </ul>
+
+                {/* Drag and Drop Zone */}
+                <div
+                  className={`welcome-dropzone ${customDragActive ? "drag-active" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); setCustomDragActive(true); }}
+                  onDragLeave={() => setCustomDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setCustomDragActive(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) processCustomFile(file);
+                  }}
+                  onClick={() => customFileInputRef.current?.click()}
+                >
+                  <div style={{ fontSize: 24, color: "#38bdf8", marginBottom: 4 }}>📂</div>
+                  <div className="welcome-dropzone-text">
+                    {isUploadingCustom ? "Ingesting & Syndicating 252 Columns…" : "Click or drag supplier CSV / XLSX here"}
+                  </div>
+                  <div className="welcome-dropzone-sub">Supports .csv, .tsv, .xlsx (up to 10 MB)</div>
+                </div>
+              </div>
+
+              <button
+                className="welcome-cta-btn primary"
+                disabled={isUploadingCustom}
+                onClick={() => customFileInputRef.current?.click()}
+              >
+                {isUploadingCustom ? "⏳ Processing Feed…" : "📂 Upload & Ingest Supplier Feed"}
+              </button>
+            </div>
+
+            {/* Option 2: Pre-loaded Industrial Master */}
+            <div className="welcome-card">
+              <div>
+                <div className="welcome-card-badge master">
+                  <span>⚡ Mode 2 · Industrial Reference</span>
+                </div>
+                <h3>Explore Enterprise Master (1,000 SKUs)</h3>
+                <p className="welcome-card-desc">
+                  Instantly explore a full-scale, verified 1,000-SKU industrial master catalogue spanning electrical, fluidics, HVAC, and commercial equipment.
+                </p>
+
+                <ul className="welcome-feature-list">
+                  <li><span className="check">✓</span> <span>1,000 verified SKUs across 100+ industrial manufacturers</span></li>
+                  <li><span className="check">✓</span> <span>High-throughput benchmark metrics (4,250+ SKUs/sec)</span></li>
+                  <li><span className="check">✓</span> <span>Active human governance review queue with 50 flagged items</span></li>
+                  <li><span className="check">✓</span> <span>Complete 252-column delivery dataset ready for instant download</span></li>
+                </ul>
+
+                <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#34d399", fontWeight: 700 }}>
+                    <span>Master Catalogue Status</span>
+                    <span>✓ 100% Ready &amp; Populated</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                    Pre-populated across all 252 Unilog CX1 specification columns.
+                  </div>
+                </div>
+              </div>
+
+              <button
+                className="welcome-cta-btn emerald"
+                onClick={handleLaunchMaster}
+              >
+                ⚡ Launch 1,000-SKU Master Workspace
+              </button>
+            </div>
+          </div>
+
+          {/* Footer info */}
+          <div className="welcome-footer-info" style={{ padding: "16px 40px" }}>
+            <span>SpecLedger v1.0.0 · Production-Grade PIM Intelligence Engine</span>
+            <span>Switch workspace modes at any time inside the app</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {/* Hidden File Input for default header button */}
@@ -2481,7 +2633,7 @@ function App() {
               style={{ padding: "8px 8px", cursor: "pointer", color: "#38bdf8", fontWeight: 700, borderTop: "1px solid #2a3b50", marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}
               onClick={() => {
                 setShowWorkspaceMenu(false);
-                setShowWelcomeModal(true);
+                handleExitWorkspace();
               }}
             >
               <span>⚡ Switch Workspace / Ingest Feed…</span>
@@ -2564,9 +2716,8 @@ function App() {
             className="user"
             onClick={() => {
               setShowUserMenu(!showUserMenu);
-              setNotice("Account: Yashas M · Role: Catalogue Lead / Owner");
             }}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", position: "relative" }}
             title="Click to view user profile"
           >
             <strong>YM</strong>
@@ -2575,6 +2726,21 @@ function App() {
             </span>
             <b>···</b>
           </div>
+          {showUserMenu && (
+            <div style={{ background: "#172232", border: "1px solid #2c374b", borderRadius: 6, padding: 8, marginTop: 4, fontSize: 11, color: "#e2e8f0" }}>
+              <div style={{ fontWeight: 700, color: "#ffffff", marginBottom: 4 }}>Yashas M</div>
+              <div style={{ color: "#94a3b8", fontSize: 10, marginBottom: 8 }}>Catalogue Lead · Enterprise Admin</div>
+              <div
+                style={{ padding: "6px 8px", background: "rgba(56, 189, 248, 0.1)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: 4, cursor: "pointer", color: "#38bdf8", fontWeight: 700, textAlign: "center" }}
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleExitWorkspace();
+                }}
+              >
+                ⚡ Switch Workspace / Mode
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -2591,7 +2757,7 @@ function App() {
           <div className="header-actions">
             <button
               className="export-btn primary-accent"
-              onClick={() => setShowWelcomeModal(true)}
+              onClick={handleExitWorkspace}
               title="Switch Workspace Mode & Ingest Feed (⌘ W)"
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700 }}
             >
