@@ -129,7 +129,7 @@ The follwing reseller domains are blocked by rule (`source_discovery.py`):
 Any evaluator can re-run and verify SpecLedger's execution speed and accuracy scores with the following commands:
 
 ```bash
-# 1. Run the full automated test suite (238 tests, 100% pass)
+# 1. Run the full automated test suite (243 tests, 100% pass)
 .venv/bin/python -m pytest tests/ -v
 
 # 2. Run Ground-Truth Accuracy Evaluation (200-Row Benchmark -> 94.64% exact match)
@@ -208,7 +208,7 @@ The generated delivery file [**`data/challenge/Unihack_ Enriched_Delivery_Output
 | Criterion | Weight | How SpecLedger Achieves It | Evidence & Proof |
 |---|---|---|---|
 | **1. Innovation** | **25%** | **Domain-Agnostic Extraction + Multi-Modal PDF Grounding:** Discovers manufacturer sources dynamically across diverse categories (valves, abrasives, tools, appliances). Features strict **Marketplace Sourcing Prohibition** (auto-blocking Amazon/eBay) and auto-generates 50 attribute triplets and 6 description tiers. | Implemented in `source_discovery.py`, `web_enricher.py`, `pdf_extractor.py`. Tested in `test_unilog_pipeline.py`. |
-| **2. Accuracy** | **25%** | **Deterministic LOV + Zero Hallucination:** Normalizes units and materials with controlled vocabularies. Validates cross-field physics (e.g. PVC vs 1500 PSI). Every extracted value links to an unalterable evidence quote. | **94.64% exact-match accuracy** on 200-row benchmark. **100% category accuracy**. Tested across 238 unit tests. |
+| **2. Accuracy** | **25%** | **Deterministic LOV + Zero Hallucination:** Normalizes units and materials with controlled vocabularies. Validates cross-field physics (e.g. PVC vs 1500 PSI). Every extracted value links to an unalterable evidence quote. | **94.64% exact-match accuracy** on 200-row benchmark. **100% category accuracy**. Tested across 243 unit tests. |
 | **3. Quality** | **25%** | **Human-in-the-Loop Governance & Lineage:** Auto-approves high-confidence items ($\ge 80\%$) and prioritizes ambiguities in a real-time review queue. Captures immutable SHA-256 audit events for every action. | Interactive review workspace with one-click bulk approval and full JSON audit log export. Tested in `test_human_review.py`. |
 | **4. Scalability** | **25%** | **High Throughput & Low Cost:** Processes **4,250+ SKUs/sec** with source memoization. Operates at **~$0.0001 per SKU** ($15/mo for 150,000 SKUs; $75/mo for 750,000 SKUs) compared to $2.50+ for manual entry. | Real-time cost & latency telemetry in dashboard. Tested in `test_batch_processor.py`. |
 
@@ -397,6 +397,7 @@ The FastAPI backend exposes comprehensive REST endpoints under `/catalogue`:
 The frontend application provides an enterprise-grade, dark-mode, control-center workspace for catalogue managers and data engineers running on `http://localhost:5174`:
 
 - **7 Dedicated Functional Views:** Overview (`⌘ 1`), Full Catalogue (`⌘ 2`), Priority Review Queue (`⌘ 3`), Batch Telemetry & Cost (`⌘ 4`), Schemas (`⌘ 5`), Evidence Library (`⌘ 6`), and Audit Trail (`⌘ 7`).
+- **Role Profile Switcher & Fast Evaluation:** Switch between 3 realistic operational personas (Systems Architect, Catalog QA Lead, Merchant Ops) or authenticate with Google Workspace / GitHub SSO for tailored workflow access.
 - **Interactive 252-Column Spec Inspector:** Inspect any SKU from the 1,000 catalogue across 6 specialized tabs including the live search Full 252-Column Grid and 1-Click `⚡ Run Live Web & PDF Crawl`.
 - **Live Human Governance Queue:** Inline `Approve` / `Reject` / `Correct` actions and 1-click `✓ Approve All High Confidence (≥80%)`.
 - **Evidence Review Workspace Modal:** Side-by-side view comparing raw supplier values, normalized values, confidence scores, and source evidence citations.

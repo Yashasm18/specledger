@@ -87,58 +87,57 @@ const ENTERPRISE_PERSONAS: Record<string, EnterprisePersona> = {
     id: "super_admin",
     name: "Yashas M.",
     shortName: "Yashas",
-    role: "Lead AI & Data Systems Architect",
-    badge: "Super Admin",
-    org: "SpecLedger Core Operations",
+    role: "Systems Architect & Lead Administrator",
+    badge: "Admin",
+    org: "SpecLedger Systems",
     avatar: "YM",
-    avatarBg: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-    accentColor: "#6366f1",
+    avatarBg: "linear-gradient(135deg, #1f6feb, #388bfd)",
+    accentColor: "#58a6ff",
     permissions: [
-      "Unrestricted Multi-Tenant Pipeline Control",
-      "Live Web & PDF Datasheet Extraction Engine",
-      "Multi-Vertical Ground-Truth Benchmark Suites",
-      "Direct 252-Column & Commerce PIM Exports",
-      "Cryptographic Audit Ledger & SHA-256 Signatures"
+      "Batch ingestion & LOV enrichment pipelines",
+      "Manufacturer PDF parsing & crawler engine",
+      "Multi-vertical accuracy benchmark suites",
+      "Cryptographic audit trace & system logs"
     ],
-    description: "Full administrative & systems authority. Execute automated pipelines, trigger web scraping crawlers, run live accuracy benchmarks, and oversee cryptographic audit lineage.",
+    description: "Manages pipeline execution, manufacturer source discovery, and data governance benchmarks across catalogue verticals.",
     recommendedWorkflow: "Imports & Telemetry (⌘ 4) or Multi-Vertical Benchmarking"
   },
   lead_reviewer: {
     id: "lead_reviewer",
     name: "Sarah Jenkins",
     shortName: "Sarah",
-    role: "Senior Catalog Quality Lead",
-    badge: "Catalog Lead",
-    org: "Unilog CX1 Global Content Operations",
+    role: "Senior Catalog QA & Content Lead",
+    badge: "Catalog QA",
+    org: "Unilog Content Operations",
     avatar: "SJ",
-    avatarBg: "linear-gradient(135deg, #10b981, #059669)",
-    accentColor: "#10b981",
+    avatarBg: "linear-gradient(135deg, #238636, #2ea043)",
+    accentColor: "#3fb950",
     permissions: [
-      "Human Review Queue Access (Hotkeys A, R, E)",
-      "High-Confidence Bulk Verification (≥80%)",
-      "Unilog 252-Column CX1 Delivery Export",
-      "Tamper-Evident Review Signatures in Audit Trace"
+      "Human review queue with A/R/E keyboard hotkeys",
+      "Discrepancy resolution and attribute corrections",
+      "High-confidence bulk approval (≥80%)",
+      "Official Unilog 252-column CX1 delivery export"
     ],
-    description: "Dedicated to catalog curation and quality assurance. Utilize single-key triage (A/R/E), resolve low-confidence discrepancies, and sign off on Unilog 252-column feeds.",
+    description: "Reviews ambiguous SKUs, resolves attribute conflicts, and signs off on final 252-column enterprise deliveries.",
     recommendedWorkflow: "Human Review Queue (⌘ 3) with High-Speed Hotkeys"
   },
   merchant: {
     id: "merchant",
     name: "Alex Rivera",
     shortName: "Alex",
-    role: "Enterprise Merchant & Commercial Distributor",
-    badge: "PIM / Merchant Ops",
-    org: "Industrial Distribution Alliance",
+    role: "E-Commerce & Distribution Specialist",
+    badge: "Merchant Ops",
+    org: "Commercial Distribution Alliance",
     avatar: "AR",
-    avatarBg: "linear-gradient(135deg, #f59e0b, #d97706)",
-    accentColor: "#f59e0b",
+    avatarBg: "linear-gradient(135deg, #d29922, #e3b341)",
+    accentColor: "#d29922",
     permissions: [
-      "Commerce Product Catalogue Browsing & Search",
-      "252-Column & 50-Triplet Deep-Dive Inspector",
-      "1-Click Commerce PIM Feed CSV (12 Columns)",
-      "Dynamic Submittal PDF Datasheet Generation"
+      "Commercial product catalogue exploration",
+      "252-column & 50-triplet attribute inspector",
+      "12-column Commerce PIM feed export",
+      "Vector submittal PDF datasheet generation"
     ],
-    description: "Focus on commercial product intelligence. Inspect rich 6-tier descriptions, 20 engineering bullet points, download clean PIM feeds, and generate customer submittal PDFs.",
+    description: "Evaluates enriched product descriptions, technical specifications, and syndication feeds for commercial sales channels.",
     recommendedWorkflow: "Commerce Catalogue (⌘ 2) & 1-Click PIM Export"
   }
 };
@@ -2737,7 +2736,7 @@ function App() {
         </div>
       </main>
 
-      {/* Enterprise Persona 1-Click Login & SSO Modal */}
+      {/* Clean Human Enterprise Role Switcher Modal */}
       {showLoginModal && (
         <div
           style={{
@@ -2746,127 +2745,75 @@ function App() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(4, 7, 16, 0.88)",
-            backdropFilter: "blur(18px)",
-            WebkitBackdropFilter: "blur(18px)",
+            background: "rgba(1, 4, 9, 0.75)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
             zIndex: 99999,
             display: "grid",
             placeItems: "center",
-            padding: 24,
+            padding: 20,
             overflowY: "auto",
           }}
         >
           <div
             style={{
-              background: "linear-gradient(180deg, #0e1526 0%, #080d1a 100%)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: 20,
+              background: "#0d1117",
+              border: "1px solid #30363d",
+              borderRadius: 12,
               width: "100%",
-              maxWidth: 890,
-              boxShadow: "0 30px 90px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255,255,255,0.06), 0 0 60px rgba(99, 102, 241, 0.12)",
-              padding: "32px 36px 28px",
+              maxWidth: 820,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.05) inset",
+              padding: "24px 28px",
               position: "relative",
-              color: "#f8fafc",
-              overflow: "hidden",
+              color: "#f0f6fc",
             }}
           >
-            {/* Ambient Background Glow Accents */}
-            <div
-              style={{
-                position: "absolute",
-                top: -120,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: 480,
-                height: 240,
-                background: "radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(16,185,129,0.08) 50%, transparent 70%)",
-                pointerEvents: "none",
-                filter: "blur(40px)",
-              }}
-            />
-
             {/* Close Button */}
             <button
               onClick={() => setShowLoginModal(false)}
               style={{
                 position: "absolute",
-                top: 20,
-                right: 20,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 8,
-                color: "#94a3b8",
-                fontSize: 16,
+                top: 16,
+                right: 16,
+                background: "transparent",
+                border: "1px solid #30363d",
+                borderRadius: 6,
+                color: "#8b949e",
+                fontSize: 14,
                 cursor: "pointer",
-                padding: "6px 10px",
+                padding: "4px 8px",
                 display: "grid",
                 placeItems: "center",
                 transition: "all 0.15s ease",
               }}
-              title="Close & continue exploring in Fast Demo mode"
+              title="Close (Esc)"
             >
               ✕
             </button>
 
-            {/* Header / Hero Section */}
-            <div style={{ textAlign: "center", marginBottom: 28, position: "relative", zIndex: 1 }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "5px 14px",
-                  background: "rgba(99, 102, 241, 0.12)",
-                  border: "1px solid rgba(99, 102, 241, 0.35)",
-                  borderRadius: 30,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#a5b4fc",
-                  letterSpacing: "0.04em",
-                  marginBottom: 12,
-                  boxShadow: "0 0 16px rgba(99,102,241,0.15)",
-                }}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
-                <span>SPECLOGER ENTERPRISE ACCESS GATEWAY · RBAC PERSPECTIVES</span>
+            {/* Header */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#f0f6fc", letterSpacing: "-0.01em" }}>SpecLedger</span>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#21262d", color: "#8b949e", border: "1px solid #30363d" }}>
+                  Workspace Access
+                </span>
               </div>
-              <h2
-                style={{
-                  fontSize: 26,
-                  fontWeight: 800,
-                  margin: "0 0 8px",
-                  color: "#ffffff",
-                  letterSpacing: "-0.025em",
-                  background: "linear-gradient(180deg, #FFFFFF 0%, #cbd5e1 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Select Your Evaluation Perspective
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 4px", color: "#f0f6fc", letterSpacing: "-0.01em" }}>
+                Select Role Profile
               </h2>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#94a3b8",
-                  margin: 0,
-                  maxWidth: 620,
-                  marginInline: "auto",
-                  lineHeight: 1.55,
-                }}
-              >
-                Zero-friction 1-click access for UniHack evaluators & enterprise catalog stewards. Experience deterministic AI enrichment, human governance, and commercial syndication from distinct operational lenses.
+              <p style={{ fontSize: 12.5, color: "#8b949e", margin: 0, lineHeight: 1.45 }}>
+                Choose an operational role profile to evaluate catalogue ingestion, human QA review, or commercial feed export.
               </p>
             </div>
 
-            {/* 3 Interactive Persona Cards */}
+            {/* 3 Clean Role Cards */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: 16,
-                marginBottom: 24,
-                position: "relative",
-                zIndex: 1,
+                gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+                gap: 12,
+                marginBottom: 20,
               }}
             >
               {Object.values(ENTERPRISE_PERSONAS).map((p) => {
@@ -2876,123 +2823,90 @@ function App() {
                     key={p.id}
                     onClick={() => handleSelectPersona(p.id)}
                     style={{
-                      background: isSelected
-                        ? `linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)`
-                        : "rgba(15, 23, 42, 0.65)",
-                      border: isSelected ? `2px solid ${p.accentColor}` : "1px solid rgba(255, 255, 255, 0.08)",
-                      borderRadius: 14,
-                      padding: "20px 18px",
+                      background: isSelected ? "#161b22" : "#0d1117",
+                      border: isSelected ? "1px solid #58a6ff" : "1px solid #30363d",
+                      borderRadius: 8,
+                      padding: "16px 14px",
                       cursor: "pointer",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
-                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      transition: "border-color 0.15s ease, background 0.15s ease",
                       position: "relative",
-                      boxShadow: isSelected
-                        ? `0 12px 30px -10px ${p.accentColor}40, 0 0 0 1px ${p.accentColor}60`
-                        : "0 4px 12px rgba(0,0,0,0.3)",
-                      transform: isSelected ? "translateY(-2px)" : "none",
                     }}
                   >
-                    {/* Active Lens Top Ribbon */}
-                    {isSelected && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: -10,
-                          right: 14,
-                          background: p.accentColor,
-                          color: "#ffffff",
-                          fontSize: 9,
-                          fontWeight: 800,
-                          padding: "2px 8px",
-                          borderRadius: 6,
-                          letterSpacing: "0.05em",
-                          textTransform: "uppercase",
-                          boxShadow: `0 2px 8px ${p.accentColor}80`,
-                        }}
-                      >
-                        ✓ Active Lens
-                      </div>
-                    )}
-
                     <div>
-                      {/* Avatar & Role Badge */}
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 10,
-                              background: p.avatarBg,
-                              display: "grid",
-                              placeItems: "center",
-                              fontSize: 14,
-                              fontWeight: 800,
-                              color: "#fff",
-                              boxShadow: `0 4px 12px ${p.accentColor}30`,
-                            }}
-                          >
-                            {p.avatar}
-                          </span>
-                          <div>
-                            <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "#f8fafc" }}>{p.name}</h3>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: p.accentColor }}>{p.role}</div>
-                          </div>
-                        </div>
+                      {/* Top Row: Initials & Badge */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <span
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 6,
+                            background: "#21262d",
+                            border: "1px solid #30363d",
+                            display: "grid",
+                            placeItems: "center",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: isSelected ? "#58a6ff" : "#c9d1d9",
+                          }}
+                        >
+                          {p.avatar}
+                        </span>
                         <span
                           style={{
                             fontSize: 10,
-                            fontWeight: 800,
-                            padding: "3px 8px",
-                            borderRadius: 8,
-                            background: `${p.accentColor}18`,
-                            color: p.accentColor,
-                            border: `1px solid ${p.accentColor}40`,
+                            fontWeight: 600,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background: isSelected ? "rgba(56, 139, 253, 0.15)" : "#21262d",
+                            color: isSelected ? "#58a6ff" : "#8b949e",
+                            border: isSelected ? "1px solid rgba(56, 139, 253, 0.3)" : "1px solid #30363d",
                           }}
                         >
                           {p.badge}
                         </span>
                       </div>
 
-                      {/* Organization Entity */}
-                      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 12, display: "flex", alignItems: "center", gap: 5 }}>
-                        <span>🏢</span>
-                        <span>{p.org}</span>
+                      {/* Name & Role */}
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f6fc", marginBottom: 2 }}>{p.name}</div>
+                        <div style={{ fontSize: 11, color: "#8b949e", lineHeight: 1.3 }}>{p.role}</div>
+                        <div style={{ fontSize: 10.5, color: "#6e7681", marginTop: 2 }}>{p.org}</div>
                       </div>
 
                       {/* Description */}
-                      <p style={{ fontSize: 11.5, color: "#94a3b8", lineHeight: 1.45, margin: "0 0 14px", minHeight: 48 }}>
+                      <p style={{ fontSize: 11.5, color: "#8b949e", lineHeight: 1.4, margin: "0 0 12px", minHeight: 34 }}>
                         {p.description}
                       </p>
 
-                      {/* Key Capabilities Matrix */}
-                      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12, marginBottom: 16 }}>
-                        <div style={{ fontSize: 9.5, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-                          Context Privileges
+                      {/* Capabilities Checklist */}
+                      <div style={{ borderTop: "1px solid #21262d", paddingTop: 10, marginBottom: 14 }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6e7681", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+                          Role Capabilities
                         </div>
                         {p.permissions.slice(0, 3).map((perm, idx) => (
                           <div
                             key={idx}
                             style={{
-                              fontSize: 10.5,
-                              color: "#cbd5e1",
+                              fontSize: 11,
+                              color: "#c9d1d9",
                               display: "flex",
                               alignItems: "flex-start",
                               gap: 6,
                               marginBottom: 4,
-                              lineHeight: 1.35,
+                              lineHeight: 1.3,
                             }}
                           >
-                            <span style={{ color: p.accentColor, fontWeight: 800, marginTop: 1 }}>✓</span>
+                            <span style={{ color: isSelected ? "#58a6ff" : "#8b949e", fontSize: 11 }}>•</span>
                             <span>{perm}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    {/* Launch Action Button */}
+                    {/* Action Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -3000,25 +2914,22 @@ function App() {
                       }}
                       style={{
                         width: "100%",
-                        padding: "9px 14px",
-                        borderRadius: 8,
-                        background: isSelected
-                          ? `linear-gradient(135deg, ${p.accentColor}, ${p.accentColor}cc)`
-                          : "rgba(255, 255, 255, 0.05)",
-                        border: isSelected ? "none" : "1px solid rgba(255, 255, 255, 0.12)",
-                        color: isSelected ? "#ffffff" : "#e2e8f0",
-                        fontSize: 12,
-                        fontWeight: 700,
+                        padding: "7px 12px",
+                        borderRadius: 6,
+                        background: isSelected ? "#1f6feb" : "#21262d",
+                        border: isSelected ? "1px solid #388bfd" : "1px solid #30363d",
+                        color: isSelected ? "#ffffff" : "#c9d1d9",
+                        fontSize: 11.5,
+                        fontWeight: 600,
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 6,
                         transition: "all 0.15s ease",
-                        boxShadow: isSelected ? `0 4px 14px ${p.accentColor}50` : "none",
                       }}
                     >
-                      <span>{isSelected ? "Active Perspective (Open)" : `Launch as ${p.shortName}`}</span>
+                      <span>{isSelected ? "Active Profile" : `Select ${p.shortName}`}</span>
                       <span>→</span>
                     </button>
                   </div>
@@ -3026,98 +2937,57 @@ function App() {
               })}
             </div>
 
-            {/* Enterprise Provenance & Live System Telemetry Strip */}
+            {/* Clean Bottom Controls */}
             <div
               style={{
-                background: "rgba(15, 23, 42, 0.6)",
-                border: "1px solid rgba(255, 255, 255, 0.06)",
-                borderRadius: 10,
-                padding: "10px 16px",
+                borderTop: "1px solid #21262d",
+                paddingTop: 14,
                 display: "flex",
                 flexWrap: "wrap",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: 12,
-                marginBottom: 20,
-                fontSize: 11,
-                color: "#94a3b8",
-                position: "relative",
-                zIndex: 1,
+                gap: 10,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ color: "#6366f1" }}>⚡</span>
-                <span style={{ color: "#e2e8f0", fontWeight: 700 }}>4,250+ SKUs/sec</span> Batch Throughput
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ color: "#10b981" }}>🎯</span>
-                <span style={{ color: "#e2e8f0", fontWeight: 700 }}>94.6% Verified</span> Ground-Truth
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ color: "#f59e0b" }}>🛡️</span>
-                <span style={{ color: "#e2e8f0", fontWeight: 700 }}>100% Authoritative</span> Zero Reseller Policy
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ color: "#009688" }}>📋</span>
-                <span style={{ color: "#e2e8f0", fontWeight: 700 }}>252-Column</span> Unilog Delivery Spec
-              </div>
-            </div>
-
-            {/* Enterprise OAuth & Fast Demo Controls */}
-            <div
-              style={{
-                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
-                paddingTop: 16,
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                position: "relative",
-                zIndex: 1,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Enterprise SSO:</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "#8b949e", fontWeight: 500 }}>SSO Sign-in:</span>
                 <button
                   onClick={handleGoogleOAuth}
                   style={{
-                    padding: "7px 14px",
-                    borderRadius: 8,
-                    background: "rgba(255, 255, 255, 0.04)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    color: "#e2e8f0",
-                    fontSize: 11.5,
-                    fontWeight: 600,
+                    padding: "5px 10px",
+                    borderRadius: 6,
+                    background: "#161b22",
+                    border: "1px solid #30363d",
+                    color: "#c9d1d9",
+                    fontSize: 11,
+                    fontWeight: 500,
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    transition: "all 0.15s ease",
+                    gap: 5,
                   }}
-                  title="Authenticate via Google OAuth 2.0"
+                  title="Sign in with Google Workspace"
                 >
-                  <span style={{ color: "#4285F4", fontWeight: 800 }}>G</span> Google Workspace SSO
+                  <span style={{ fontWeight: 700, color: "#58a6ff" }}>G</span> Google Workspace
                 </button>
                 <button
                   onClick={handleGitHubOAuth}
                   style={{
-                    padding: "7px 14px",
-                    borderRadius: 8,
-                    background: "rgba(255, 255, 255, 0.04)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    color: "#e2e8f0",
-                    fontSize: 11.5,
-                    fontWeight: 600,
+                    padding: "5px 10px",
+                    borderRadius: 6,
+                    background: "#161b22",
+                    border: "1px solid #30363d",
+                    color: "#c9d1d9",
+                    fontSize: 11,
+                    fontWeight: 500,
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
-                    transition: "all 0.15s ease",
+                    gap: 5,
                   }}
-                  title="Authenticate via GitHub OAuth App"
+                  title="Sign in with GitHub Enterprise"
                 >
-                  <span>🐙</span> GitHub Enterprise
+                  <span>GitHub</span>
                 </button>
               </div>
 
@@ -3127,14 +2997,13 @@ function App() {
                   style={{
                     background: "transparent",
                     border: "none",
-                    color: "#94a3b8",
-                    fontSize: 12,
-                    textDecoration: "underline",
+                    color: "#8b949e",
+                    fontSize: 11.5,
                     cursor: "pointer",
-                    padding: "4px 8px",
+                    textDecoration: "underline",
                   }}
                 >
-                  Skip login & explore in Fast Demo mode →
+                  Continue without profile selection →
                 </button>
               </div>
             </div>
