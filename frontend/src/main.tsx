@@ -178,6 +178,99 @@ function App() {
     }
   };
 
+  // Real Google & GitHub OAuth Handlers
+  const handleGoogleOAuth = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      const customId = window.prompt(
+        "Enter your Google Cloud OAuth Client ID (or click OK to proceed with instant Demo SSO):",
+        ""
+      );
+      if (customId && customId.trim()) {
+        const redirectUri = window.location.origin;
+        const scope = encodeURIComponent("openid email profile");
+        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+          customId.trim()
+        )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+        return;
+      }
+      handleSelectPersona("super_admin", "Google Workspace SSO (Instant)");
+      return;
+    }
+    const redirectUri = window.location.origin;
+    const scope = encodeURIComponent("openid email profile");
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+      clientId
+    )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+  };
+
+  const handleGitHubOAuth = () => {
+    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    if (!clientId) {
+      const customId = window.prompt(
+        "Enter your GitHub OAuth App Client ID (or click OK to proceed with instant Demo SSO):",
+        ""
+      );
+      if (customId && customId.trim()) {
+        const redirectUri = window.location.origin;
+        window.location.href = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
+          customId.trim()
+        )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
+        return;
+      }
+      handleSelectPersona("super_admin", "GitHub Enterprise SSO (Instant)");
+      return;
+    }
+    const redirectUri = window.location.origin;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
+      clientId
+    )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
+  };
+
+  // Google OAuth Token Listener on Redirect Return
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token=")) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get("access_token");
+      if (accessToken) {
+        fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+          .then((r) => r.json())
+          .then((profile) => {
+            if (profile && profile.name) {
+              const googlePersona: EnterprisePersona = {
+                id: "super_admin",
+                name: profile.name,
+                shortName: profile.given_name || profile.name.split(" ")[0] || "User",
+                role: "Authenticated Enterprise User",
+                badge: "Google SSO",
+                org: profile.email || "Google Workspace",
+                avatar: profile.name.charAt(0).toUpperCase(),
+                avatarBg: "linear-gradient(135deg, #4285F4, #34A853)",
+                accentColor: "#4285F4",
+                permissions: [
+                  "Authenticated Multi-Tenant Pipeline Control",
+                  "Live Web & PDF Datasheet Extraction",
+                  "Direct 252-Column & Commerce PIM Exports",
+                  "Cryptographic Audit Ledger & Review Decisions",
+                ],
+                description: `Signed in via Google OAuth (${profile.email}). Full enterprise access granted.`,
+                recommendedWorkflow: "Imports & Telemetry (⌘ 4) or Review Queue (⌘ 3)",
+              };
+              ENTERPRISE_PERSONAS.google_user = googlePersona;
+              handleSelectPersona("google_user", `Google OAuth (${profile.email})`);
+              window.history.replaceState(null, "", window.location.pathname);
+            }
+          })
+          .catch((err) => {
+            console.error("Google userinfo fetch error:", err);
+          });
+      }
+    }
+  }, []);
+
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [batchList, setBatchList] = useState<any[]>([]);
   const [liveRows, setLiveRows] = useState<any[]>([]);
@@ -2789,7 +2882,7 @@ function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Or SSO Login:</span>
                 <button
-                  onClick={() => handleSelectPersona("super_admin", "Google Workspace SSO")}
+                  onClick={handleGoogleOAuth}
                   style={{
                     padding: "6px 12px",
                     borderRadius: 6,
@@ -2803,11 +2896,12 @@ function App() {
                     alignItems: "center",
                     gap: 6
                   }}
+                  title="Authenticate via Google OAuth 2.0"
                 >
                   <span style={{ color: "#4285F4", fontWeight: 800 }}>G</span> Google SSO
                 </button>
                 <button
-                  onClick={() => handleSelectPersona("super_admin", "GitHub Enterprise")}
+                  onClick={handleGitHubOAuth}
                   style={{
                     padding: "6px 12px",
                     borderRadius: 6,
@@ -2821,6 +2915,7 @@ function App() {
                     alignItems: "center",
                     gap: 6
                   }}
+                  title="Authenticate via GitHub OAuth App"
                 >
                   <span>🐙</span> GitHub SSO
                 </button>
