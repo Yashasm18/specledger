@@ -56,7 +56,7 @@ SpecLedger is engineered as a **dual-mode enterprise platform**, providing both 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   SPECLEOGER PLATFORM                                       │
+│                                     SPECLedger PLATFORM                                     │
 ├─────────────────────────────────────────────────────────────┬───────────────────────────────┤
 │                  MODE A: STANDALONE HEADLESS API            │    MODE B: WEB CONTROL CENTER │
 │                  (Automated Batch Pipeline)                 │    (Human Governance Web UI)  │
@@ -119,7 +119,7 @@ SpecLedger crawls and resolves canonical product data exclusively from verified 
 | **Victaulic** | `https://www.victaulic.com` | Grooved mechanical piping, couplings | ✅ Authoritative Verified |
 
 ####  Marketplace Sourcing Prohibition Protocol:
-The follwing reseller domains are blocked by rule (`source_discovery.py`):
+The following reseller domains are blocked by rule (`source_discovery.py`):
 `amazon.com`, `ebay.com`, `walmart.com`, `alibaba.com`, `aliexpress.com`, `grainger.com`, `zoro.com`, `homedepot.com`, `lowes.com`.
 
 ---
