@@ -1,6 +1,6 @@
 # SpecLedger — AI-Powered Industrial Product Intelligence & Catalogue Enrichment
 
-[![Live Production Demo](https://img.shields.io/badge/Live%20Demo-Cloudflare%20Edge%20Live-brightgreen.svg?logo=cloudflare&logoColor=white)](https://specledger.sssyashu850.workers.dev/)
+[![Live Production Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20Production-brightgreen.svg?logo=vercel&logoColor=white)](https://specledger-app.vercel.app/)
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
 [![Pylint](https://img.shields.io/badge/Pylint-9.91%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Tests](https://img.shields.io/badge/Tests-243%20Passed%20(100%25)-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
@@ -14,7 +14,7 @@
 [![React + Vite](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-> 🌐 **Live Web Application:** [https://specledger.sssyashu850.workers.dev/](https://specledger.sssyashu850.workers.dev/)
+> 🌐 **Live Web Application:** [https://specledger-app.vercel.app/](https://specledger-app.vercel.app/)
 > 
 > **UniHack Challenge Submission** — Transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence at an enterprise scale of **150,000 to 750,000 SKUs/month**, delivered in Unilog's official **252-column template format**.
 
