@@ -2745,265 +2745,217 @@ function App() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(1, 4, 9, 0.75)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
+            background: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
             zIndex: 99999,
             display: "grid",
             placeItems: "center",
             padding: 20,
-            overflowY: "auto",
           }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLoginModal(false); }}
         >
           <div
             style={{
-              background: "#0d1117",
-              border: "1px solid #30363d",
-              borderRadius: 12,
+              background: "#161b22",
+              border: "1px solid rgba(240, 246, 252, 0.08)",
+              borderRadius: 14,
               width: "100%",
-              maxWidth: 820,
-              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.05) inset",
-              padding: "24px 28px",
+              maxWidth: 440,
+              boxShadow: "0 24px 48px -12px rgba(0, 0, 0, 0.5)",
+              padding: 0,
               position: "relative",
               color: "#f0f6fc",
+              overflow: "hidden",
+              animation: "loginModalIn 0.2s ease-out",
             }}
           >
-            {/* Close Button */}
-            <button
-              onClick={() => setShowLoginModal(false)}
-              style={{
-                position: "absolute",
-                top: 16,
-                right: 16,
-                background: "transparent",
-                border: "1px solid #30363d",
-                borderRadius: 6,
-                color: "#8b949e",
-                fontSize: 14,
-                cursor: "pointer",
-                padding: "4px 8px",
-                display: "grid",
-                placeItems: "center",
-                transition: "all 0.15s ease",
-              }}
-              title="Close (Esc)"
-            >
-              ✕
-            </button>
+            <style>{`
+              @keyframes loginModalIn {
+                from { opacity: 0; transform: translateY(8px) scale(0.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              .sl-role-row { transition: background 0.12s ease; }
+              .sl-role-row:hover { background: rgba(255,255,255,0.04) !important; }
+              .sl-sso-btn { transition: all 0.12s ease; }
+              .sl-sso-btn:hover { background: #21262d !important; border-color: #484f58 !important; }
+              .sl-skip-link { transition: color 0.12s ease; }
+              .sl-skip-link:hover { color: #c9d1d9 !important; }
+            `}</style>
 
             {/* Header */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#f0f6fc", letterSpacing: "-0.01em" }}>SpecLedger</span>
-                <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#21262d", color: "#8b949e", border: "1px solid #30363d" }}>
-                  Workspace Access
-                </span>
+            <div style={{ padding: "28px 28px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{
+                    width: 28, height: 28, borderRadius: 7,
+                    background: "linear-gradient(135deg, #388bfd, #1f6feb)",
+                    display: "grid", placeItems: "center",
+                    fontSize: 11, fontWeight: 800, color: "#fff",
+                  }}>S</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#f0f6fc", letterSpacing: "-0.02em" }}>SpecLedger</span>
+                </div>
+                <button
+                  onClick={() => setShowLoginModal(false)}
+                  style={{
+                    background: "transparent", border: "none",
+                    color: "#484f58", fontSize: 18, cursor: "pointer",
+                    width: 28, height: 28, display: "grid", placeItems: "center",
+                    borderRadius: 6, transition: "color 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#8b949e")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#484f58")}
+                  title="Close (Esc)"
+                >✕</button>
               </div>
-              <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 4px", color: "#f0f6fc", letterSpacing: "-0.01em" }}>
-                Select Role Profile
+
+              <h2 style={{
+                fontSize: 20, fontWeight: 600, margin: "0 0 6px",
+                color: "#f0f6fc", letterSpacing: "-0.025em",
+              }}>
+                Choose your role
               </h2>
-              <p style={{ fontSize: 12.5, color: "#8b949e", margin: 0, lineHeight: 1.45 }}>
-                Choose an operational role profile to evaluate catalogue ingestion, human QA review, or commercial feed export.
+              <p style={{
+                fontSize: 13, color: "#7d8590", margin: "0 0 4px",
+                lineHeight: 1.5, fontWeight: 400,
+              }}>
+                Select a workspace profile to begin. Each role surfaces different tools and views.
               </p>
             </div>
 
-            {/* 3 Clean Role Cards */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-                gap: 12,
-                marginBottom: 20,
-              }}
-            >
-              {Object.values(ENTERPRISE_PERSONAS).map((p) => {
-                const isSelected = currentPersonaKey === p.id;
+            {/* Divider */}
+            <div style={{ height: 1, background: "rgba(240,246,252,0.06)", margin: "16px 0 0" }} />
+
+            {/* Role List */}
+            <div style={{ padding: "4px 0" }}>
+              {Object.values(ENTERPRISE_PERSONAS).map((p, idx, arr) => {
+                const isActive = currentPersonaKey === p.id;
                 return (
-                  <div
-                    key={p.id}
-                    onClick={() => handleSelectPersona(p.id)}
-                    style={{
-                      background: isSelected ? "#161b22" : "#0d1117",
-                      border: isSelected ? "1px solid #58a6ff" : "1px solid #30363d",
-                      borderRadius: 8,
-                      padding: "16px 14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      transition: "border-color 0.15s ease, background 0.15s ease",
-                      position: "relative",
-                    }}
-                  >
-                    <div>
-                      {/* Top Row: Initials & Badge */}
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                        <span
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 6,
-                            background: "#21262d",
-                            border: "1px solid #30363d",
-                            display: "grid",
-                            placeItems: "center",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: isSelected ? "#58a6ff" : "#c9d1d9",
-                          }}
-                        >
-                          {p.avatar}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            background: isSelected ? "rgba(56, 139, 253, 0.15)" : "#21262d",
-                            color: isSelected ? "#58a6ff" : "#8b949e",
-                            border: isSelected ? "1px solid rgba(56, 139, 253, 0.3)" : "1px solid #30363d",
-                          }}
-                        >
-                          {p.badge}
-                        </span>
-                      </div>
-
-                      {/* Name & Role */}
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#f0f6fc", marginBottom: 2 }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: "#8b949e", lineHeight: 1.3 }}>{p.role}</div>
-                        <div style={{ fontSize: 10.5, color: "#6e7681", marginTop: 2 }}>{p.org}</div>
-                      </div>
-
-                      {/* Description */}
-                      <p style={{ fontSize: 11.5, color: "#8b949e", lineHeight: 1.4, margin: "0 0 12px", minHeight: 34 }}>
-                        {p.description}
-                      </p>
-
-                      {/* Capabilities Checklist */}
-                      <div style={{ borderTop: "1px solid #21262d", paddingTop: 10, marginBottom: 14 }}>
-                        <div style={{ fontSize: 9.5, fontWeight: 700, color: "#6e7681", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
-                          Role Capabilities
-                        </div>
-                        {p.permissions.slice(0, 3).map((perm, idx) => (
-                          <div
-                            key={idx}
-                            style={{
-                              fontSize: 11,
-                              color: "#c9d1d9",
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: 6,
-                              marginBottom: 4,
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            <span style={{ color: isSelected ? "#58a6ff" : "#8b949e", fontSize: 11 }}>•</span>
-                            <span>{perm}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectPersona(p.id);
-                      }}
+                  <div key={p.id}>
+                    <div
+                      className="sl-role-row"
+                      onClick={() => handleSelectPersona(p.id)}
                       style={{
-                        width: "100%",
-                        padding: "7px 12px",
-                        borderRadius: 6,
-                        background: isSelected ? "#1f6feb" : "#21262d",
-                        border: isSelected ? "1px solid #388bfd" : "1px solid #30363d",
-                        color: isSelected ? "#ffffff" : "#c9d1d9",
-                        fontSize: 11.5,
-                        fontWeight: 600,
+                        padding: "14px 28px",
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        gap: 6,
-                        transition: "all 0.15s ease",
+                        gap: 14,
+                        background: isActive ? "rgba(56, 139, 253, 0.06)" : "transparent",
+                        borderLeft: isActive ? "2px solid #388bfd" : "2px solid transparent",
                       }}
                     >
-                      <span>{isSelected ? "Active Profile" : `Select ${p.shortName}`}</span>
-                      <span>→</span>
-                    </button>
+                      {/* Avatar */}
+                      <span style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: p.avatarBg,
+                        display: "grid", placeItems: "center",
+                        fontSize: 12, fontWeight: 700, color: "#fff",
+                        flexShrink: 0,
+                        boxShadow: isActive ? `0 0 0 2px #161b22, 0 0 0 3.5px ${p.accentColor}40` : "none",
+                      }}>
+                        {p.avatar}
+                      </span>
+
+                      {/* Text Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                          <span style={{
+                            fontSize: 13.5, fontWeight: 600, color: "#f0f6fc",
+                            letterSpacing: "-0.01em",
+                          }}>{p.name}</span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 600,
+                            padding: "1px 6px", borderRadius: 10,
+                            background: isActive ? `${p.accentColor}18` : "rgba(255,255,255,0.06)",
+                            color: isActive ? p.accentColor : "#7d8590",
+                            border: `1px solid ${isActive ? `${p.accentColor}30` : "rgba(255,255,255,0.06)"}`,
+                            whiteSpace: "nowrap",
+                          }}>{p.badge}</span>
+                        </div>
+                        <div style={{
+                          fontSize: 12, color: "#7d8590", lineHeight: 1.35,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>{p.role}</div>
+                      </div>
+
+                      {/* Right: Checkmark or Org */}
+                      <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+                        {isActive ? (
+                          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                            <circle cx="8" cy="8" r="7.5" fill="#388bfd" stroke="#388bfd" />
+                            <path d="M5.5 8.2L7.2 9.8L10.5 6.2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : (
+                          <span style={{
+                            fontSize: 11, color: "#484f58",
+                            whiteSpace: "nowrap",
+                          }}>{p.org.length > 24 ? p.org.slice(0, 22) + "…" : p.org}</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Row separator — skip after last item */}
+                    {idx < arr.length - 1 && (
+                      <div style={{ height: 1, background: "rgba(240,246,252,0.04)", margin: "0 28px" }} />
+                    )}
                   </div>
                 );
               })}
             </div>
 
-            {/* Clean Bottom Controls */}
-            <div
-              style={{
-                borderTop: "1px solid #21262d",
-                paddingTop: 14,
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "#8b949e", fontWeight: 500 }}>SSO Sign-in:</span>
+            {/* Divider */}
+            <div style={{ height: 1, background: "rgba(240,246,252,0.06)" }} />
+
+            {/* Footer */}
+            <div style={{ padding: "16px 28px 20px" }}>
+              {/* SSO Buttons */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 <button
+                  className="sl-sso-btn"
                   onClick={handleGoogleOAuth}
                   style={{
-                    padding: "5px 10px",
-                    borderRadius: 6,
-                    background: "#161b22",
-                    border: "1px solid #30363d",
-                    color: "#c9d1d9",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
+                    flex: 1, padding: "8px 12px", borderRadius: 8,
+                    background: "#0d1117",
+                    border: "1px solid rgba(240,246,252,0.08)",
+                    color: "#c9d1d9", fontSize: 12, fontWeight: 500,
+                    cursor: "pointer", display: "flex",
+                    alignItems: "center", justifyContent: "center", gap: 8,
                   }}
                   title="Sign in with Google Workspace"
                 >
-                  <span style={{ fontWeight: 700, color: "#58a6ff" }}>G</span> Google Workspace
+                  <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                  Google
                 </button>
                 <button
+                  className="sl-sso-btn"
                   onClick={handleGitHubOAuth}
                   style={{
-                    padding: "5px 10px",
-                    borderRadius: 6,
-                    background: "#161b22",
-                    border: "1px solid #30363d",
-                    color: "#c9d1d9",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
+                    flex: 1, padding: "8px 12px", borderRadius: 8,
+                    background: "#0d1117",
+                    border: "1px solid rgba(240,246,252,0.08)",
+                    color: "#c9d1d9", fontSize: 12, fontWeight: 500,
+                    cursor: "pointer", display: "flex",
+                    alignItems: "center", justifyContent: "center", gap: 8,
                   }}
-                  title="Sign in with GitHub Enterprise"
+                  title="Sign in with GitHub"
                 >
-                  <span>GitHub</span>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="#c9d1d9"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                  GitHub
                 </button>
               </div>
 
-              <div>
+              {/* Skip link */}
+              <div style={{ textAlign: "center" }}>
                 <button
+                  className="sl-skip-link"
                   onClick={() => handleSelectPersona("super_admin")}
                   style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#8b949e",
-                    fontSize: 11.5,
-                    cursor: "pointer",
-                    textDecoration: "underline",
+                    background: "transparent", border: "none",
+                    color: "#484f58", fontSize: 12,
+                    cursor: "pointer", fontWeight: 400,
                   }}
                 >
-                  Continue without profile selection →
+                  Skip and continue as Admin →
                 </button>
               </div>
             </div>
