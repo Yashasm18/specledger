@@ -63,6 +63,16 @@ jobs:
       run: |
         npm run build
 
+    - name: Run Frontend Tests
+      working-directory: frontend
+      run: |
+        npx vitest run
+
+    - name: TypeScript Strict Check
+      working-directory: frontend
+      run: |
+        npx tsc --noEmit
+
   unilog-delivery-verification:
     name: Unilog 252-Column Delivery Verification
     runs-on: ubuntu-latest

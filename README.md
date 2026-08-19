@@ -102,21 +102,21 @@ SpecLedger maintains a manufacturer-domain allowlist used to generate source can
 
 | Manufacturer / Brand | Canonical Manufacturer Domain | Categories Covered | Provenance Status |
 |---|---|---|---|
-| **Freud Tools (Diablo)** | `https://www.freudtools.com` | Saw blades, router bits, sanding belts, abrasives | ✅ Authoritative Verified |
-| **Parker Hannifin** | `https://www.parker.com` | Ball valves, check valves, hydraulic fittings | ✅ Authoritative Verified |
-| **Apollo Valves / Conbraco** | `https://www.apollovalves.com` | Industrial bronze/brass valves, actuators | ✅ Authoritative Verified |
-| **3M Industrial** | `https://www.3m.com` | Abrasive discs, safety equipment, adhesives | ✅ Authoritative Verified |
-| **Mirka** | `https://www.mirka.com` | Sanding discs, abrasives, surface finishing | ✅ Authoritative Verified |
-| **Milwaukee Tool** | `https://www.milwaukeetool.com` | Cordless power tools, accessories, drill bits | ✅ Authoritative Verified |
-| **DeWalt / Stanley** | `https://www.dewalt.com` | Power tools, masonry bits, saw blades | ✅ Authoritative Verified |
-| **Makita** | `https://www.makitatools.com` | Industrial grinders, routers, circular saws | ✅ Authoritative Verified |
-| **Frigidaire / Electrolux** | `https://www.frigidaire.com` | Major appliances, dishwashers, refrigerators | ✅ Authoritative Verified |
-| **Whirlpool / Maytag** | `https://www.whirlpool.com` | Commercial laundry, residential appliances | ✅ Authoritative Verified |
-| **Rheem Manufacturing** | `https://www.rheem.com` | Commercial water heaters, HVAC heating | ✅ Authoritative Verified |
-| **Leviton** | `https://www.leviton.com` | Industrial electrical switches, receptacles | ✅ Authoritative Verified |
-| **Kichler Lighting** | `https://www.kichler.com` | Commercial & architectural lighting fixtures | ✅ Authoritative Verified |
-| **Boise Cascade** | `https://www.bc.com` | Engineered wood products, structural lumber | ✅ Authoritative Verified |
-| **Victaulic** | `https://www.victaulic.com` | Grooved mechanical piping, couplings | ✅ Authoritative Verified |
+| **Freud Tools (Diablo)** | `https://www.freudtools.com` | Saw blades, router bits, sanding belts, abrasives | ✅ Registered Domain |
+| **Parker Hannifin** | `https://www.parker.com` | Ball valves, check valves, hydraulic fittings | ✅ Registered Domain |
+| **Apollo Valves / Conbraco** | `https://www.apollovalves.com` | Industrial bronze/brass valves, actuators | ✅ Registered Domain |
+| **3M Industrial** | `https://www.3m.com` | Abrasive discs, safety equipment, adhesives | ✅ Registered Domain |
+| **Mirka** | `https://www.mirka.com` | Sanding discs, abrasives, surface finishing | ✅ Registered Domain |
+| **Milwaukee Tool** | `https://www.milwaukeetool.com` | Cordless power tools, accessories, drill bits | ✅ Registered Domain |
+| **DeWalt / Stanley** | `https://www.dewalt.com` | Power tools, masonry bits, saw blades | ✅ Registered Domain |
+| **Makita** | `https://www.makitatools.com` | Industrial grinders, routers, circular saws | ✅ Registered Domain |
+| **Frigidaire / Electrolux** | `https://www.frigidaire.com` | Major appliances, dishwashers, refrigerators | ✅ Registered Domain |
+| **Whirlpool / Maytag** | `https://www.whirlpool.com` | Commercial laundry, residential appliances | ✅ Registered Domain |
+| **Rheem Manufacturing** | `https://www.rheem.com` | Commercial water heaters, HVAC heating | ✅ Registered Domain |
+| **Leviton** | `https://www.leviton.com` | Industrial electrical switches, receptacles | ✅ Registered Domain |
+| **Kichler Lighting** | `https://www.kichler.com` | Commercial & architectural lighting fixtures | ✅ Registered Domain |
+| **Boise Cascade** | `https://www.bc.com` | Engineered wood products, structural lumber | ✅ Registered Domain |
+| **Victaulic** | `https://www.victaulic.com` | Grooved mechanical piping, couplings | ✅ Registered Domain |
 
 ####  Marketplace Sourcing Prohibition Protocol:
 The following reseller domains are blocked by rule (`source_discovery.py`):
@@ -203,14 +203,14 @@ The generated delivery file [**`data/challenge/Unihack_ Enriched_Delivery_Output
 
 ---
 
-## Hackathon Evaluation Criteria Alignment (100% Coverage)
+## Hackathon Evaluation Criteria Alignment
 
 | Criterion | Weight | How SpecLedger Achieves It | Evidence & Proof |
 |---|---|---|---|
-| **1. Innovation** | **25%** | **Domain-Agnostic Extraction + Multi-Modal PDF Grounding:** Discovers manufacturer sources dynamically across diverse categories (valves, abrasives, tools, appliances). Features strict **Marketplace Sourcing Prohibition** (auto-blocking Amazon/eBay) and auto-generates 50 attribute triplets and 6 description tiers. | Implemented in `source_discovery.py`, `web_enricher.py`, `pdf_extractor.py`. Tested in `test_unilog_pipeline.py`. |
-| **2. Accuracy** | **25%** | **Deterministic LOV + Zero Hallucination:** Normalizes units and materials with controlled vocabularies. Validates cross-field physics (e.g. PVC vs 1500 PSI). Every extracted value links to an unalterable evidence quote. | **94.64% exact-match accuracy** on 200-row benchmark. **100% category accuracy**. Tested across 243 unit tests. |
-| **3. Quality** | **25%** | **Human-in-the-Loop Governance & Lineage:** Auto-approves high-confidence items ($\ge 80\%$) and prioritizes ambiguities in a real-time review queue. Captures immutable SHA-256 audit events for every action. | Interactive review workspace with one-click bulk approval and full JSON audit log export. Tested in `test_human_review.py`. |
-| **4. Scalability** | **25%** | **High Throughput & Low Cost:** Processes **4,250+ SKUs/sec** with source memoization. Operates at **~$0.0001 per SKU** ($15/mo for 150,000 SKUs; $75/mo for 750,000 SKUs) compared to $2.50+ for manual entry. | Real-time cost & latency telemetry in dashboard. Tested in `test_batch_processor.py`. |
+| **1. Innovation** | **25%** | **Domain-Agnostic Extraction + Manufacturer-Domain Allowlist:** Generates source candidates across diverse categories (valves, abrasives, tools, appliances). Features strict **Marketplace Sourcing Prohibition** (auto-blocking Amazon/eBay) and generates 50 attribute triplets and 6 description tiers. | Implemented in `source_discovery.py`, `web_enricher.py`, `pdf_and_web_scraper.py`. Tested in `test_unilog_pipeline.py`. |
+| **2. Accuracy** | **25%** | **Deterministic LOV + Provenance-First Output:** Normalizes units and materials with controlled vocabularies. Validates cross-field physics (e.g. PVC vs 1500 PSI). Every deterministic transformation links to source file/row/column evidence. | **94.64% exact-match accuracy** on 200-row benchmark. **100% category accuracy**. Tested across 243 unit tests. |
+| **3. Quality** | **25%** | **Human-in-the-Loop Governance & Lineage:** Validates and routes rows through a confidence-scored review queue. Captures immutable SHA-256 audit events for every action. | Interactive review workspace with one-click bulk approval and full JSON audit log export. Tested in `test_human_review.py`. |
+| **4. Scalability** | **25%** | **Local Benchmark Throughput:** The deterministic CPU pipeline processes 1,000 rows in 0.235s (~4,250 rows/sec) with source memoization. Architecture supports horizontal scaling via PostgreSQL and container deployment. | Benchmark telemetry in dashboard. Tested in `test_batch_processor.py`. |
 
 ---
 
@@ -311,7 +311,7 @@ flowchart TD
 | Pipeline Stage | Module / Component | Primary Responsibility | Key Output / Deliverable |
 |---|---|---|---|
 | **1. Multi-Format Ingestion** | [`catalogue_ingestion.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/catalogue_ingestion.py) | Ingests CSV, TSV, XLSX, and PDFs; removes supplier distributor brackets (e.g. `Freud Inc (2435)` $\rightarrow$ `Freud Inc`); computes SHA-256 row fingerprints. | Standardized `CatalogueBatch` with normalized supplier tokens. |
-| **2. Authoritative Sourcing** | [`source_discovery.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/source_discovery.py) | Crawls canonical manufacturer web domains (`parker.com`, `apollovalves.com`, `freudtools.com`); extracts PDF datasheets, manuals, and video links; **strictly blocks reseller marketplaces (Amazon/eBay)**. | Provenance Map with verified `MFR URL`, `Ref URLs 1..5`, and document URLs. |
+| **2. Authoritative Sourcing** | [`source_discovery.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/source_discovery.py) | Generates manufacturer-domain source candidates (`parker.com`, `apollovalves.com`, `freudtools.com`); constructs PDF datasheet and manual URL patterns; **strictly blocks reseller marketplaces (Amazon/eBay)**. Current implementation uses simulated candidate mode — URLs are not fetched or verified. | Source candidate map with `MFR URL`, `Ref URLs 1..5`, and document URL patterns. |
 | **3. Content Enrichment** | [`web_enricher.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/web_enricher.py) + [`reference_data.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/reference_data.py) | Normalizes alloys/materials and UOMs via controlled dictionaries; synthesizes **6 description tiers**, **20 feature bullets**, **50 dynamic attribute triplets**, and taxonomy classpaths. | Populated 252-column product records with complete evidence quotes. |
 | **4. Validation & Rules** | [`validation_engine.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/validation_engine.py) | Runs 6 deterministic rule sets including category-required attributes, LOV membership, alloy physics checks (PVC vs 1500 PSI), and PIM character limits. | Validation scorecard with error/warning counts and row-level quality score. |
 | **5. Human Governance** | [`human_review.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/human_review.py) | Dual routing gate: auto-approves high confidence ($\ge 80\%$) rows; routes ambiguities to priority review queue with side-by-side evidence inspection and immutable audit logging. | Approved product state with complete SHA-256 reviewer audit trail. |
@@ -352,7 +352,8 @@ Executes 6 rule categories against every enriched record:
 - Logs an immutable `AuditEvent` for every reviewer decision.
 
 ### 6. Source Discovery & Marketplace Blocker (`source_discovery.py`)
-- Discovers authoritative product pages and datasheets from official manufacturer domains.
+- Generates candidate product-page and datasheet URLs from an allowlist of official manufacturer domains.
+- Current batch pipeline uses simulated candidate mode — URLs are constructed but not HTTP-fetched.
 - **Marketplace Blocker:** Explicitly rejects Amazon, eBay, Alibaba, Walmart, Home Depot, Zoro, Grainger, and consumer shopping URLs.
 
 ### 7. Multi-Format Exporters (`export.py`, `unilog_exporter.py`)
@@ -468,11 +469,11 @@ specledger/
 │   ├── ground_truth/           # Synthetic 200-row industrial valve benchmark dataset
 │   └── reference/              # Private reference data overrides
 ├── frontend/                   # React + Vite dashboard web application
-│   ├── src/                    # Components, workspace views & CSS styles
-│   └── package.json            # Vite & React dependencies
+│   ├── src/                    # Components, API clients, workspace views & CSS styles
+│   └── package.json            # Vite, React, TypeScript & vitest dependencies
 ├── migrations/
 │   └── 007_catalogue_reference.sql # PostgreSQL schema for catalogue & reference data
-├── tests/                      # 243 comprehensive unit & integration tests
+├── tests/                      # 243 backend + 6 frontend safety tests
 │   ├── test_pdf_and_web_scraper.py # Scraper engine & PyMuPDF submittal tests
 │   ├── test_unilog_pipeline.py # Unilog ingestion, web enrichment & 252-column export tests
 │   ├── test_catalogue_api.py
@@ -495,14 +496,15 @@ specledger/
 
 ## 🏆 Summary of Accomplishments
 
-- **Dual-Mode Enterprise Architecture** supporting both standalone headless pipelines (4,250+ SKUs/sec) and interactive human governance web UI.
-- **243 / 243 Unit Tests Passing** (100% pass rate in ~1.6s).
-- **Official 1,000-Row Dataset Enriched & Verified** in **0.235 seconds** (**4,251 rows/sec**).
+- **Dual-Mode Enterprise Architecture** supporting both standalone headless pipelines and interactive human governance web UI.
+- **243 / 243 Unit Tests Passing** (100% pass rate in ~1.6s) plus 6 frontend safety tests.
+- **Official 1,000-Row Dataset Enriched & Verified** — local deterministic benchmark: **0.235 seconds** (**~4,250 rows/sec**).
 - **Official 252-Column Unilog Template Exporter** generating [**`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) (1.49 MB).
 - **94.64% Ground-Truth Accuracy** achieved on the 200-row benchmark.
-- **Live Industrial Web & PDF Scraper Engine** with PyMuPDF submittal generator and strict anti-shopping marketplace firewall.
-- **Domain-Agnostic Web Extraction Engine** handling valves, abrasives, tools, woodworking, lighting, electrical, and consumer appliances.
+- **Industrial Web & PDF Scraper Engine** with PyMuPDF submittal generator and strict anti-shopping marketplace firewall.
+- **Domain-Agnostic Enrichment** handling valves, abrasives, tools, woodworking, lighting, electrical, and consumer appliances.
 - **Enterprise Dark-Mode Web App** with live human governance review, marketplace blocking badges, schema downloads, and audit trail.
+- **Containerized Deployment** ready via Dockerfile, render.yaml, and Vercel frontend.
 
 ---
 
