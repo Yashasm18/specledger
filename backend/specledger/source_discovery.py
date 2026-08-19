@@ -246,6 +246,7 @@ class SourceDiscoveryResult:
     sources: list[DiscoveredSource] = field(default_factory=list)
     blocked_urls: list[str] = field(default_factory=list)
     search_queries: list[str] = field(default_factory=list)
+    discovery_mode: str = "simulated"
 
     @property
     def source_count(self) -> int:
@@ -270,6 +271,7 @@ class SourceDiscoveryResult:
             "sources": [s.to_dict() for s in self.sources],
             "blocked_urls": self.blocked_urls,
             "search_queries": self.search_queries,
+            "discovery_mode": self.discovery_mode,
         }
 
 
@@ -367,11 +369,10 @@ def discover_sources_simulated(
     manufacturer: str,
     part_number: str,
 ) -> SourceDiscoveryResult:
-    """Simulate source discovery with realistic synthetic evidence.
+    """Generate unverified source candidates for prototype/testing.
 
-    This generates plausible source URLs based on the manufacturer
-    domain registry. In production, this would make actual HTTP
-    requests to discover and validate sources.
+    These URLs are candidates only. They are never fetched and must not be
+    represented as verified evidence or used to support automatic publication.
     """
     result = SourceDiscoveryResult(
         manufacturer=manufacturer,

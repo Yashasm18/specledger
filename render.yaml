@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: specledger-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: specledger-postgres
+          property: connectionString
+      - key: CORS_ORIGINS
+        value: https://specledger-app.vercel.app
+      - key: ENVIRONMENT
+        value: production
+      - key: SPECLEDGER_OBJECT_STORE
+        value: /tmp/specledger-object-data
+
+databases:
+  - name: specledger-postgres
+    databaseName: specledger
+    user: specledger

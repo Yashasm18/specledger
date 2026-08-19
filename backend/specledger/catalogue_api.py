@@ -502,10 +502,20 @@ def get_batch_sources(
     if not result:
         return {"batch_id": real_id, "source_count": 0, "sources": []}
 
+    sources = []
+    for discovery in result.sources:
+        for source in discovery.sources:
+            item = source.to_dict()
+            item["discovery_mode"] = discovery.discovery_mode
+            item["evidence_status"] = "candidate_unverified"
+            sources.append(item)
+
     return {
         "batch_id": real_id,
-        "source_count": len(result.sources),
-        "sources": [s.to_dict() for s in result.sources],
+        "source_count": len(sources),
+        "sources": sources,
+        "verified_source_count": 0,
+        "discovery_mode": "simulated_candidates",
     }
 
 

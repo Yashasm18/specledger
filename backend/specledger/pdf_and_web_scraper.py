@@ -114,6 +114,8 @@ class ScrapedProductProfile:
     content_sha256: str = ""
     scraped_at: float = field(default_factory=time.time)
     blocked_attempts: list[str] = field(default_factory=list)
+    extraction_mode: str = "synthetic_demo"
+    evidence_status: str = "unverified_generated_profile"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -150,6 +152,8 @@ class ScrapedProductProfile:
             "content_sha256": self.content_sha256,
             "scraped_at": self.scraped_at,
             "blocked_attempts": self.blocked_attempts,
+            "extraction_mode": self.extraction_mode,
+            "evidence_status": self.evidence_status,
         }
 
 
@@ -294,7 +298,12 @@ class IndustrialWebScraper:
         category: str = "Industrial Component",
         raw_description: str = "",
     ) -> ScrapedProductProfile:
-        """Execute deep extraction across manufacturer web pages and PDF specifications."""
+        """Build a synthetic demonstration profile without making network requests.
+
+        The returned URLs and specifications are unverified candidates. This method
+        exists for UI demonstrations and tests; it must not be treated as live crawl
+        evidence or used for automatic publication.
+        """
         domain = self.resolve_manufacturer_domain(manufacturer)
         clean_pn = part_number.strip()
         clean_mfr = manufacturer.strip()

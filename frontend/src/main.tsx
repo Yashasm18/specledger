@@ -9,6 +9,9 @@ import "./reviewLauncher.css";
 import "./reviewActions.css";
 import "./specInspector.css";
 import { openReviewWorkspace } from "./reviewWorkspace";
+import { apiFetch, getApiBaseUrl, readApiError } from "./apiClient";
+import { downloadBlob, downloadJson } from "./download";
+import { fetchCatalogueExport } from "./catalogueClient";
 
 const defaultRows = [
   ["VLV-600-050", "Ball Valve · DN50 Full Port SS316", "Apollo Valves", "Industrial Valves", "Needs review", "94% verified"],
@@ -77,6 +80,7 @@ interface EnterprisePersona {
   avatar: string;
   avatarBg: string;
   accentColor: string;
+  badgeColor?: string;
   permissions: string[];
   description: string;
   recommendedWorkflow: string;
@@ -251,7 +255,7 @@ function App() {
                 accentColor: "#4285F4",
                 permissions: [
                   "Authenticated Multi-Tenant Pipeline Control",
-                  "Live Web & PDF Datasheet Extraction",
+                  "Synthetic profile generation with explicit provenance labels",
                   "Direct 252-Column & Commerce PIM Exports",
                   "Cryptographic Audit Ledger & Review Decisions",
                 ],
@@ -286,7 +290,7 @@ function App() {
   const [modalScrapeResult, setModalScrapeResult] = useState<any>(null);
   const [isModalScraping, setIsModalScraping] = useState(false);
 
-  // Live Web & PDF Scraper State
+  // Synthetic profile demonstration state
   const [scraperPn, setScraperPn] = useState("70-100-01");
   const [scraperMfr, setScraperMfr] = useState("Apollo Valves");
   const [scraperCat, setScraperCat] = useState("Industrial Valves");
@@ -369,9 +373,10 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [inspectorProduct]);
 
-  const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== "undefined" && window.location.hostname === "localhost" ? "http://localhost:8000" : "");
+  const API_BASE = getApiBaseUrl();
 
   const fetchLatestBatch = async () => {
+    if (!API_BASE) return; // No backend configured — skip silently
     try {
       const res = await fetch(`${API_BASE}/catalogue/batches`);
       if (res.ok) {
@@ -496,122 +501,8 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  // Client-side fallback file downloader
-  const triggerClientDownload = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    setNotice(`Downloaded ${filename} successfully!`);
-  };
-
-  const triggerClientFallbackExport = (format: string, filename: string) => {
-    if (format === "unilog_template") {
-      const rows = (liveRows.length > 0 ? liveRows : defaultRows).map((r: any, idx: number) => {
-        const sku = r.fields?.find((f: any) => f.role === "part_number")?.canonical_value || r[0] || `SKU-${idx + 1}`;
-        const desc = r.fields?.find((f: any) => f.role === "description")?.canonical_value || r[1] || "Industrial Component";
-        const mfr = r.fields?.find((f: any) => f.role === "manufacturer")?.canonical_value || r[2] || "Apollo Valves";
-        const cat = r.fields?.find((f: any) => f.role === "category")?.canonical_value || r[3] || "Industrial Valves";
-        return [
-          `https://www.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/products/${sku.toLowerCase()}`,
-          `https://www.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/datasheet.pdf`,
-          "", "", "", "",
-          sku, "Industrial", cat, "Standard", sku, sku,
-          desc, mfr, mfr, mfr, mfr,
-          mfr, mfr, `${mfr}®`, sku, "", `Industrial / ${cat}`,
-          `${desc} - ${sku}`, desc, desc, `${desc}. Premium high-durability industrial component.`, desc, desc,
-          "Rugged industrial-grade construction", "Precision CNC machined", "Meets ASME/ANSI standards", "Extended service life", "Factory hydrostatically tested",
-          "Mounting Hardware", "ASME B16.34, ANSI, CSA", "No", "Commercial & Industrial", "Product, Manual", `${mfr} ${sku}`,
-          "Body Material", "Stainless Steel 316", "",
-          "Pressure Rating", "600", "PSI",
-          "Connection Type", "NPT Threaded", "",
-          "6.5", "IN", "4.2", "IN", "3.0", "IN", "4.8", "LBS",
-          `https://cdn.specledger.io/img/${sku.toLowerCase()}.jpg`,
-          `https://cdn.specledger.io/specs/${sku.toLowerCase()}.pdf`,
-          "United States", "No"
-        ].map((val) => `"${String(val).replace(/"/g, '""')}"`).join(",");
-      });
-      const csv = [UNILOG_SAMPLE_HEADERS.join(","), ...rows].join("\n");
-      triggerClientDownload(csv, filename, "text/csv;charset=utf-8;");
-    } else if (format === "commerce_csv") {
-      const headers = ["row_number", "manufacturer", "brand", "part_number", "category", "description", "material", "size", "uom", "pressure_rating", "temperature_range", "connection_type"];
-      const rows = (liveRows.length > 0 ? liveRows : defaultRows).map((r: any, idx: number) => {
-        const sku = r.fields?.find((f: any) => f.role === "part_number" || f.column === "mfg_part_num" || f.column === "part_number")?.canonical_value || r[0] || `SKU-${idx + 1}`;
-        const desc = r.fields?.find((f: any) => f.role === "description" || f.column === "part_desc" || f.column === "description")?.canonical_value || r[1] || "Industrial Component";
-        const mfr = r.fields?.find((f: any) => f.role === "manufacturer" || f.column === "part_manuf" || f.column === "manufacturer")?.canonical_value || r[2] || "Freud Inc";
-        const brand = r.fields?.find((f: any) => f.role === "brand" || f.column === "brand" || f.column === "unilog_brand")?.canonical_value || mfr;
-        const cat = r.fields?.find((f: any) => f.role === "category" || f.column === "category")?.canonical_value || r[3] || "Abrasives & Cutting Tools";
-        const mat = r.fields?.find((f: any) => f.role === "material" || f.column === "material")?.canonical_value || "Alloy Steel";
-        const sz = r.fields?.find((f: any) => f.role === "size" || f.column === "size")?.canonical_value || "1/2\"";
-        const uom = r.fields?.find((f: any) => f.role === "uom" || f.column === "uom")?.canonical_value || "IN";
-        const press = r.fields?.find((f: any) => f.role === "pressure_rating" || f.column === "pressure_rating")?.canonical_value || "150 PSI";
-        const temp = r.fields?.find((f: any) => f.role === "temperature_range" || f.column === "temperature_range")?.canonical_value || "-20°F to 150°F";
-        const conn = r.fields?.find((f: any) => f.role === "connection_type" || f.column === "connection_type")?.canonical_value || "N/A";
-        return [idx + 1, mfr, brand, sku, cat, desc, mat, sz, uom, press, temp, conn]
-          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-          .join(",");
-      });
-      const csv = [headers.join(","), ...rows].join("\n");
-      triggerClientDownload(csv, filename, "text/csv;charset=utf-8;");
-    } else if (format === "audit") {
-      const auditData = {
-        export_type: "audit_lineage",
-        system: "SpecLedger Product Intelligence",
-        target_platform: "Unilog CX1",
-        batch_id: activeBatch?.batch_id || "demo-batch-2026",
-        timestamp: new Date().toISOString(),
-        items_count: (liveRows.length > 0 ? liveRows : defaultRows).length,
-        decision_lineage: (liveRows.length > 0 ? liveRows : defaultRows).map((r: any, idx: number) => ({
-          row_number: idx + 1,
-          sku: r.fields?.find((f: any) => f.role === "part_number")?.canonical_value || r[0] || `SKU-${idx + 1}`,
-          status: r.overall_status || r[4] || "verified",
-          confidence: r.overall_confidence || 0.96,
-          approved_by: "Yashas M (Owner)",
-          transformations: [
-            { field: "manufacturer", raw: r[2] || "Apollo", canonical: "Apollo Valves", rule: "LOV_CANONICALIZATION" },
-            { field: "material", raw: "SS316", canonical: "Stainless Steel 316", rule: "ALLOY_CANONICALIZATION" }
-          ]
-        }))
-      };
-      triggerClientDownload(JSON.stringify(auditData, null, 2), filename, "application/json");
-    } else if (format === "schema_org" || format === "jsonld") {
-      const graph = (liveRows.length > 0 ? liveRows : defaultRows).map((r: any, idx: number) => {
-        const sku = r.fields?.find((f: any) => f.role === "part_number")?.canonical_value || r[0] || `SKU-${idx + 1}`;
-        const desc = r.fields?.find((f: any) => f.role === "description")?.canonical_value || r[1] || "Industrial Component";
-        const mfr = r.fields?.find((f: any) => f.role === "manufacturer")?.canonical_value || r[2] || "Apollo Valves";
-        const cat = r.fields?.find((f: any) => f.role === "category")?.canonical_value || r[3] || "Industrial Valves";
-        return {
-          "@context": "https://schema.org/",
-          "@type": "Product",
-          "name": `${mfr} ${sku} - ${desc}`,
-          "sku": sku,
-          "mpn": sku,
-          "description": desc,
-          "category": cat,
-          "brand": { "@type": "Brand", "name": mfr },
-          "manufacturer": { "@type": "Organization", "name": mfr },
-          "additionalProperty": [
-            { "@type": "PropertyValue", "name": "Body Material", "value": "Stainless Steel 316" },
-            { "@type": "PropertyValue", "name": "Pressure Rating", "value": "600 PSI", "unitText": "PSI" },
-            { "@type": "PropertyValue", "name": "Connection Type", "value": "NPT Threaded" }
-          ]
-        };
-      });
-      triggerClientDownload(JSON.stringify({ "@context": "https://schema.org/", "@graph": graph }, null, 2), filename, "application/ld+json");
-    } else {
-      const json = JSON.stringify(activeBatch || { sample: "SpecLedger Enriched Intelligence", rows: defaultRows }, null, 2);
-      triggerClientDownload(json, filename, "application/json");
-    }
-  };
-
   // Unified File & Batch Exporter
   const handleExport = async (format: string) => {
-    const batchId = activeBatch?.batch_id || "latest";
     const formatNames: Record<string, string> = {
       unilog_template: "Unilog_252_Delivery_Catalogue.csv",
       commerce_csv: "Commerce_PIM_Feed.csv",
@@ -625,23 +516,11 @@ function App() {
     setNotice(`Exporting ${filename}…`);
 
     try {
-      const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/export?format=${format}`);
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        setNotice(`Downloaded ${filename} successfully!`);
-      } else {
-        triggerClientFallbackExport(format, filename);
-      }
+      const blob = await fetchCatalogueExport(activeBatch?.batch_id, format);
+      downloadBlob(blob, filename);
+      setNotice(`Downloaded ${filename} successfully!`);
     } catch (err) {
-      triggerClientFallbackExport(format, filename);
+      setNotice(`Export unavailable · ${err instanceof Error ? err.message : "Backend request failed"}`);
     }
   };
 
@@ -658,7 +537,7 @@ function App() {
       body.append("file", file);
 
       try {
-        const response = await fetch(`${API_BASE}/catalogue/ingest?process_immediately=true`, {
+        const response = await apiFetch(`/catalogue/ingest?process_immediately=true`, {
           method: "POST",
           body,
         });
@@ -673,8 +552,7 @@ function App() {
         await fetchLatestBatch();
         setActiveTab("catalogue");
       } catch (error) {
-        setNotice(`Catalogue ingestion fallback · ${error instanceof Error ? error.message : "Loaded locally"}`);
-        setActiveTab("catalogue");
+        setNotice(`Catalogue ingestion failed · ${error instanceof Error ? error.message : "Backend unavailable"}`);
       }
     } else {
       setNotice(`Storing document and queueing extraction…`);
@@ -734,6 +612,10 @@ function App() {
       )
     );
 
+    if (!API_BASE) {
+      setNotice(`Row #${rowNumber} marked as ${action}d locally (no backend configured).`);
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
         method: "POST",
@@ -763,6 +645,7 @@ function App() {
 
     const batchId = activeBatch?.batch_id || "latest";
     const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
+    if (!API_BASE) return; // No backend — approvals recorded locally only
     try {
       await Promise.all(
         ids.map((id) =>
@@ -778,7 +661,8 @@ function App() {
     }
   };
 
-  // Live Manufacturer Web & PDF Scraper Action
+  // Synthetic manufacturer profile demonstration. The backend labels the result
+  // explicitly so it cannot be confused with fetched source evidence.
   const handleLiveScrape = async (pnOverride?: string, mfrOverride?: string, catOverride?: string) => {
     const pn = pnOverride || scraperPn;
     const mfr = mfrOverride || scraperMfr;
@@ -789,7 +673,7 @@ function App() {
 
     setIsScraping(true);
     try {
-      const res = await fetch(`${API_BASE}/catalogue/scraper/extract`, {
+      const res = await apiFetch(`/catalogue/scraper/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -799,13 +683,12 @@ function App() {
           raw_description: `${mfr} ${pn} ${cat}`
         })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setScraperResult(data);
-        setNotice(`Extracted web specs & technical PDFs for ${mfr} ${pn}!`);
-      }
-    } catch {
-      setNotice(`Extracted specs locally for ${mfr} ${pn}`);
+      if (!res.ok) throw new Error(await readApiError(res, "Profile generation failed"));
+      const data = await res.json();
+      setScraperResult(data);
+      setNotice(`Generated an unverified demonstration profile for ${mfr} ${pn}`);
+    } catch (error) {
+      setNotice(`Profile generation failed · ${error instanceof Error ? error.message : "Backend unavailable"}`);
     } finally {
       setIsScraping(false);
     }
@@ -815,7 +698,7 @@ function App() {
   const handleModalScrape = async (pn: string, mfr: string, cat?: string) => {
     setIsModalScraping(true);
     try {
-      const res = await fetch(`${API_BASE}/catalogue/scraper/extract`, {
+      const res = await apiFetch(`/catalogue/scraper/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -825,13 +708,12 @@ function App() {
           raw_description: `${mfr} ${pn}`
         })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setModalScrapeResult(data);
-        setNotice(`Live crawled ${mfr} and parsed technical PDF submittal for ${pn}!`);
-      }
-    } catch {
-      setNotice(`Scraper parsed specifications for ${mfr} ${pn}`);
+      if (!res.ok) throw new Error(await readApiError(res, "Profile generation failed"));
+      const data = await res.json();
+      setModalScrapeResult(data);
+      setNotice(`Generated an unverified demonstration profile for ${mfr} ${pn}`);
+    } catch (error) {
+      setNotice(`Profile generation failed · ${error instanceof Error ? error.message : "Backend unavailable"}`);
     } finally {
       setIsModalScraping(false);
     }
@@ -865,44 +747,43 @@ function App() {
     setModalScrapeResult(null);
   };
 
-  // Generate 50 dynamic triplets for the inspected product
+  // Generate 50 placeholder triplets for the inspector UI demonstration.
+  // These are illustrative examples only — not fetched from manufacturer sources.
+  // When a backend-enriched batch is loaded, real attribute data replaces these.
   const getProductTriplets = (prod: any) => {
     if (!prod) return [];
-    const sku = prod.fields?.find((f: any) => f.role === "part_number")?.canonical_value || prod[0] || "SKU-001";
     const desc = prod.fields?.find((f: any) => f.role === "description")?.canonical_value || prod[1] || "";
-    const mfr = prod.fields?.find((f: any) => f.role === "manufacturer")?.canonical_value || prod[2] || "Apollo Valves";
-    const cat = prod.fields?.find((f: any) => f.role === "category")?.canonical_value || prod[3] || "Industrial Valves";
 
     const baseSpecs = [
-      { label: "Body Material", value: desc.includes("Brass") ? "Bronze / Brass" : "Stainless Steel 316", uom: "" },
-      { label: "Pressure Rating", value: desc.includes("3000") ? "3000" : "600", uom: "PSI" },
-      { label: "Nominal Pipe Size", value: desc.includes("1/4") ? "0.25" : desc.includes("3/4") ? "0.75" : desc.includes("10-inch") ? "10" : "2.0", uom: "IN" },
-      { label: "Connection Style", value: "NPT Threaded (Female)", uom: "" },
-      { label: "Port Type", value: "Full Port Flow", uom: "" },
-      { label: "Stem Packing Material", value: "PTFE / Teflon", uom: "" },
-      { label: "Operating Temp Range", value: "-20 to 450", uom: "°F" },
-      { label: "Flow Direction", value: "Bi-Directional", uom: "" },
-      { label: "Handle Style", value: "Zinc-Plated Steel Lever", uom: "" },
-      { label: "Approvals & Certifications", value: "ASME B16.34, MSS SP-110, CSA", uom: "" },
-      { label: "Ball Material", value: "316 Stainless Steel Ball", uom: "" },
-      { label: "Seat Material", value: "RPTFE Reinforced Teflon", uom: "" },
-      { label: "Body Style", value: "2-Piece Threaded Body", uom: "" },
-      { label: "Testing Standard", value: "API 598 Hydrostatic", uom: "" },
-      { label: "Grit Rating", value: desc.includes("Blade") ? "60T Carbide" : "80", uom: desc.includes("Blade") ? "Teeth" : "Grit" },
-      { label: "Motor Spec", value: "High-Efficiency Brushless", uom: "" },
-      { label: "Voltage", value: "120 / 240", uom: "VAC" },
-      { label: "Warranty Period", value: "5-Year Limited Industrial", uom: "" },
-      { label: "Country of Origin", value: "United States", uom: "" },
-      { label: "Discontinued", value: "No", uom: "" }
+      { label: "Body Material (example)", value: desc.includes("Brass") ? "Bronze / Brass" : "Stainless Steel 316", uom: "" },
+      { label: "Pressure Rating (example)", value: desc.includes("3000") ? "3000" : "600", uom: "PSI" },
+      { label: "Nominal Pipe Size (example)", value: desc.includes("1/4") ? "0.25" : desc.includes("3/4") ? "0.75" : desc.includes("10-inch") ? "10" : "2.0", uom: "IN" },
+      { label: "Connection Style (example)", value: "NPT Threaded (Female)", uom: "" },
+      { label: "Port Type (example)", value: "Full Port Flow", uom: "" },
+      { label: "Stem Packing Material (example)", value: "PTFE / Teflon", uom: "" },
+      { label: "Operating Temp Range (example)", value: "-20 to 450", uom: "°F" },
+      { label: "Flow Direction (example)", value: "Bi-Directional", uom: "" },
+      { label: "Handle Style (example)", value: "Zinc-Plated Steel Lever", uom: "" },
+      { label: "Approvals & Certifications (example)", value: "ASME B16.34, MSS SP-110, CSA", uom: "" },
+      { label: "Ball Material (example)", value: "316 Stainless Steel Ball", uom: "" },
+      { label: "Seat Material (example)", value: "RPTFE Reinforced Teflon", uom: "" },
+      { label: "Body Style (example)", value: "2-Piece Threaded Body", uom: "" },
+      { label: "Testing Standard (example)", value: "API 598 Hydrostatic", uom: "" },
+      { label: "Grit Rating (example)", value: desc.includes("Blade") ? "60T Carbide" : "80", uom: desc.includes("Blade") ? "Teeth" : "Grit" },
+      { label: "Motor Spec (example)", value: "High-Efficiency Brushless", uom: "" },
+      { label: "Voltage (example)", value: "120 / 240", uom: "VAC" },
+      { label: "Warranty Period (example)", value: "5-Year Limited Industrial", uom: "" },
+      { label: "Country of Origin (example)", value: "United States", uom: "" },
+      { label: "Discontinued (example)", value: "No", uom: "" }
     ];
 
     // Pad up to 50 slots for full 252-column completeness
     const all50 = [...baseSpecs];
     for (let i = baseSpecs.length + 1; i <= 50; i++) {
       all50.push({
-        label: `Custom Attribute ${i}`,
-        value: `Standard Spec ${i}`,
-        uom: i % 3 === 0 ? "IN" : i % 5 === 0 ? "LBS" : ""
+        label: `Attribute Slot ${i} (placeholder)`,
+        value: "—",
+        uom: ""
       });
     }
     return all50;
@@ -1325,7 +1206,7 @@ function App() {
                 <button
                   className="export-btn"
                   style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
-                  onClick={() => triggerClientDownload(JSON.stringify({ schema: "Industrial Valves", version: "1.0", standard: "schema.org/Product", fields: ["Size", "Pressure_Rating", "Material", "Connection", "UOM"] }, null, 2), "Valve_Schema.json", "application/json")}
+                  onClick={() => downloadJson({ schema: "Industrial Valves", version: "1.0", standard: "schema.org/Product", fields: ["Size", "Pressure_Rating", "Material", "Connection", "UOM"] }, "Valve_Schema.json")}
                 >
                   <DownloadIcon size={11} />
                   Download Schema JSON
@@ -1341,7 +1222,7 @@ function App() {
                 <button
                   className="export-btn"
                   style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
-                  onClick={() => triggerClientDownload(JSON.stringify({ schema: "Abrasives & Sanding Media", version: "1.0", standard: "schema.org/Product", fields: ["Grit_Size", "Diameter", "Backing_Material", "Grain_Type", "Hole_Pattern"] }, null, 2), "Abrasives_Schema.json", "application/json")}
+                  onClick={() => downloadJson({ schema: "Abrasives & Sanding Media", version: "1.0", standard: "schema.org/Product", fields: ["Grit_Size", "Diameter", "Backing_Material", "Grain_Type", "Hole_Pattern"] }, "Abrasives_Schema.json")}
                 >
                   <DownloadIcon size={11} />
                   Download Schema JSON
@@ -1357,7 +1238,7 @@ function App() {
                 <button
                   className="export-btn"
                   style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
-                  onClick={() => triggerClientDownload(JSON.stringify({ schema: "Power Tools & Machinery", version: "1.0", standard: "schema.org/Product", fields: ["Voltage", "Amp_Hours", "Motor_Type", "Chuck_Size", "Max_RPM", "Weight"] }, null, 2), "PowerTools_Schema.json", "application/json")}
+                  onClick={() => downloadJson({ schema: "Power Tools & Machinery", version: "1.0", standard: "schema.org/Product", fields: ["Voltage", "Amp_Hours", "Motor_Type", "Chuck_Size", "Max_RPM", "Weight"] }, "PowerTools_Schema.json")}
                 >
                   <DownloadIcon size={11} />
                   Download Schema JSON
@@ -1385,11 +1266,15 @@ function App() {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button
                   className="export-btn primary-accent"
-                  onClick={() => triggerClientDownload(JSON.stringify({ sources: batchSources.length > 0 ? batchSources : [
-                    { manufacturer: "Apollo Valves", url: "https://www.apollovalves.com/products/vlv-600", status: "verified" },
-                    { manufacturer: "Parker Hannifin", url: "https://www.parker.com/literature/datasheet.pdf", status: "verified" },
-                    { manufacturer: "Amazon.com", url: "https://www.amazon.com/dp/B08XXXXXX", status: "blocked_reseller" }
-                  ] }, null, 2), "Evidence_Map.json", "application/json")}
+                  disabled={batchSources.length === 0}
+                  title={batchSources.length === 0 ? "Process a live batch before exporting evidence" : "Download evidence for the active batch"}
+                  onClick={() => {
+                    if (batchSources.length === 0) {
+                      setNotice("Evidence export unavailable · no verified batch sources loaded");
+                      return;
+                    }
+                    downloadJson({ sources: batchSources }, "Evidence_Map.json");
+                  }}
                 >
                   <DownloadIcon size={12} />
                   Download Evidence Map (JSON)
@@ -1415,34 +1300,17 @@ function App() {
                       <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", textDecoration: "underline" }}>{s.url}</a>
                     </span>
                     <span>{s.source_type}</span>
-                    <span><mark className="ready">● Verified Mfr</mark></span>
+                    <span>
+                      <mark className={s.evidence_status === "verified" ? "ready" : "review"}>
+                        ● {s.evidence_status === "verified" ? "Verified source" : "Unverified candidate"}
+                      </mark>
+                    </span>
                   </div>
                 ))
               ) : (
-                <>
-                  <div className="tr" style={{ gridTemplateColumns: "1.4fr 2fr 1fr 1fr" }}>
-                    <span><strong>Apollo Valves</strong></span>
-                    <span style={{ fontFamily: "DM Mono", fontSize: 11, color: "#38bdf8" }}>
-                      <a href="https://www.apollovalves.com" target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>https://www.apollovalves.com/products/vlv-600</a>
-                    </span>
-                    <span>Official Web Page</span>
-                    <span><mark className="ready">● Verified Mfr</mark></span>
-                  </div>
-                  <div className="tr" style={{ gridTemplateColumns: "1.4fr 2fr 1fr 1fr" }}>
-                    <span><strong>Parker Hannifin</strong></span>
-                    <span style={{ fontFamily: "DM Mono", fontSize: 11, color: "#38bdf8" }}>
-                      <a href="https://www.parker.com" target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>https://www.parker.com/literature/datasheet.pdf</a>
-                    </span>
-                    <span>Datasheet PDF</span>
-                    <span><mark className="ready">● Verified Mfr</mark></span>
-                  </div>
-                  <div className="tr" style={{ gridTemplateColumns: "1.4fr 2fr 1fr 1fr" }}>
-                    <span><strong>Amazon.com</strong></span>
-                    <span style={{ fontFamily: "DM Mono", fontSize: 11, color: "#ef4444" }}>https://www.amazon.com/dp/B08XXXXXX</span>
-                    <span>Reseller Marketplace</span>
-                    <span><mark style={{ background: "#fee2e2", color: "#991b1b" }}>✕ Blocked</mark></span>
-                  </div>
-                </>
+                <div className="empty-review" style={{ gridColumn: "1 / -1", margin: 16 }}>
+                  No source evidence is loaded. Process a catalogue batch with the API before reviewing provenance.
+                </div>
               )}
             </div>
 
@@ -1450,22 +1318,22 @@ function App() {
             <div style={{ background: "#172232", borderRadius: 10, padding: 20, color: "#ffffff", marginTop: 24, border: "1px solid #2c374b" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                 <div>
-                  <span className="eyebrow" style={{ color: "#38bdf8" }}>LIVE MANUFACTURER WEB &amp; PDF SCRAPER ENGINE</span>
+                  <span className="eyebrow" style={{ color: "#38bdf8" }}>MANUFACTURER PROFILE DEMONSTRATION</span>
                   <h4 style={{ margin: "4px 0 0", fontSize: 16, color: "#ffffff" }}>
-                    Online Technical Document &amp; Specification Extractor
+                    Synthetic Technical Profile Generator
                   </h4>
                   <small style={{ color: "#94a3b8", display: "block", marginTop: 4 }}>
-                    Queries official manufacturer domains, crawls technical cut-sheets/IOM manuals, extracts ASME/ANSI/Prop 65 ratings, and strictly blocks all shopping marketplaces.
+                    Generates clearly labelled test profiles from category rules. URLs and specifications remain unverified until a real retrieval pipeline supplies source evidence.
                   </small>
                 </div>
                 <span style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)", padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
-                  PyMuPDF + HTTPX Active
+                  DEMO MODE · NO LIVE CRAWL
                 </span>
               </div>
 
               {/* Quick Preset Chips */}
               <div style={{ marginBottom: 14 }}>
-                <small style={{ color: "#64748b", fontWeight: 700, display: "block", marginBottom: 6 }}>QUICK TEST PRESETS (CLICK TO CRAWL):</small>
+                <small style={{ color: "#64748b", fontWeight: 700, display: "block", marginBottom: 6 }}>QUICK DEMONSTRATION PRESETS:</small>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {[
                     { mfr: "Apollo Valves", pn: "70-100-01", cat: "Industrial Valves" },
@@ -1541,7 +1409,7 @@ function App() {
                       whiteSpace: "nowrap"
                     }}
                   >
-                    {isScraping ? "Crawling & Parsing..." : "Crawl & Extract Specs"}
+                    {isScraping ? "Generating Profile..." : "Generate Demo Profile"}
                   </button>
                 </div>
               </div>
@@ -1552,7 +1420,7 @@ function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 10 }}>
                     <div>
                       <span style={{ fontSize: 10, color: "#34d399", fontWeight: 700, background: "rgba(16,185,129,0.15)", padding: "2px 6px", borderRadius: 4 }}>
-                        ✓ Crawl Verified ({scraperResult.canonical_domain})
+                        ⚠ Unverified synthetic profile ({scraperResult.canonical_domain})
                       </span>
                       <strong style={{ marginLeft: 8, fontSize: 13, color: "#ffffff" }}>
                         {scraperResult.manufacturer} · {scraperResult.part_number}
@@ -1565,7 +1433,7 @@ function App() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 12 }}>
                     <div>
-                      <small style={{ color: "#94a3b8", fontWeight: 700, fontSize: 10, display: "block", marginBottom: 4 }}>DISCOVERED MANUFACTURER DOCUMENTS &amp; URLS:</small>
+                      <small style={{ color: "#94a3b8", fontWeight: 700, fontSize: 10, display: "block", marginBottom: 4 }}>GENERATED SOURCE CANDIDATES — NOT FETCHED:</small>
                       <div style={{ fontSize: 11, color: "#38bdf8", fontFamily: "DM Mono", lineHeight: 1.6 }}>
                         <div>MFR Product: <a href={scraperResult.product_url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>{scraperResult.product_url}</a></div>
                         {scraperResult.datasheet_urls?.map((u: string, i: number) => (
@@ -2342,7 +2210,7 @@ function App() {
                         cursor: isModalScraping ? "wait" : "pointer"
                       }}
                     >
-                      {isModalScraping ? "Crawling & Parsing..." : "⚡ Run Live Web & PDF Crawl"}
+                      {isModalScraping ? "Generating Profile..." : "Generate Demo Profile"}
                     </button>
                   </div>
 
@@ -2350,7 +2218,7 @@ function App() {
                     <div style={{ background: "#0f172a", border: "1px solid #38bdf8", borderRadius: 8, padding: 14, marginBottom: 16, color: "#ffffff" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 8 }}>
                         <span style={{ color: "#34d399", fontWeight: 700, fontSize: 11 }}>
-                          ✓ Live Scraper Verified: {modalScrapeResult.canonical_domain}
+                          ⚠ Unverified synthetic profile: {modalScrapeResult.canonical_domain}
                         </span>
                         <span style={{ color: "#94a3b8", fontFamily: "DM Mono", fontSize: 10 }}>
                           SHA-256: {modalScrapeResult.content_sha256?.slice(0, 16)}...

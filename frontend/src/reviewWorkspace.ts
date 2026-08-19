@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "./apiClient";
+
 type Fact = { name: string; value: string; normalized_value?: string; normalized_unit?: string; page: number; confidence: number; evidence: string };
 type ReviewArtifact = {
   artifact_id?: string;
@@ -11,6 +13,8 @@ type ReviewArtifact = {
   onReviewSubmit?: (action: "approve" | "reject" | "correct", comment?: string) => Promise<void>;
 };
 
+const API_BASE = getApiBaseUrl();
+
 export function openReviewWorkspace(artifact: ReviewArtifact) {
   document.getElementById("review-workspace")?.remove();
   const panel = document.createElement("section");
@@ -18,7 +22,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
   const facts = artifact.data?.facts || [];
   const headerSub = artifact.sku ? `SKU: ${artifact.sku} · ${artifact.description || ""}` : "Every value remains linked to its source before publication.";
   
-  panel.innerHTML = `<div class="review-header"><div><span class="review-eyebrow">EVIDENCE REVIEW WORKSPACE</span><h2>Verify extracted product intelligence</h2><p>${headerSub}</p></div><button class="review-close" aria-label="Close review workspace">×</button></div><div class="review-body"><div class="review-summary"><span><b>${facts.length}</b> extracted facts</span><span class="pending">● ${artifact.review_state || "pending_review"}</span><span>Evidence-backed</span></div><div class="fact-list">${facts.length ? facts.map((fact) => `<article class="fact-card"><div class="fact-title"><strong>${fact.name.replaceAll("_", " ")}</strong><mark>${Math.round(fact.confidence * 100)}% confidence</mark></div><div class="fact-values"><b>${fact.value}</b><span>${fact.normalized_value || "—"} ${fact.normalized_unit || ""}</span></div><p>“${fact.evidence}”</p><button class="evidence-link">↳ Source evidence</button></article>`).join("") : `<div class="empty-review">No structured facts were found. The source document remains available for manual review.</div>`}</div></div><div class="review-footer"><span>Nothing is published automatically.</span><button class="review-reject">Reject</button><button class="review-approve">Approve artifact</button></div>`;
+  panel.innerHTML = `<div class="review-header"><div><span class="review-eyebrow">EVIDENCE REVIEW WORKSPACE</span><h2>Verify extracted product intelligence</h2><p>${headerSub}</p></div><button class="review-close" aria-label="Close review workspace">×</button></div><div class="review-body"><div class="review-summary"><span><b>${facts.length}</b> extracted facts</span><span class="pending">● ${artifact.review_state || "pending_review"}</span><span>Evidence-backed</span></div><div class="fact-list">${facts.length ? facts.map((fact) => `<article class="fact-card"><div class="fact-title"><strong>${fact.name.replace(/_/g, " ")}</strong><mark>${Math.round(fact.confidence * 100)}% confidence</mark></div><div class="fact-values"><b>${fact.value}</b><span>${fact.normalized_value || "—"} ${fact.normalized_unit || ""}</span></div><p>“${fact.evidence}”</p><button class="evidence-link">↳ Source evidence</button></article>`).join("") : `<div class="empty-review">No structured facts were found. The source document remains available for manual review.</div>`}</div></div><div class="review-footer"><span>Nothing is published automatically.</span><button class="review-reject">Reject</button><button class="review-approve">Approve artifact</button></div>`;
   
   document.body.appendChild(panel);
   panel.querySelector(".review-close")?.addEventListener("click", () => panel.remove());
@@ -38,7 +42,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
   const submitDecision = async (reviewState: "approved" | "rejected") => {
     if (artifact.onReviewSubmit) {
       try {
-        await artifact.onReviewSubmit(reviewState, `Artifact ${reviewState} from review workspace`);
+        await artifact.onReviewSubmit(reviewState === "approved" ? "approve" : "reject", `Artifact ${reviewState} from review workspace`);
         const status = panel.querySelector(".review-summary .pending");
         if (status) status.textContent = `● ${reviewState}`;
         panel.querySelectorAll<HTMLButtonElement>(".review-approve, .review-reject").forEach((button) => {

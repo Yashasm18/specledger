@@ -26,7 +26,7 @@
 - [Datasets, Data Provenance & Reproducibility](#-datasets-data-provenance--reproducibility-matrix)
 - [Empirical Proofs & Benchmark Results](#empirical-proofs--benchmark-results)
 - [Official Unilog 1,000-SKU Dataset Verification](#official-unilog-1000-sku-dataset-verification)
-- [Hackathon Evaluation Criteria Alignment (100% Coverage)](#hackathon-evaluation-criteria-alignment-100-coverage)
+- [Hackathon Evaluation Criteria Alignment](#hackathon-evaluation-criteria-alignment)
 - [System Architecture](#system-architecture)
 - [Core Subsystems & Technical Details](#core-subsystems--technical-details)
 - [API Reference](#api-reference)
@@ -40,13 +40,13 @@
 
 Industrial B2B commerce platforms (such as Unilog CX1 PIM) process hundreds of thousands of raw SKUs from thousands of component manufacturers. Ingested data is frequently fragmented, misspelled, missing units of measure (UOM), or lacking material and pressure specifications.
 
-**SpecLedger** is a production-grade, evidence-backed catalogue enrichment engine. It cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels.
+**SpecLedger** is an enterprise-oriented hackathon prototype for evidence-aware catalogue enrichment. It cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels.
 
 ### Core Guarantees:
-- **Zero Hallucination with Complete Provenance:** Every enriched attribute is backed by an explicit evidence trail (source file, row number, column, transformation, or manufacturer URL).
+- **Provenance-First Output:** Deterministic transformations retain source file, row and column lineage. Generated source candidates and synthetic profiles are explicitly marked unverified and are not substitutes for fetched evidence.
 - **Strict Marketplace Prohibition:** In strict compliance with UniHack requirements, **Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and consumer shopping sites are blocked**. All enrichment data is derived from manufacturer-authoritative sources.
-- **Automated Operational Efficiency (85%+ Auto-Approval):** High-confidence records ($\ge 80\%$ confidence, 0 errors) are auto-approved, while edge cases and conflicts are routed to a human governance review workspace.
-- **Enterprise Scale:** Processes **4,250+ SKUs/second**, scaling from **150,000 to 750,000 SKUs/month** with zero headcount increase.
+- **Human Governance:** Rows that pass deterministic validation can follow an automated test path, while conflicts are routed to a review workspace. Production publication should additionally require verified source evidence.
+- **Scale-Oriented Architecture:** The local deterministic benchmark processes 1,000 rows in approximately 0.235 seconds. This is a CPU pipeline benchmark, not a claim about live web retrieval or production infrastructure.
 
 ---
 
@@ -64,15 +64,15 @@ SpecLedger is engineered as a **dual-mode enterprise platform**, providing both 
 │ • Pure Headless Engine (FastAPI + Python Core)             │ • React 18 + TypeScript + Vite│
 │ • Direct ERP / PIM / ETL Integration via REST API           │ • Dark-Mode Ergonomic UI      │
 │ • Zero Browser / UI Dependency                             │ • Priority Human Review Queue │
-│ • 4,250+ SKUs/sec Batch Throughput                          │ • Side-by-Side Evidence Modal │
-│ • Auto-Approves 85%+ High-Confidence Data                   │ • 1-Click Multi-Format Export │
+│ • Measured Local Deterministic Benchmark                    │ • Side-by-Side Evidence Modal │
+│ • Validation-Gated Processing                               │ • API-Backed Multi-Format Export│
 │ • Nightly Cron / Serverless Worker Ready                    │ • Real-Time Telemetry & Health│
 └─────────────────────────────────────────────────────────────┴───────────────────────────────┘
 ```
 
 ### Mode A: Standalone Headless API & Batch Engine
 - **Target Users:** Data Engineers, Automated ETL Pipelines, PIM/ERP Integrations, Nightly Cron Jobs.
-- **How it Works:** Ingests raw CSV/XLSX spreadsheets via REST API (`POST /catalogue/ingest`), discovers manufacturer sources, executes deterministic LOV normalization, validates cross-field integrity, and immediately exports the 252-column template (`GET /catalogue/batches/{id}/export?format=unilog_template`) with 0 human intervention required for the 85%+ auto-approved rows.
+- **How it Works:** Ingests raw CSV/XLSX spreadsheets via REST API (`POST /catalogue/ingest`), generates clearly labelled manufacturer-source candidates, executes deterministic LOV normalization, validates cross-field integrity, and exports the 252-column template (`GET /catalogue/batches/{id}/export?format=unilog_template`).
 
 ### Mode B: Interactive Web Control Center
 - **Target Users:** Catalog Managers, Domain Specialists, Compliance Officers.
@@ -98,7 +98,7 @@ To ensure full transparency and complete reproducibility for Unilog judges, ever
 
 ### 2. Authoritative Manufacturer Source Registry (Data Provenance)
 
-SpecLedger crawls and resolves canonical product data exclusively from verified manufacturer domains, strictly rejecting third-party resellers:
+SpecLedger maintains a manufacturer-domain allowlist used to generate source candidates while rejecting third-party resellers. The current batch source-discovery path does not fetch or verify those candidates:
 
 | Manufacturer / Brand | Canonical Manufacturer Domain | Categories Covered | Provenance Status |
 |---|---|---|---|

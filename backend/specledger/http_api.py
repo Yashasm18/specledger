@@ -28,6 +28,12 @@ from .catalogue_api import router as catalogue_router
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
 DATABASE_URL = os.getenv("DATABASE_URL")
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,http://localhost:5174,http://localhost:3000,"
+    "http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:3000,"
+    "https://specledger-app.vercel.app"
+)
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",") if origin.strip()]
 repository = PostgresRepository(DATABASE_URL) if DATABASE_URL else ProductRepository(DATABASE_PATH)
 service = SpecLedgerService(repository)
 # Local development uses a separate job database to avoid SQLite's single-file
@@ -51,15 +57,7 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="SpecLedger API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:3000",
-        "*",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
