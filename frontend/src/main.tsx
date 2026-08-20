@@ -226,13 +226,15 @@ function App() {
   const [scraperResult, setScraperResult] = useState<any>(null);
   const [isScraping, setIsScraping] = useState(false);
 
-  // Live Benchmark Runner State
+  // Live Benchmark Runner State. These figures are our last actual measured
+  // run on the full 1,000-row official dataset (deterministic path, no live
+  // fetch), not a live per-click computation — see README "Benchmark results".
   const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [benchStep, setBenchStep] = useState(0);
   const [benchStats, setBenchStats] = useState({
-    time: "0.235s",
-    throughput: "4,251.8 rows/s",
-    verified: "94.6%",
+    time: "0.138s",
+    throughput: "~7,200 rows/s",
+    verified: "38.1%",
     cost: "$0.0001 / SKU"
   });
 
@@ -654,7 +656,10 @@ function App() {
     }
   };
 
-  // Trigger Live 1,000-SKU Benchmark Demo
+  // Replays our last actual measured benchmark run (deterministic pipeline,
+  // full 1,000-row official dataset — see README "Benchmark results") with a
+  // short animated readout. This does not re-run the pipeline live per
+  // click; the numbers shown are real but static, not freshly computed.
   const runLiveBenchmarkDemo = () => {
     setIsBenchmarking(true);
     setBenchStep(1);
@@ -666,12 +671,12 @@ function App() {
       setBenchStep(5);
       setIsBenchmarking(false);
       setBenchStats({
-        time: "0.235s",
-        throughput: "4,251.8 rows/s",
-        verified: "94.6%",
+        time: "0.138s",
+        throughput: "~7,200 rows/s",
+        verified: "38.1%",
         cost: "$0.0001 / SKU"
       });
-      setNotice("High-Throughput Batch Benchmark completed in 0.235s (4,251.8 rows/sec — Scalable to 1M+ SKUs)!");
+      setNotice("Replaying last measured benchmark: 0.138s for 1,000 rows (~7,200 rows/sec, deterministic path). See README for methodology.");
     }, 1000);
   };
 
@@ -1481,7 +1486,7 @@ function App() {
                 <div>
                   <span className="eyebrow" style={{ color: "#38bdf8" }}>ENTERPRISE HIGH-THROUGHPUT ENGINE · UNILOG CX1 BATCH BENCHMARK</span>
                   <h3 style={{ margin: "4px 0 0", fontSize: 18, color: "#ffffff" }}>
-                    Sub-Second Industrial Enrichment Pipeline (4,250+ SKUs/sec)
+                    Sub-Second Industrial Enrichment Pipeline (~7,200 SKUs/sec)
                   </h3>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1549,8 +1554,8 @@ function App() {
                   <span>THROUGHPUT</span>
                   <strong>{benchStats.throughput}</strong>
                 </div>
-                <div className="benchmark-stat-item">
-                  <span>VERIFIED ACCURACY</span>
+                <div className="benchmark-stat-item" title="Fraction of all output fields matched against reference data on the full 1,000-row official dataset — not a ground-truth accuracy score.">
+                  <span>FIELD VERIFIED RATE</span>
                   <strong style={{ color: "#34d399" }}>{benchStats.verified}</strong>
                 </div>
                 <div className="benchmark-stat-item">
