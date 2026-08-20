@@ -10,7 +10,7 @@ services:
           name: specledger-postgres
           property: connectionString
       - key: CORS_ORIGINS
-        value: https://specledger-app.vercel.app
+        value: https://specledger-app.vercel.app,https://yashasm18.github.io
       - key: ENVIRONMENT
         value: production
       - key: SPECLEDGER_OBJECT_STORE
