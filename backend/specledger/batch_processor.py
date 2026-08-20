@@ -21,9 +21,9 @@ from typing import Callable
 from uuid import uuid4
 
 from .catalogue_ingestion import CatalogueBatch
-from .enrichment import enrich_batch, EnrichedBatch
+from .enrichment import enrich_batch, EnrichedBatch, EnrichedField
 from .reference_data import ReferenceStore
-from .source_discovery import discover_sources_simulated, SourceDiscoveryResult
+from .source_discovery import discover_sources_simulated, discover_sources_live_batch, SourceDiscoveryResult
 from .validation_engine import validate_batch, BatchValidationResult
 from .human_review import route_batch_for_review, ReviewQueue
 
@@ -284,6 +284,16 @@ class BatchProcessingResult:
 # Batch processor
 # ---------------------------------------------------------------------------
 
+def _field_by_role(fields: tuple[EnrichedField, ...], role: str) -> EnrichedField | None:
+    """Find an enriched field by its semantic role (e.g. "manufacturer",
+    "part_number"), not by the original CSV column name — those rarely
+    match a fixed literal like "manufacturer" in real-world data."""
+    for f in fields:
+        if f.role == role:
+            return f
+    return None
+
+
 def process_batch(
     batch: CatalogueBatch,
     store: ReferenceStore | None = None,
@@ -292,6 +302,8 @@ def process_batch(
     source_cache: SourceCache | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
     batch_id: str | None = None,
+    live_fetch: bool = False,
+    live_fetch_max_workers: int = 8,
 ) -> BatchProcessingResult:
     """Process a catalogue batch through the full enrichment pipeline.
 
@@ -305,6 +317,11 @@ def process_batch(
         source_cache: Optional shared source cache
         progress_callback: Called with (processed_count, total_count)
         batch_id: Optional explicit batch ID
+        live_fetch: If True, discover sources via real HTTP requests to
+            manufacturer domains (source_discovery.discover_sources_live)
+            instead of templated candidate generation. Off by default so
+            tests and offline dev stay fast and deterministic.
+        live_fetch_max_workers: Thread pool size for concurrent live fetches.
 
     Returns:
         Complete processing result with enrichment, validation,
@@ -324,23 +341,43 @@ def process_batch(
 
     # Step 2: Discover sources for each row (chunked)
     source_results: list[SourceDiscoveryResult] = []
+
+    live_results: dict[tuple[str, str], SourceDiscoveryResult] = {}
+    if live_fetch:
+        pairs = []
+        for enriched_row in enriched.rows:
+            mfr_field = _field_by_role(enriched_row.fields, "manufacturer")
+            pn_field = _field_by_role(enriched_row.fields, "part_number")
+            m = mfr_field.canonical_value if mfr_field and mfr_field.canonical_value else ""
+            p = pn_field.canonical_value if pn_field and pn_field.canonical_value else ""
+            if m and p:
+                pairs.append((m, p))
+        live_results = discover_sources_live_batch(pairs, max_workers=live_fetch_max_workers)
+
     for i, enriched_row in enumerate(enriched.rows):
         row_start = time.time()
-        mfr_field = enriched_row.field_map.get("manufacturer")
-        pn_field = enriched_row.field_map.get("part_number")
+        mfr_field = _field_by_role(enriched_row.fields, "manufacturer")
+        pn_field = _field_by_role(enriched_row.fields, "part_number")
         manufacturer = mfr_field.canonical_value if mfr_field and mfr_field.canonical_value else ""
         part_number = pn_field.canonical_value if pn_field and pn_field.canonical_value else ""
 
         source_lookups = 0
         if manufacturer and part_number:
-            cached = source_cache.get(manufacturer, part_number)
-            if cached:
-                source_results.append(cached)
-            else:
-                result = discover_sources_simulated(manufacturer, part_number)
-                source_cache.put(manufacturer, part_number, result)
+            if live_fetch:
+                result = live_results.get((manufacturer, part_number)) or SourceDiscoveryResult(
+                    manufacturer=manufacturer, part_number=part_number, discovery_mode="live"
+                )
                 source_results.append(result)
                 source_lookups = 1
+            else:
+                cached = source_cache.get(manufacturer, part_number)
+                if cached:
+                    source_results.append(cached)
+                else:
+                    result = discover_sources_simulated(manufacturer, part_number)
+                    source_cache.put(manufacturer, part_number, result)
+                    source_results.append(result)
+                    source_lookups = 1
 
         row_latency = (time.time() - row_start) * 1000
         metrics.record_row_latency(row_latency)

@@ -21,12 +21,16 @@ to demonstrate the workflow without network dependency.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Sequence
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
+
+logger = logging.getLogger("specledger")
 
 
 class SourceType(Enum):
@@ -440,4 +444,177 @@ def discover_sources_batch(
             result = discover_sources_simulated(manufacturer, part_number)
             seen[key] = result
             results.append(result)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Live source discovery — real HTTP fetches against manufacturer domains
+# ---------------------------------------------------------------------------
+
+_LIVE_FETCH_USER_AGENT = (
+    "Mozilla/5.0 (compatible; SpecLedgerBot/1.0; "
+    "+https://github.com/Yashasm18/specledger) enrichment research bot"
+)
+_PDF_LINK_RE = re.compile(
+    r'<a[^>]+href="([^"]+\.pdf)"[^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL
+)
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+
+
+def _strip_tags(html: str) -> str:
+    return re.sub(r"<[^>]+>", " ", html)
+
+
+def _find_datasheet_link(page_html: str, page_url: str) -> str | None:
+    """Look for a linked PDF whose href or link text suggests a datasheet/spec."""
+    for href, link_text in _PDF_LINK_RE.findall(page_html):
+        haystack = f"{href} {_strip_tags(link_text)}".lower()
+        if any(kw in haystack for kw in ("datasheet", "data-sheet", "spec", "specification")):
+            return urljoin(page_url, href)
+    return None
+
+
+def discover_sources_live(
+    manufacturer: str,
+    part_number: str,
+    timeout: float = 6.0,
+) -> SourceDiscoveryResult:
+    """Discover sources via real HTTP requests to the manufacturer's own domain(s).
+
+    Unlike discover_sources_simulated, this never fabricates evidence: a
+    product page is only marked VERIFIED if the part number actually appears
+    in the fetched page content, and rows where nothing real is found come
+    back with an empty source list rather than a plausible-looking guess.
+    """
+    import requests
+
+    result = SourceDiscoveryResult(manufacturer=manufacturer, part_number=part_number, discovery_mode="live")
+    result.search_queries = build_search_queries(manufacturer, part_number)
+
+    domains = MANUFACTURER_DOMAINS.get(manufacturer, [])
+    if not domains:
+        return result
+
+    headers = {"User-Agent": _LIVE_FETCH_USER_AGENT}
+    clean_pn = part_number.strip()
+    pn_variants = {v for v in {
+        clean_pn.lower(),
+        clean_pn.lower().replace(" ", ""),
+        clean_pn.lower().replace(" ", "-"),
+        clean_pn.lower().replace("-", ""),
+    } if v}
+
+    seen_urls: set[str] = set()
+    candidates = [u for u in build_direct_urls(manufacturer, part_number) if not (u in seen_urls or seen_urls.add(u))]
+
+    for url in candidates:
+        if is_blocked_source(url):
+            result.blocked_urls.append(url)
+            continue
+        try:
+            start = time.time()
+            resp = requests.get(url, headers=headers, timeout=timeout, allow_redirects=True)
+            latency_ms = (time.time() - start) * 1000
+        except requests.RequestException as exc:
+            logger.info("Live fetch failed for %s: %s", url, exc)
+            continue
+
+        if resp.status_code != 200:
+            continue
+        content_type = resp.headers.get("content-type", "")
+        if "text/html" not in content_type:
+            continue
+
+        page_html = resp.text[:300_000]
+        page_lower = page_html.lower()
+        pn_in_page = any(v in page_lower for v in pn_variants)
+
+        # Search/query result pages routinely echo the query string back into
+        # the page (e.g. a "searchResults":[] state blob still containing the
+        # term you searched for) — that is not evidence the product exists,
+        # just proof the search box worked. Only a direct product-page fetch
+        # that mentions the part number counts as verified.
+        final_path = urlparse(resp.url).path.lower()
+        is_search_endpoint = "search" in final_path or "q=" in resp.url.lower() or "query=" in resp.url.lower()
+        found_pn = pn_in_page and not is_search_endpoint
+
+        title_match = _TITLE_RE.search(page_html)
+        title = _strip_tags(title_match.group(1)).strip()[:200] if title_match else None
+
+        if found_pn:
+            status, confidence = SourceStatus.VERIFIED, 0.9
+        elif pn_in_page:
+            # Found on a search/query page only — real page, unconfirmed match.
+            status, confidence = SourceStatus.FETCHED, 0.2
+        else:
+            status, confidence = SourceStatus.FETCHED, 0.1
+
+        result.sources.append(DiscoveredSource(
+            url=resp.url,
+            source_type=classify_source_type(resp.url),
+            status=status,
+            manufacturer=manufacturer,
+            part_number=part_number,
+            domain=extract_domain(resp.url),
+            title=title,
+            content_hash=hashlib.sha256(page_html.encode("utf-8", errors="ignore")).hexdigest()[:16],
+            discovered_at=time.time(),
+            fetch_latency_ms=round(latency_ms, 1),
+            confidence=confidence,
+        ))
+
+        if found_pn:
+            datasheet_url = _find_datasheet_link(page_html, resp.url)
+            if datasheet_url and not is_blocked_source(datasheet_url):
+                try:
+                    pdf_start = time.time()
+                    pdf_resp = requests.get(datasheet_url, headers=headers, timeout=timeout)
+                    pdf_latency_ms = (time.time() - pdf_start) * 1000
+                    if pdf_resp.status_code == 200 and "pdf" in pdf_resp.headers.get("content-type", "").lower():
+                        result.sources.append(DiscoveredSource(
+                            url=pdf_resp.url,
+                            source_type=SourceType.SPECIFICATION_SHEET,
+                            status=SourceStatus.FETCHED,
+                            manufacturer=manufacturer,
+                            part_number=part_number,
+                            domain=extract_domain(pdf_resp.url),
+                            title=f"{manufacturer} {part_number} datasheet",
+                            content_hash=hashlib.sha256(pdf_resp.content).hexdigest()[:16],
+                            discovered_at=time.time(),
+                            fetch_latency_ms=round(pdf_latency_ms, 1),
+                            confidence=0.75,
+                        ))
+                except requests.RequestException as exc:
+                    logger.info("Datasheet fetch failed for %s: %s", datasheet_url, exc)
+            break  # A verified product page is enough; stop scanning more candidates.
+
+    return result
+
+
+def discover_sources_live_batch(
+    rows: Sequence[tuple[str, str]],
+    max_workers: int = 8,
+    timeout: float = 6.0,
+) -> dict[tuple[str, str], SourceDiscoveryResult]:
+    """Concurrently run discover_sources_live for the unique (manufacturer, part_number)
+    pairs in `rows`. Real network calls, so this runs a thread pool rather than
+    processing rows one at a time."""
+    unique_pairs = list({(m.strip(), p.strip()) for m, p in rows if m.strip() and p.strip()})
+    results: dict[tuple[str, str], SourceDiscoveryResult] = {}
+    if not unique_pairs:
+        return results
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(discover_sources_live, mfr, pn, timeout): (mfr, pn)
+            for mfr, pn in unique_pairs
+        }
+        for future in as_completed(future_map):
+            key = future_map[future]
+            try:
+                results[key] = future.result()
+            except Exception as exc:
+                logger.exception("Live source discovery failed for %s", key)
+                results[key] = SourceDiscoveryResult(manufacturer=key[0], part_number=key[1], discovery_mode="live")
+
     return results

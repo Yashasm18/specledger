@@ -259,6 +259,10 @@ async def ingest_catalogue(
     file: UploadFile = File(...),
     organization_id: str = Query(default="default", min_length=1),
     process_immediately: bool = Query(default=True, description="Process full pipeline on upload"),
+    live_fetch: bool = Query(
+        default=False,
+        description="Discover sources via real HTTP fetches to manufacturer sites instead of templated candidates. Capped at 50 rows per request.",
+    ),
 ) -> dict[str, Any]:
     """Upload a CSV/TSV/XLSX catalogue file, ingest, enrich, validate, and route."""
     filename = file.filename or "uploaded.csv"
@@ -290,6 +294,12 @@ async def ingest_catalogue(
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
+    if live_fetch and len(batch.rows) > 50:
+        raise HTTPException(
+            status_code=422,
+            detail=f"live_fetch is capped at 50 rows per request to bound real-network wall time; this file has {len(batch.rows)} rows. Disable live_fetch or split the file.",
+        )
+
     batch_id = str(uuid4())
 
     if process_immediately:
@@ -298,6 +308,7 @@ async def ingest_catalogue(
             store=_reference_store,
             source_cache=_source_cache,
             batch_id=batch_id,
+            live_fetch=live_fetch,
         )
         _batch_results[batch_id] = result
         _review_queues[batch_id] = result.review_queue

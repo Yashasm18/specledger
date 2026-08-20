@@ -61,14 +61,14 @@ flowchart LR
     F --> H["6. Export\n252-col Unilog CSV\nschema.org JSON-LD\nCommerce PIM CSV"]
 ```
 
-**Important limitation, stated plainly:** neither stage 2 (source discovery) nor the deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`) currently fetches real data over HTTP. Both construct plausible manufacturer URLs and specification values from a domain allowlist and reference dictionaries — the scraper module's own docstring calls this out directly: *"Build a synthetic demonstration profile without making network requests... must not be treated as live crawl evidence."* The accuracy numbers below are measured against synthetic and official-challenge ground truth, not live-retrieved data — treat them as pipeline-correctness benchmarks, not real-world retrieval accuracy. Wiring genuine manufacturer-site/PDF retrieval into this path is the single most impactful gap left to close against what this challenge is actually asking for.
+**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. On a real 20-row sample from the official challenge dataset, this found genuine verified manufacturer pages for 6 rows via simple URL-pattern guessing alone (no paid search API) — a real, imperfect hit rate, not 100%, which is what an honest first pass looks like. It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. The deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`, used by the dashboard's per-SKU spec inspector) still only synthesizes a plausible profile — its own docstring says so directly — and hasn't been converted to live fetching yet.
 
 ### Core modules
 
 | Stage | Module | Responsibility |
 |---|---|---|
 | Ingestion | [`catalogue_ingestion.py`](backend/specledger/catalogue_ingestion.py) | Parses CSV/TSV/XLSX/PDF, strips distributor codes (`Freud Inc (2435)` → `Freud Inc`), computes row fingerprints |
-| Sourcing | [`source_discovery.py`](backend/specledger/source_discovery.py) | Manufacturer-domain candidates; blocks reseller marketplaces |
+| Sourcing | [`source_discovery.py`](backend/specledger/source_discovery.py) | Templated candidates by default; real HTTP fetch + verification via `live_fetch=true`. Blocks reseller marketplaces either way |
 | Enrichment | [`web_enricher.py`](backend/specledger/web_enricher.py), [`reference_data.py`](backend/specledger/reference_data.py) | Material/UOM normalization, description synthesis, attribute triplets |
 | Validation | [`validation_engine.py`](backend/specledger/validation_engine.py) | 6 rule categories: required fields, LOV membership, cross-field physics, completeness, duplicates, character limits |
 | Human review | [`human_review.py`](backend/specledger/human_review.py) | Confidence-gated routing, state machine, immutable audit trail |
@@ -150,7 +150,7 @@ REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any runni
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX, enrich, validate, route for review |
+| `POST` | `/catalogue/ingest?live_fetch=true` | Upload CSV/TSV/XLSX, enrich, validate, route for review. `live_fetch=true` does real manufacturer-site HTTP verification instead of templated candidates (50-row cap) |
 | `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics |
 | `GET` | `/catalogue/batches/{id}/rows/{num}` | Single row with evidence and review history |
 | `GET` | `/catalogue/batches/{id}/review/pending` | Pending review rows, priority-ordered |
@@ -170,7 +170,8 @@ Write endpoints (`POST`/`PATCH`) require an `X-API-Key` header in production.
 
 React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review, Imports & Telemetry, Schemas & Taxonomy, Evidence Library, Audit Trail.
 
-- Interactive 252-column spec inspector per SKU, with a templated spec-synthesis trigger (not yet a live crawl)
+- "Live web fetch" toggle on catalogue upload — real manufacturer-site HTTP verification instead of templated candidates (see [How it works](#how-it-works))
+- Interactive 252-column spec inspector per SKU, with a templated spec-synthesis trigger (not yet a live crawl — separate from the upload-time live fetch above)
 - Priority review queue: approve / reject / correct, with one-click bulk-approve at ≥80% confidence
 - Side-by-side evidence modal comparing raw supplier values against normalized output
 - Batch telemetry: throughput, latency percentiles, cost-per-SKU

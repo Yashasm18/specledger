@@ -215,6 +215,7 @@ function App() {
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [liveFetchEnabled, setLiveFetchEnabled] = useState(false);
 
   // Fetch active catalogue batches on mount
   useEffect(() => {
@@ -439,15 +440,19 @@ function App() {
     const isSpreadsheet = file.name.endsWith(".csv") || file.name.endsWith(".tsv") || file.name.endsWith(".xlsx");
 
     if (isSpreadsheet) {
-      setNotice(`Ingesting catalogue ${file.name} for AI enrichment…`);
+      setNotice(
+        liveFetchEnabled
+          ? `Ingesting ${file.name} with live web fetch — real HTTP requests to manufacturer sites, capped at 50 rows…`
+          : `Ingesting catalogue ${file.name} for AI enrichment…`
+      );
       const body = new FormData();
       body.append("file", file);
 
       try {
-        const response = await apiFetch(`/catalogue/ingest?process_immediately=true`, {
-          method: "POST",
-          body,
-        });
+        const response = await apiFetch(
+          `/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}`,
+          { method: "POST", body }
+        );
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
@@ -2498,6 +2503,22 @@ function App() {
             >
               PIM
             </button>
+            <label
+              title="Discover sources via real HTTP requests to manufacturer sites instead of templated candidates. Capped at 50 rows per upload since it's genuine network I/O, not instant."
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 10, fontWeight: 600, color: liveFetchEnabled ? "#3fb950" : "#8b949e",
+                cursor: "pointer", padding: "0 8px",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={liveFetchEnabled}
+                onChange={(e) => setLiveFetchEnabled(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              Live web fetch
+            </label>
             <button
               className="primary"
               onClick={() => fileInputRef.current?.click()}
