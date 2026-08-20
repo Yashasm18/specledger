@@ -69,6 +69,8 @@ When domain guessing finds nothing (very common — the raw input's manufacturer
 
 It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. The deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`, used by the dashboard's per-SKU spec inspector) still only synthesizes a plausible profile — its own docstring says so directly — and hasn't been converted to live fetching yet.
 
+**On source breadth — manuals, videos, and beyond a manufacturer's own domain.** The architecture already models this: `SourceType` in [`source_discovery.py`](backend/specledger/source_discovery.py) classifies `PDF_DATASHEET`, `TECHNICAL_MANUAL`, `VIDEO`, and `SPECIFICATION_SHEET` as distinct source kinds, and nothing in the pipeline assumes the source is a manufacturer's own website specifically — only that it isn't a blocked marketplace (see `BLOCKED_DOMAINS`). What's real today is HTML product pages and PDF datasheets, with the PDF path now reading actual text out of the file (previous paragraph) rather than just linking to it. Video transcription and non-manufacturer third-party sources (review sites, forums, social) are anticipated in the type system but not implemented — stated here directly rather than left ambiguous.
+
 ### Core modules
 
 | Stage | Module | Responsibility |
@@ -107,6 +109,17 @@ Reproduce the numbers below yourself:
 .venv/bin/python -m pytest tests/test_evaluator.py -v        # self-generated 200-row regression benchmark
 .venv/bin/python -m pytest tests/test_unilog_pipeline.py -v  # official 1,000-row dataset, structural checks
 ```
+
+**External sources and services** — everything the enrichment pipeline reaches outside this repo, so the provenance of every number above is traceable:
+
+| Source | Used for | Provenance |
+|---|---|---|
+| [Serper.dev](https://serper.dev) | Real Google search results, `live_fetch`'s fallback manufacturer-resolution step (§[How it works](#how-it-works)) | Third-party search API, not affiliated with Unilog |
+| Manufacturer's own website (dynamic — resolved per-row at request time via `MANUFACTURER_DOMAINS` in [`source_discovery.py`](backend/specledger/source_discovery.py)) | Real HTTP-fetched product pages and PDF datasheets under `live_fetch=true` | Live, not archived — a re-run may see updated manufacturer content |
+| `MANUFACTURER_DOMAINS` registry itself (~20 manufacturers) | Maps a canonical manufacturer name to its known official domain(s), so `live_fetch` knows where to look | **Self-curated by us**, not sourced from any official Unilog manufacturer/brand list — the Solution Guide references a much larger one, but it was never made available to participants; ours was built by hand from public manufacturer websites |
+| [PyMuPDF](https://pymupdf.readthedocs.io/) (`fitz`) | Real text extraction from fetched manufacturer PDF datasheets | Open-source library, AGPL-3.0 (with a commercial option from Artifex) — used here as a hackathon prototype dependency |
+
+Nothing in the enrichment path reads from a private or paywalled dataset. If you re-run this against your own catalogue, the only outbound calls are to Serper.dev (optional, requires your own `SERPER_API_KEY`) and whatever manufacturer domains your data resolves to.
 
 ---
 
@@ -204,9 +217,14 @@ cd frontend
 npm install
 npm run dev   # http://localhost:5174
 
-# Tests
+# Tests — requires requirements-dev.txt too (pytest, pylint, and test-only deps)
+pip install -r requirements-dev.txt
 .venv/bin/python -m pytest tests/ -v   # 246 passed, 1 skipped
 ```
+
+Verified against a clean `git clone` on 2026-08-20: install → boot → test all reproduce exactly as documented, including the SQLite fallback (`{"status":"ok","database":"sqlite"}` on `/health` with no `DATABASE_URL` set).
+
+**To run the full pipeline against your own dataset** rather than the bundled Unilog sample: `POST /catalogue/ingest` with your CSV/TSV/XLSX (see [API reference](#api-reference)) — the pipeline makes no assumption about column names beyond the keyword-based role detection in [`enrichment.py`](backend/specledger/enrichment.py)'s `detect_role()`.
 
 Without `DATABASE_URL` set, the backend falls back to local SQLite/in-memory storage automatically — no external services required for local dev.
 
