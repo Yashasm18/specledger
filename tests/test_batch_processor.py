@@ -139,15 +139,18 @@ class BatchProcessingTests(unittest.TestCase):
         assert result.metrics.processed_rows == 1
         assert result.metrics.elapsed_seconds > 0
 
-    def test_process_batch_produces_cost(self) -> None:
+    def test_process_batch_deterministic_path_is_free(self) -> None:
+        # The default (non-live_fetch) path makes zero external API calls —
+        # simulated source discovery and enrichment are both local, so the
+        # real cost is genuinely $0, not an estimated placeholder.
         batch = normalize_rows("test.csv", [
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-1"},
             {"Manufacturer": "Emerson", "Part Number": "V-2"},
         ])
         result = process_batch(batch, self.store)
         assert result.cost.total_rows == 2
-        assert result.cost.total_cost > 0
-        assert result.cost.projected_monthly_cost_750k > 0
+        assert result.cost.total_cost == 0
+        assert result.cost.projected_monthly_cost_750k == 0
 
     def test_process_batch_discovers_sources(self) -> None:
         batch = normalize_rows("test.csv", [

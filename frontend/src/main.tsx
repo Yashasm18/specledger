@@ -235,7 +235,7 @@ function App() {
     time: "0.138s",
     throughput: "~7,200 rows/s",
     verified: "38.1%",
-    cost: "$0.0001 / SKU"
+    cost: "$0 (no paid API calls)"
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -674,7 +674,7 @@ function App() {
         time: "0.138s",
         throughput: "~7,200 rows/s",
         verified: "38.1%",
-        cost: "$0.0001 / SKU"
+        cost: "$0 (no paid API calls)"
       });
       setNotice("Replaying last measured benchmark: 0.138s for 1,000 rows (~7,200 rows/sec, deterministic path). See README for methodology.");
     }, 1000);
@@ -1025,10 +1025,10 @@ function App() {
                 <strong>94.64<span className="percent">%</span></strong>
                 <small className="up">Self-generated 200-row set</small>
               </article>
-              <article>
+              <article title="No LLM API is used anywhere in this pipeline — enrichment is entirely deterministic, rule-based normalization. The only real per-call cost is the optional Serper.dev search fallback under live_fetch, which this batch's average reflects when available.">
                 <span>COST PER SKU</span>
-                <strong>${activeBatch?.cost?.per_row_cost ?? "0.0001"}</strong>
-                <small className="up">Deterministic Rule + LLM Router</small>
+                <strong>{activeBatch?.cost?.average_cost_per_row != null ? `$${activeBatch.cost.average_cost_per_row}` : "$0"}</strong>
+                <small className="up">Deterministic rules only — no LLM calls</small>
               </article>
             </div>
 
@@ -1599,7 +1599,7 @@ function App() {
                   <span>FIELD VERIFIED RATE</span>
                   <strong style={{ color: "#34d399" }}>{benchStats.verified}</strong>
                 </div>
-                <div className="benchmark-stat-item">
+                <div className="benchmark-stat-item" title="This run uses the deterministic path (no live_fetch): zero external API calls, so the real cost is $0. The optional live_fetch mode adds one Serper.dev search call only when direct manufacturer-domain guessing fails — see README for real per-query pricing context. No LLM API is used anywhere in this pipeline.">
                   <span>OPERATING COST</span>
                   <strong>{benchStats.cost}</strong>
                 </div>

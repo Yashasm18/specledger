@@ -113,11 +113,19 @@ class CostEstimate:
 
 @dataclass
 class CostTracker:
-    """Tracks estimated cost per row and per batch."""
+    """Tracks real per-row cost. Deterministic enrichment and simulated
+    (non-live_fetch) source discovery genuinely cost $0 — no external API
+    call happens in either. `cost_per_source_lookup` is an illustrative
+    estimate for the ONE real paid dependency in this pipeline (Serper.dev
+    search, used only under live_fetch when direct domain-guessing finds
+    nothing), loosely informed by SERP-API pricing in that range — not a
+    live billing integration. `cost_per_llm_call` exists for completeness
+    but is always $0 in practice: this pipeline makes zero LLM API calls.
+    """
     # Cost parameters (USD)
-    cost_per_source_lookup: float = 0.001  # ~$1 per 1000 lookups
-    cost_per_llm_call: float = 0.005  # ~$5 per 1000 calls
-    cost_per_enrichment: float = 0.0001  # ~$0.10 per 1000 rows
+    cost_per_source_lookup: float = 0.001  # illustrative estimate, live_fetch search fallback only
+    cost_per_llm_call: float = 0.005  # unused — no LLM calls anywhere in this pipeline
+    cost_per_enrichment: float = 0.0  # deterministic step, no external call — genuinely free
     total_rows: int = 0
     total_cost: float = 0.0
     _row_costs: list[CostEstimate] = field(default_factory=list)
@@ -363,14 +371,19 @@ def process_batch(
         manufacturer = mfr_field.canonical_value if mfr_field and mfr_field.canonical_value else ""
         part_number = pn_field.canonical_value if pn_field and pn_field.canonical_value else ""
 
-        source_lookups = 0
+        # Cost tracking only counts real network calls (live_fetch). The
+        # default simulated path constructs candidate URLs locally with no
+        # HTTP request at all, so it has a genuine $0 cost — charging it the
+        # same estimated per-lookup rate as a real API call would overstate
+        # cost for the deterministic path this dashboard benchmarks by default.
+        billable_lookups = 0
         if manufacturer and part_number:
             if live_fetch:
                 result = live_results.get((manufacturer, part_number)) or SourceDiscoveryResult(
                     manufacturer=manufacturer, part_number=part_number, discovery_mode="live"
                 )
                 source_results.append(result)
-                source_lookups = 1
+                billable_lookups = 1
             else:
                 cached = source_cache.get(manufacturer, part_number)
                 if cached:
@@ -379,11 +392,10 @@ def process_batch(
                     result = discover_sources_simulated(manufacturer, part_number)
                     source_cache.put(manufacturer, part_number, result)
                     source_results.append(result)
-                    source_lookups = 1
 
         row_latency = (time.time() - row_start) * 1000
         metrics.record_row_latency(row_latency)
-        cost_tracker.record_row(source_lookups=source_lookups)
+        cost_tracker.record_row(source_lookups=billable_lookups)
 
         if progress_callback:
             progress_callback(i + 1, batch.row_count)
