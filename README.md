@@ -273,7 +273,7 @@ specledger/
 ├── frontend/                      # React + Vite dashboard
 ├── migrations/                    # Postgres schema migrations
 ├── tests/                         # 247 backend tests + 6 frontend tests
-├── Dockerfile, render.yaml        # Container & deploy config
+├── Dockerfile                      # Railway deploy config
 └── .github/workflows/             # CI + GitHub Pages deploy
 ```
 
