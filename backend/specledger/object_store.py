@@ -10,7 +10,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import logging
 import os
+
+logger = logging.getLogger("specledger")
 
 
 class LocalObjectStore:
@@ -93,5 +96,11 @@ def build_object_store():
     supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if supabase_url and supabase_key:
         bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "specledger-artifacts")
-        return SupabaseObjectStore(supabase_url, supabase_key, bucket)
+        try:
+            return SupabaseObjectStore(supabase_url, supabase_key, bucket)
+        except Exception:
+            logger.exception(
+                "Supabase object store init failed; falling back to local disk "
+                "(uploaded artifacts won't survive a restart until this is fixed)"
+            )
     return LocalObjectStore(os.getenv("SPECLEDGER_OBJECT_STORE", "object-data"))
