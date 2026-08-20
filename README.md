@@ -13,7 +13,7 @@
 
 > **Live demo:** [yashasm18.github.io/specledger](https://yashasm18.github.io/specledger/)
 >
-> **UniHack 2026 submission** — transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence, delivered in Unilog's official **252-column template format**.
+> **UniHack 2026 submission** — transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence, delivered in Unilog's official **252-column template format**, targeting the growth from **150,000 to 750,000 enriched SKUs/month at the same operational capacity** Unilog named as their goal.
 
 ---
 
@@ -29,6 +29,8 @@ Industrial B2B commerce platforms (like Unilog CX1 PIM) process hundreds of thou
 Unilog's platform doesn't perform product enrichment itself — that work is largely manual today, done by distributors and their teams rather than automated. That gap is the actual problem this challenge is about, not a hypothetical one: incomplete or inconsistent product data directly degrades on-site search relevance, drives customer complaints and returns, and burns operational hours that could be spent elsewhere. AI-assisted automation is the lever Unilog is specifically looking for — not to replace human judgment on ambiguous cases, but to remove the repetitive, structured portion of enrichment so people only spend time where it actually needs a human call.
 
 **SpecLedger** cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels — as a hackathon prototype, not a production data-verification service. It's built around that division of labor: deterministic, auditable automation for the ~85–90% of fields that have one clearly correct answer, and a fast human review queue for the remainder.
+
+**Why 150K → 750K SKUs/month is a review-queue problem, not a compute problem.** Unilog's stated target is a 5x volume increase at the same operational capacity — i.e. without proportionally growing headcount. Raw processing speed was never the bottleneck: SpecLedger's deterministic transformations already run at ~4,250 rows/sec locally (see [Benchmark results](#benchmark-results)), far beyond what any realistic monthly SKU volume needs. The real constraint is how many rows require a *person*. Under today's largely manual process, that's close to 100%. At SpecLedger's ~80% confidence auto-approval threshold, it's roughly 10–15% — around 75,000–112,500 of 750,000 monthly rows needing a human decision, down from near-total manual touch today. That reduction in human-touched volume, not faster computation, is what makes 5x scale achievable without 5x headcount.
 
 - **Provenance-first output.** Deterministic transformations retain source file, row, and column lineage. Generated source candidates are explicitly marked unverified, not substitutes for fetched evidence — see [How it works](#how-it-works) for what "generated" means here.
 - **Strict marketplace prohibition.** Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and other resellers are blocked; enrichment data is scoped to manufacturer-authoritative domains only.
@@ -59,7 +61,7 @@ flowchart LR
     F --> H["6. Export\n252-col Unilog CSV\nschema.org JSON-LD\nCommerce PIM CSV"]
 ```
 
-**Important limitation, stated plainly:** stage 2 (source discovery) currently runs in *simulated candidate mode* — it constructs plausible manufacturer URLs from a domain allowlist but does not fetch or verify them over HTTP. A separate module, [`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), implements real web/PDF extraction against 100+ manufacturer registries and is exposed via `POST /catalogue/scraper/extract`, but it is not yet the default path for batch ingestion. The accuracy numbers below are measured against synthetic and official-challenge ground truth, not live-scraped data — treat them as pipeline-correctness benchmarks, not real-world retrieval accuracy.
+**Important limitation, stated plainly:** neither stage 2 (source discovery) nor the deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`) currently fetches real data over HTTP. Both construct plausible manufacturer URLs and specification values from a domain allowlist and reference dictionaries — the scraper module's own docstring calls this out directly: *"Build a synthetic demonstration profile without making network requests... must not be treated as live crawl evidence."* The accuracy numbers below are measured against synthetic and official-challenge ground truth, not live-retrieved data — treat them as pipeline-correctness benchmarks, not real-world retrieval accuracy. Wiring genuine manufacturer-site/PDF retrieval into this path is the single most impactful gap left to close against what this challenge is actually asking for.
 
 ### Core modules
 
@@ -71,7 +73,7 @@ flowchart LR
 | Validation | [`validation_engine.py`](backend/specledger/validation_engine.py) | 6 rule categories: required fields, LOV membership, cross-field physics, completeness, duplicates, character limits |
 | Human review | [`human_review.py`](backend/specledger/human_review.py) | Confidence-gated routing, state machine, immutable audit trail |
 | Export | [`export.py`](backend/specledger/export.py), [`unilog_exporter.py`](backend/specledger/unilog_exporter.py) | 252-column Unilog CSV, schema.org JSON-LD, Commerce CSV, audit JSON |
-| Deep extraction | [`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py) | Real web/PDF crawl engine (100+ manufacturer registries), available on demand via `/catalogue/scraper/extract` |
+| Deep extraction (templated) | [`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py) | Synthesizes a plausible spec profile from a 100+ manufacturer domain registry — no live fetch yet; see limitation note above |
 
 ### Reference data
 - 20+ canonical manufacturers, 14 brands, 18 product categories
@@ -155,7 +157,7 @@ REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any runni
 | `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Approve / reject / correct a row |
 | `GET` | `/catalogue/batches/{id}/sources` | Discovered manufacturer sources |
 | `GET` | `/catalogue/batches/{id}/export?format=...` | Export as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, `audit` |
-| `POST` | `/catalogue/scraper/extract` | Real web/PDF extraction for a given part number |
+| `POST` | `/catalogue/scraper/extract` | Templated spec-profile synthesis for a given part number (no live fetch yet) |
 | `GET` | `/catalogue/scraper/status` | Scraper telemetry, registered portals, firewall rules |
 | `POST` | `/catalogue/batches/{id}/evaluate` | Ground-truth evaluation against a reference CSV |
 | `GET` | `/catalogue/reference/manufacturers`, `/brands` | Canonical reference data |
@@ -168,7 +170,7 @@ Write endpoints (`POST`/`PATCH`) require an `X-API-Key` header in production.
 
 React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review, Imports & Telemetry, Schemas & Taxonomy, Evidence Library, Audit Trail.
 
-- Interactive 252-column spec inspector per SKU, with a live web/PDF crawl trigger
+- Interactive 252-column spec inspector per SKU, with a templated spec-synthesis trigger (not yet a live crawl)
 - Priority review queue: approve / reject / correct, with one-click bulk-approve at ≥80% confidence
 - Side-by-side evidence modal comparing raw supplier values against normalized output
 - Batch telemetry: throughput, latency percentiles, cost-per-SKU
@@ -210,7 +212,7 @@ specledger/
 │   ├── catalogue_api.py          # Catalogue ingestion/review/export router
 │   ├── catalogue_ingestion.py    # Parsing & normalization primitives
 │   ├── source_discovery.py       # Manufacturer source discovery & marketplace blocker
-│   ├── pdf_and_web_scraper.py    # Real web/PDF extraction engine
+│   ├── pdf_and_web_scraper.py    # Templated spec-profile synthesis (no live fetch yet)
 │   ├── web_enricher.py           # Domain-agnostic enrichment & taxonomy
 │   ├── validation_engine.py      # Deterministic validation rules
 │   ├── human_review.py           # Review queue, state machine, audit trail
