@@ -209,6 +209,13 @@ MANUFACTURER_DOMAINS: dict[str, list[str]] = {
     "Ansell": ["ansell.com"],
 }
 
+# Reverse lookup: registered domain -> canonical manufacturer name, built
+# once at import time. Used to recognize a manufacturer from a search result
+# link even when the raw input's manufacturer/distributor field gave no
+# usable domain.
+_DOMAIN_TO_MANUFACTURER: dict[str, str] = {
+    domain: name for name, domains in MANUFACTURER_DOMAINS.items() for domain in domains
+}
 
 
 @dataclass(frozen=True)
@@ -251,6 +258,12 @@ class SourceDiscoveryResult:
     blocked_urls: list[str] = field(default_factory=list)
     search_queries: list[str] = field(default_factory=list)
     discovery_mode: str = "simulated"
+    # Set when the raw manufacturer/distributor field didn't map to a known
+    # domain, but a real web search identified the actual manufacturer via a
+    # search-result link matching a known manufacturer domain. This is the
+    # real manufacturer name — different from `manufacturer` above, which is
+    # whatever the raw input said (often a distributor, not a manufacturer).
+    resolved_manufacturer: str | None = None
 
     @property
     def source_count(self) -> int:
@@ -276,6 +289,7 @@ class SourceDiscoveryResult:
             "blocked_urls": self.blocked_urls,
             "search_queries": self.search_queries,
             "discovery_mode": self.discovery_mode,
+            "resolved_manufacturer": self.resolved_manufacturer,
         }
 
 
@@ -474,38 +488,73 @@ def _find_datasheet_link(page_html: str, page_url: str) -> str | None:
     return None
 
 
-def discover_sources_live(
-    manufacturer: str,
-    part_number: str,
-    timeout: float = 6.0,
-) -> SourceDiscoveryResult:
-    """Discover sources via real HTTP requests to the manufacturer's own domain(s).
+_SERPER_SEARCH_URL = "https://google.serper.dev/search"
 
-    Unlike discover_sources_simulated, this never fabricates evidence: a
-    product page is only marked VERIFIED if the part number actually appears
-    in the fetched page content, and rows where nothing real is found come
-    back with an empty source list rather than a plausible-looking guess.
+
+def search_manufacturer(part_number: str, description: str = "", timeout: float = 8.0) -> tuple[str, str] | None:
+    """Identify the real manufacturer for a part via a real web search, for
+    the common case where the raw input's manufacturer field is actually a
+    distributor (e.g. "Appliance Dealers Cooperative") rather than the true
+    manufacturer, so direct-domain URL guessing has nothing to guess against.
+
+    Requires SERPER_API_KEY (https://serper.dev). Only returns a result when
+    an organic search hit links to a domain already in MANUFACTURER_DOMAINS —
+    this never invents a manufacturer name from search snippet text, it only
+    recognizes domains we already treat as authoritative. Returns None (not
+    a guess) when no such match is found or the API key isn't configured.
     """
+    import os
     import requests
 
-    result = SourceDiscoveryResult(manufacturer=manufacturer, part_number=part_number, discovery_mode="live")
-    result.search_queries = build_search_queries(manufacturer, part_number)
+    api_key = os.getenv("SERPER_API_KEY")
+    if not api_key:
+        return None
 
-    domains = MANUFACTURER_DOMAINS.get(manufacturer, [])
-    if not domains:
-        return result
+    query = f"{part_number} {description}".strip()
+    try:
+        resp = requests.post(
+            _SERPER_SEARCH_URL,
+            json={"q": query, "num": 10},
+            headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        logger.info("Manufacturer search failed for %r: %s", query, exc)
+        return None
 
-    headers = {"User-Agent": _LIVE_FETCH_USER_AGENT}
-    clean_pn = part_number.strip()
-    pn_variants = {v for v in {
-        clean_pn.lower(),
-        clean_pn.lower().replace(" ", ""),
-        clean_pn.lower().replace(" ", "-"),
-        clean_pn.lower().replace("-", ""),
-    } if v}
+    if resp.status_code != 200:
+        return None
 
-    seen_urls: set[str] = set()
-    candidates = [u for u in build_direct_urls(manufacturer, part_number) if not (u in seen_urls or seen_urls.add(u))]
+    for item in resp.json().get("organic", []):
+        url = item.get("link", "")
+        if not url or is_blocked_source(url):
+            continue
+        domain = extract_domain(url)
+        manufacturer_name = _DOMAIN_TO_MANUFACTURER.get(domain)
+        if manufacturer_name is None:
+            # Also match subdomains of a known domain (e.g. shop.acme.com).
+            for known_domain, name in _DOMAIN_TO_MANUFACTURER.items():
+                if domain.endswith("." + known_domain):
+                    manufacturer_name = name
+                    break
+        if manufacturer_name:
+            return manufacturer_name, url
+    return None
+
+
+def _fetch_and_verify(
+    candidates: list[str],
+    manufacturer: str,
+    part_number: str,
+    pn_variants: set[str],
+    headers: dict[str, str],
+    timeout: float,
+    result: SourceDiscoveryResult,
+) -> bool:
+    """Fetch each candidate URL, append real DiscoveredSource records to
+    `result`, and return True as soon as one is genuinely VERIFIED (part
+    number found on a real, non-search page)."""
+    import requests
 
     for url in candidates:
         if is_blocked_source(url):
@@ -586,28 +635,78 @@ def discover_sources_live(
                         ))
                 except requests.RequestException as exc:
                     logger.info("Datasheet fetch failed for %s: %s", datasheet_url, exc)
-            break  # A verified product page is enough; stop scanning more candidates.
+            return True  # A verified product page is enough; stop scanning more candidates.
 
+    return False
+
+
+def discover_sources_live(
+    manufacturer: str,
+    part_number: str,
+    description: str = "",
+    timeout: float = 6.0,
+) -> SourceDiscoveryResult:
+    """Discover sources via real HTTP requests to the manufacturer's own domain(s).
+
+    Unlike discover_sources_simulated, this never fabricates evidence: a
+    product page is only marked VERIFIED if the part number actually appears
+    in the fetched page content, and rows where nothing real is found come
+    back with an empty source list rather than a plausible-looking guess.
+    """
+    result = SourceDiscoveryResult(manufacturer=manufacturer, part_number=part_number, discovery_mode="live")
+    result.search_queries = build_search_queries(manufacturer, part_number)
+
+    headers = {"User-Agent": _LIVE_FETCH_USER_AGENT}
+    clean_pn = part_number.strip()
+    pn_variants = {v for v in {
+        clean_pn.lower(),
+        clean_pn.lower().replace(" ", ""),
+        clean_pn.lower().replace(" ", "-"),
+        clean_pn.lower().replace("-", ""),
+    } if v}
+
+    domains = MANUFACTURER_DOMAINS.get(manufacturer, [])
+    if domains:
+        candidates = build_direct_urls(manufacturer, part_number)
+        verified = _fetch_and_verify(candidates, manufacturer, part_number, pn_variants, headers, timeout, result)
+        if verified:
+            return result
+
+    # Either the raw manufacturer/distributor field had no known domain, or
+    # guessing standard URL patterns against it didn't turn up a verified
+    # match (e.g. "Appliance Dealers Cooperative" maps to 3 real brand
+    # domains, but none of them use the generic /product/{sku} URL shape).
+    # Fall back to a real web search to identify — and directly link to —
+    # the actual manufacturer page, if SERPER_API_KEY is configured.
+    found = search_manufacturer(part_number, description, timeout)
+    if found is None:
+        return result
+    resolved_name, search_hit_url = found
+    result.resolved_manufacturer = resolved_name
+    search_candidates = [search_hit_url] + build_direct_urls(resolved_name, part_number)
+    _fetch_and_verify(search_candidates, manufacturer, part_number, pn_variants, headers, timeout, result)
     return result
 
 
 def discover_sources_live_batch(
-    rows: Sequence[tuple[str, str]],
+    rows: Sequence[tuple[str, str, str]],
     max_workers: int = 8,
     timeout: float = 6.0,
 ) -> dict[tuple[str, str], SourceDiscoveryResult]:
-    """Concurrently run discover_sources_live for the unique (manufacturer, part_number)
-    pairs in `rows`. Real network calls, so this runs a thread pool rather than
-    processing rows one at a time."""
-    unique_pairs = list({(m.strip(), p.strip()) for m, p in rows if m.strip() and p.strip()})
+    """Concurrently run discover_sources_live for the unique
+    (manufacturer, part_number, description) triples in `rows`. Real network
+    calls, so this runs a thread pool rather than processing rows one at a
+    time. Keyed by (manufacturer, part_number) since that's what callers
+    look results up by; description is only used to build the search query."""
+    unique_triples = list({(m.strip(), p.strip(), d.strip()) for m, p, d in rows if m.strip() and p.strip()})
     results: dict[tuple[str, str], SourceDiscoveryResult] = {}
-    if not unique_pairs:
+    if not unique_triples:
         return results
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_map = {
-            executor.submit(discover_sources_live, mfr, pn, timeout): (mfr, pn)
-            for mfr, pn in unique_pairs
+            executor.submit(discover_sources_live, mfr, pn, desc, timeout): (mfr, pn)
+            for mfr, pn, desc in unique_triples
         }
         for future in as_completed(future_map):
             key = future_map[future]

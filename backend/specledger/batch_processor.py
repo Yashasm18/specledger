@@ -344,15 +344,17 @@ def process_batch(
 
     live_results: dict[tuple[str, str], SourceDiscoveryResult] = {}
     if live_fetch:
-        pairs = []
+        triples = []
         for enriched_row in enriched.rows:
             mfr_field = _field_by_role(enriched_row.fields, "manufacturer")
             pn_field = _field_by_role(enriched_row.fields, "part_number")
+            desc_field = _field_by_role(enriched_row.fields, "description")
             m = mfr_field.canonical_value if mfr_field and mfr_field.canonical_value else ""
             p = pn_field.canonical_value if pn_field and pn_field.canonical_value else ""
+            d = desc_field.canonical_value if desc_field and desc_field.canonical_value else ""
             if m and p:
-                pairs.append((m, p))
-        live_results = discover_sources_live_batch(pairs, max_workers=live_fetch_max_workers)
+                triples.append((m, p, d))
+        live_results = discover_sources_live_batch(triples, max_workers=live_fetch_max_workers)
 
     for i, enriched_row in enumerate(enriched.rows):
         row_start = time.time()
