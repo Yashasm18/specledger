@@ -6,9 +6,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: specledger-postgres
-          property: connectionString
+        sync: false
       - key: CORS_ORIGINS
         value: https://specledger-app.vercel.app,https://yashasm18.github.io
       - key: ENVIRONMENT
@@ -16,7 +14,7 @@ services:
       - key: SPECLEDGER_OBJECT_STORE
         value: /tmp/specledger-object-data
 
-databases:
-  - name: specledger-postgres
-    databaseName: specledger
-    user: specledger
+# DATABASE_URL points at an external Supabase Postgres instance (set via the
+# Render dashboard, not committed here — see "sync: false" above). Render's
+# own managed Postgres add-on requires a card on file; Supabase's free tier
+# does not.
