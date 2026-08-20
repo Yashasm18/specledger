@@ -103,14 +103,14 @@ class InMemoryCatalogueStore(CatalogueStore):
 
 
 class PostgresCatalogueStore(CatalogueStore):
-    """PostgreSQL catalogue store using psycopg2 and migration 007 schema."""
+    """PostgreSQL catalogue store using psycopg (v3) and migration 007 schema."""
 
     def __init__(self, connection_url: str) -> None:
         self.connection_url = connection_url
 
     def _get_connection(self) -> Any:
-        import psycopg2
-        return psycopg2.connect(self.connection_url)
+        import psycopg
+        return psycopg.connect(self.connection_url)
 
     def save_batch(self, batch_data: dict[str, Any]) -> str:
         org_id = batch_data.get("organization_id", "default")
