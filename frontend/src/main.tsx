@@ -177,102 +177,9 @@ function App() {
     if (viaOAuth) {
       setNotice(`SSO Authenticated via ${viaOAuth} as ${p.name} (${p.badge}) · ${p.org}`);
     } else {
-      setNotice(`Active Persona switched to ${p.name} (${p.badge}) · ${p.org}`);
+      setNotice(`Switched to ${p.name} (${p.badge}) · ${p.org}`);
     }
   };
-
-  // Real Google & GitHub OAuth Handlers
-  const handleGoogleOAuth = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      const customId = window.prompt(
-        "Enter your Google Cloud OAuth Client ID (or click OK to proceed with instant Demo SSO):",
-        ""
-      );
-      if (customId && customId.trim()) {
-        const redirectUri = window.location.origin;
-        const scope = encodeURIComponent("openid email profile");
-        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-          customId.trim()
-        )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
-        return;
-      }
-      handleSelectPersona("super_admin", "Google Workspace SSO (Instant)");
-      return;
-    }
-    const redirectUri = window.location.origin;
-    const scope = encodeURIComponent("openid email profile");
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
-      clientId
-    )}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
-  };
-
-  const handleGitHubOAuth = () => {
-    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-    if (!clientId) {
-      const customId = window.prompt(
-        "Enter your GitHub OAuth App Client ID (or click OK to proceed with instant Demo SSO):",
-        ""
-      );
-      if (customId && customId.trim()) {
-        const redirectUri = window.location.origin;
-        window.location.href = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
-          customId.trim()
-        )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
-        return;
-      }
-      handleSelectPersona("super_admin", "GitHub Enterprise SSO (Instant)");
-      return;
-    }
-    const redirectUri = window.location.origin;
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
-      clientId
-    )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user,user:email`;
-  };
-
-  // Google OAuth Token Listener on Redirect Return
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token=")) {
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get("access_token");
-      if (accessToken) {
-        fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        })
-          .then((r) => r.json())
-          .then((profile) => {
-            if (profile && profile.name) {
-              const googlePersona: EnterprisePersona = {
-                id: "super_admin",
-                name: profile.name,
-                shortName: profile.given_name || profile.name.split(" ")[0] || "User",
-                role: "Authenticated Enterprise User",
-                badge: "Google SSO",
-                org: profile.email || "Google Workspace",
-                avatar: profile.name.charAt(0).toUpperCase(),
-                avatarBg: "linear-gradient(135deg, #4285F4, #34A853)",
-                accentColor: "#4285F4",
-                permissions: [
-                  "Authenticated Multi-Tenant Pipeline Control",
-                  "Synthetic profile generation with explicit provenance labels",
-                  "Direct 252-Column & Commerce PIM Exports",
-                  "Cryptographic Audit Ledger & Review Decisions",
-                ],
-                description: `Signed in via Google OAuth (${profile.email}). Full enterprise access granted.`,
-                recommendedWorkflow: "Imports & Telemetry (⌘ 4) or Review Queue (⌘ 3)",
-              };
-              ENTERPRISE_PERSONAS.google_user = googlePersona;
-              handleSelectPersona("google_user", `Google OAuth (${profile.email})`);
-              window.history.replaceState(null, "", window.location.pathname);
-            }
-          })
-          .catch((err) => {
-            console.error("Google userinfo fetch error:", err);
-          });
-      }
-    }
-  }, []);
 
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [batchList, setBatchList] = useState<any[]>([]);
@@ -2428,7 +2335,7 @@ function App() {
             className="user"
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{ cursor: "pointer", position: "relative" }}
-            title="Click to view profile or switch persona"
+            title="Click to view profile or switch role"
           >
             <strong style={{ background: currentPersona.avatarBg, color: "#fff" }}>{currentPersona.avatar}</strong>
             <span>
@@ -2457,10 +2364,10 @@ function App() {
                   <div style={{ fontSize: 10, fontWeight: 800, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.05em" }}>Active Role & Organization</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#f0f6fc", marginTop: 2 }}>{currentPersona.name}</div>
                   <div style={{ fontSize: 11, color: currentPersona.accentColor, fontWeight: 600 }}>{currentPersona.role}</div>
-                  <div style={{ fontSize: 10, color: "#8b949e", marginTop: 3 }}>🏢 {currentPersona.org}</div>
+                  <div style={{ fontSize: 10, color: "#8b949e", marginTop: 3 }}>{currentPersona.org}</div>
                 </div>
 
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 4px 6px" }}>Switch Persona (1-Click)</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 4px 6px" }}>Switch Role</div>
                 {Object.values(ENTERPRISE_PERSONAS).map((p) => (
                   <button
                     key={p.id}
@@ -2513,7 +2420,7 @@ function App() {
                       textAlign: "center"
                     }}
                   >
-                    🔑 Auth Modal
+                    Switch Role
                   </button>
                   <button
                     onClick={() => {
@@ -2569,11 +2476,11 @@ function App() {
           <div className="header-actions">
             <button
               className="icon"
-              title="Switch Persona / Open SSO Authentication"
+              title="Switch role"
               onClick={() => setShowLoginModal(true)}
               style={{ padding: "0 10px", width: "auto", gap: 6, fontSize: 11, fontWeight: 600, color: "#c9d1d9" }}
             >
-              <span>👤 Switch Persona</span>
+              <span>Switch Role</span>
             </button>
             <button
               className="icon"
@@ -2646,8 +2553,6 @@ function App() {
               }
               .sl-role-row { transition: background 0.12s ease; }
               .sl-role-row:hover { background: rgba(255,255,255,0.04) !important; }
-              .sl-sso-btn { transition: all 0.12s ease; }
-              .sl-sso-btn:hover { background: #21262d !important; border-color: #484f58 !important; }
               .sl-skip-link { transition: color 0.12s ease; }
               .sl-skip-link:hover { color: #c9d1d9 !important; }
             `}</style>
@@ -2776,57 +2681,18 @@ function App() {
             <div style={{ height: 1, background: "rgba(240,246,252,0.06)" }} />
 
             {/* Footer */}
-            <div style={{ padding: "16px 28px 20px" }}>
-              {/* SSO Buttons */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                <button
-                  className="sl-sso-btn"
-                  onClick={handleGoogleOAuth}
-                  style={{
-                    flex: 1, padding: "8px 12px", borderRadius: 8,
-                    background: "#0d1117",
-                    border: "1px solid rgba(240,246,252,0.08)",
-                    color: "#c9d1d9", fontSize: 12, fontWeight: 500,
-                    cursor: "pointer", display: "flex",
-                    alignItems: "center", justifyContent: "center", gap: 8,
-                  }}
-                  title="Sign in with Google Workspace"
-                >
-                  <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#34A853" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                  Google
-                </button>
-                <button
-                  className="sl-sso-btn"
-                  onClick={handleGitHubOAuth}
-                  style={{
-                    flex: 1, padding: "8px 12px", borderRadius: 8,
-                    background: "#0d1117",
-                    border: "1px solid rgba(240,246,252,0.08)",
-                    color: "#c9d1d9", fontSize: 12, fontWeight: 500,
-                    cursor: "pointer", display: "flex",
-                    alignItems: "center", justifyContent: "center", gap: 8,
-                  }}
-                  title="Sign in with GitHub"
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="#c9d1d9"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-                  GitHub
-                </button>
-              </div>
-
-              {/* Skip link */}
-              <div style={{ textAlign: "center" }}>
-                <button
-                  className="sl-skip-link"
-                  onClick={() => handleSelectPersona("super_admin")}
-                  style={{
-                    background: "transparent", border: "none",
-                    color: "#484f58", fontSize: 12,
-                    cursor: "pointer", fontWeight: 400,
-                  }}
-                >
-                  Skip and continue as Admin →
-                </button>
-              </div>
+            <div style={{ padding: "16px 28px 20px", textAlign: "center" }}>
+              <button
+                className="sl-skip-link"
+                onClick={() => handleSelectPersona("super_admin")}
+                style={{
+                  background: "transparent", border: "none",
+                  color: "#7d8590", fontSize: 12,
+                  cursor: "pointer", fontWeight: 500,
+                }}
+              >
+                Continue as Admin →
+              </button>
             </div>
           </div>
         </div>
