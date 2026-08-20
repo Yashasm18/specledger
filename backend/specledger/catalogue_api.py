@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from .auth import require_api_key
 from .rate_limit import limiter
-from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows
+from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows, SourceRow
 from .enrichment import enrich_batch
 from .evaluator import evaluate, load_ground_truth_csv
 from .reference_data import ReferenceStore
@@ -33,7 +33,7 @@ from .uom import normalize_uom, normalize_material
 from .validation_engine import validate_batch
 from .human_review import (
     route_batch_for_review, approve_row, reject_row, correct_row,
-    ReviewQueue, ReviewError,
+    ReviewQueue, ReviewError, ReviewState,
 )
 from .batch_processor import process_batch, BatchProcessingResult, SourceCache
 from .export import (
@@ -143,6 +143,60 @@ def _resolve_batch_id(batch_id: str, organization_id: str = "default") -> str:
         if resolved:
             return resolved
     return batch_id
+
+
+def _rebuild_review_queue(batch_id: str, organization_id: str = "default") -> ReviewQueue | None:
+    """Rebuild the in-memory review queue for a batch from persisted Postgres
+    state. `_review_queues`/`_batch_results` are process-local caches that
+    don't survive a redeploy, but catalogue_rows.raw_values/review_state do —
+    so re-run the deterministic enrichment/validation/routing pipeline against
+    the persisted raw values, then overlay any human review decisions already
+    recorded in Postgres so they aren't reset to their auto-routed state.
+    """
+    stored = catalogue_store.get_batch(organization_id, batch_id)
+    if not stored or not stored.get("rows"):
+        return None
+
+    source_rows = tuple(
+        SourceRow(
+            row_number=r["row_number"],
+            source_name=stored["source_name"],
+            source_fingerprint=r["source_fingerprint"],
+            values=r["raw_values"],
+        )
+        for r in stored["rows"]
+    )
+    batch = CatalogueBatch(stored["source_name"], tuple(stored["columns"]), source_rows)
+
+    result = process_batch(
+        batch=batch,
+        store=_reference_store,
+        source_cache=_source_cache,
+        batch_id=batch_id,
+    )
+    queue = result.review_queue
+
+    for r in stored["rows"]:
+        persisted_state = r.get("review_state")
+        if not persisted_state:
+            continue
+        reviewable = queue.get_row(batch_id, r["row_number"])
+        if reviewable and reviewable.state.value != persisted_state:
+            try:
+                reviewable.state = ReviewState(persisted_state)
+            except ValueError:
+                pass
+
+    _batch_results[batch_id] = result
+    _review_queues[batch_id] = queue
+    return queue
+
+
+def _get_review_queue(batch_id: str, organization_id: str = "default") -> ReviewQueue | None:
+    queue = _review_queues.get(batch_id)
+    if queue is not None:
+        return queue
+    return _rebuild_review_queue(batch_id, organization_id)
 
 
 # ---------------------------------------------------------------------------
@@ -393,7 +447,7 @@ def get_batch(batch_id: str, organization_id: str = Query(default="default")) ->
         raise HTTPException(status_code=404, detail="Batch not found")
 
     # Attach live review queue state if available
-    queue = _review_queues.get(real_id)
+    queue = _get_review_queue(real_id, organization_id)
     if queue:
         batch["review_summary"] = queue.get_batch_summary(real_id)
 
@@ -415,7 +469,7 @@ def get_batch_row(batch_id: str, row_number: int, organization_id: str = Query(d
         raise HTTPException(status_code=404, detail="Batch not found")
     for row in batch["rows"]:
         if row["row_number"] == row_number:
-            queue = _review_queues.get(real_id)
+            queue = _get_review_queue(real_id, organization_id)
             if queue:
                 reviewable = queue.get_row(real_id, row_number)
                 if reviewable:
@@ -446,7 +500,7 @@ def list_pending_review(
 ) -> dict[str, Any]:
     """List rows pending human review for a batch, ordered by priority."""
     real_id = _resolve_batch_id(batch_id, organization_id)
-    queue = _review_queues.get(real_id)
+    queue = _get_review_queue(real_id, organization_id)
     if not queue:
         return {"batch_id": real_id, "pending_rows": [], "count": 0}
 
@@ -467,12 +521,9 @@ def review_row_endpoint(
 ) -> dict[str, Any]:
     """Approve, reject, or correct a single catalogue row."""
     real_id = _resolve_batch_id(batch_id, organization_id)
-    queue = _review_queues.get(real_id)
+    queue = _get_review_queue(real_id, organization_id)
     if not queue:
-        # Reconstruct queue from batch if available
-        batch = catalogue_store.get_batch(organization_id, real_id)
-        if not batch:
-            raise HTTPException(status_code=404, detail="Batch not found")
+        raise HTTPException(status_code=404, detail="Batch not found")
 
     try:
         if payload.action == "approve":
@@ -514,6 +565,9 @@ def get_batch_sources(
     """Retrieve manufacturer source discovery results for a batch."""
     real_id = _resolve_batch_id(batch_id, organization_id)
     result = _batch_results.get(real_id)
+    if not result:
+        _get_review_queue(real_id, organization_id)
+        result = _batch_results.get(real_id)
     if not result:
         return {"batch_id": real_id, "source_count": 0, "sources": []}
 
