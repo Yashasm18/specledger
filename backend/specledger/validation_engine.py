@@ -103,13 +103,13 @@ class BatchValidationResult:
 
 # Required fields per category (canonical category name → required column keys)
 CATEGORY_REQUIRED_FIELDS: dict[str, frozenset[str]] = {
-    "Ball Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure_rating"}),
-    "Gate Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure_rating"}),
-    "Globe Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure_rating"}),
-    "Check Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure_rating"}),
+    "Ball Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure"}),
+    "Gate Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure"}),
+    "Globe Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure"}),
+    "Check Valve": frozenset({"manufacturer", "part_number", "material", "size", "pressure"}),
     "Butterfly Valve": frozenset({"manufacturer", "part_number", "material", "size"}),
     "Needle Valve": frozenset({"manufacturer", "part_number", "material", "size"}),
-    "Pressure Relief Valve": frozenset({"manufacturer", "part_number", "pressure_rating"}),
+    "Pressure Relief Valve": frozenset({"manufacturer", "part_number", "pressure"}),
     "Solenoid Valve": frozenset({"manufacturer", "part_number"}),
     "Diaphragm Valve": frozenset({"manufacturer", "part_number", "material", "size"}),
     "Centrifugal Pump": frozenset({"manufacturer", "part_number", "material"}),
@@ -134,7 +134,7 @@ FIELD_CHAR_LIMITS: dict[str, int] = {
     "description": 2000,
     "material": 200,
     "size": 50,
-    "pressure_rating": 50,
+    "pressure": 50,
     "connection_type": 100,
     "temperature_range": 100,
 }
@@ -155,7 +155,7 @@ AUTO_APPROVE_CONFIDENCE = 0.80
 def _check_required_fields(row: EnrichedRow, required: frozenset[str]) -> list[ValidationIssue]:
     """Check that required fields are present and not missing."""
     issues: list[ValidationIssue] = []
-    field_map = row.field_map
+    field_map = row.role_map
     for req_field in sorted(required):
         field = field_map.get(req_field)
         if field is None:
@@ -203,7 +203,7 @@ def _check_character_limits(row: EnrichedRow) -> list[ValidationIssue]:
     """Check that canonical values don't exceed commerce character limits."""
     issues: list[ValidationIssue] = []
     for field in row.fields:
-        limit = FIELD_CHAR_LIMITS.get(field.column)
+        limit = FIELD_CHAR_LIMITS.get(field.role)
         if limit and field.canonical_value and len(field.canonical_value) > limit:
             issues.append(ValidationIssue(
                 "CHAR_LIMIT_EXCEEDED", "error", field.column,
@@ -216,11 +216,11 @@ def _check_character_limits(row: EnrichedRow) -> list[ValidationIssue]:
 def _check_cross_field_consistency(row: EnrichedRow) -> list[ValidationIssue]:
     """Check for material ↔ pressure compatibility and other cross-field rules."""
     issues: list[ValidationIssue] = []
-    field_map = row.field_map
+    field_map = row.role_map
 
     # Material vs. pressure compatibility
     material_field = field_map.get("material")
-    pressure_field = field_map.get("pressure_rating")
+    pressure_field = field_map.get("pressure")
     if (material_field and pressure_field
             and material_field.canonical_value and pressure_field.canonical_value):
         try:
@@ -255,7 +255,7 @@ def _check_duplicate_part_numbers(rows: Sequence[EnrichedRow]) -> dict[int, list
     """Detect duplicate part numbers within a batch."""
     pn_map: dict[str, list[int]] = {}
     for row in rows:
-        pn_field = row.field_map.get("part_number")
+        pn_field = row.role_map.get("part_number")
         if pn_field and pn_field.canonical_value:
             pn_key = pn_field.canonical_value.strip().casefold()
             pn_map.setdefault(pn_key, []).append(row.row_number)
@@ -287,7 +287,7 @@ def _calculate_completeness(row: EnrichedRow, required: frozenset[str]) -> float
         populated = sum(1 for f in row.fields if f.canonical_value is not None)
         return populated / total
 
-    field_map = row.field_map
+    field_map = row.role_map
     populated = sum(1 for req in required if req in field_map and field_map[req].canonical_value is not None)
     return populated / len(required)
 
@@ -354,7 +354,7 @@ def validate_batch(batch: EnrichedBatch) -> BatchValidationResult:
     # Detect per-row category from the enriched data
     row_results: list[RowValidationResult] = []
     for enriched_row in batch.rows:
-        cat_field = enriched_row.field_map.get("category")
+        cat_field = enriched_row.role_map.get("category")
         category = cat_field.canonical_value if cat_field else None
         row_results.append(validate_row(enriched_row, category))
 

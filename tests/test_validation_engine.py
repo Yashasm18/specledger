@@ -30,7 +30,9 @@ class RequiredFieldsTests(TestHelpers):
         assert "part_number" in req
         assert "material" in req
         assert "size" in req
-        assert "pressure_rating" in req
+        # "pressure", not "pressure_rating" — must match enrichment.detect_role()'s
+        # actual output vocabulary, since required-field checks look fields up by role.
+        assert "pressure" in req
 
     def test_fitting_required_fields(self) -> None:
         req = get_required_fields("Pipe Fitting")

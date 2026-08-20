@@ -130,7 +130,21 @@ class EnrichedRow:
 
     @property
     def field_map(self) -> dict[str, EnrichedField]:
+        """Fields keyed by their original CSV column name (e.g. "Mfg_Part_Num")."""
         return {f.column: f for f in self.fields}
+
+    @property
+    def role_map(self) -> dict[str, EnrichedField]:
+        """Fields keyed by semantic role (e.g. "manufacturer", "part_number"),
+        regardless of what the source column was actually named. This is what
+        callers almost always want — required-field checks, cross-field
+        rules, and consistency checks all reason about roles, not raw
+        headers. First field wins per role if a batch has duplicates."""
+        result: dict[str, EnrichedField] = {}
+        for f in self.fields:
+            if f.role not in result:
+                result[f.role] = f
+        return result
 
     @property
     def verified_count(self) -> int:
