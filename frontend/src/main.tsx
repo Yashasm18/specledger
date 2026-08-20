@@ -1253,18 +1253,34 @@ function App() {
               </div>
               {batchSources.length > 0 ? (
                 batchSources.map((s: any, idx: number) => (
-                  <div className="tr" key={idx} style={{ gridTemplateColumns: "1.4fr 2fr 1fr 1fr" }}>
-                    <span><strong>{s.manufacturer}</strong></span>
-                    <span style={{ fontFamily: "DM Mono", fontSize: 11, color: "#38bdf8", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", textDecoration: "underline" }}>{s.url}</a>
-                    </span>
-                    <span>{s.source_type}</span>
-                    <span>
-                      <mark className={s.evidence_status === "verified" ? "ready" : "review"}>
-                        ● {s.evidence_status === "verified" ? "Verified source" : "Unverified candidate"}
-                      </mark>
-                    </span>
-                  </div>
+                  <React.Fragment key={idx}>
+                    <div className="tr" style={{ gridTemplateColumns: "1.4fr 2fr 1fr 1fr" }}>
+                      <span><strong>{s.manufacturer}</strong></span>
+                      <span style={{ fontFamily: "DM Mono", fontSize: 11, color: "#38bdf8", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", textDecoration: "underline" }}>{s.url}</a>
+                      </span>
+                      <span>{s.source_type}</span>
+                      <span>
+                        <mark className={s.evidence_status === "verified" ? "ready" : "review"}>
+                          ● {s.evidence_status === "verified" ? "Verified source" : "Unverified candidate"}
+                        </mark>
+                      </span>
+                    </div>
+                    {s.extracted_attributes && s.extracted_attributes.length > 0 && (
+                      <div style={{ gridColumn: "1 / -1", padding: "6px 16px 14px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#0369a1", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
+                          Real attributes parsed from this PDF's own text ({s.extracted_attributes.length})
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {s.extracted_attributes.map((a: any, i: number) => (
+                            <span key={i} style={{ background: "#e0f2fe", color: "#0c4a6e", padding: "3px 8px", borderRadius: 5, fontSize: 11 }}>
+                              <strong>{a.label}:</strong> {a.value}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))
               ) : (
                 <div className="empty-review" style={{ gridColumn: "1 / -1", margin: 16 }}>

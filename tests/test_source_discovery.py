@@ -6,8 +6,19 @@ from backend.specledger.source_discovery import (
     is_blocked_source, extract_domain, is_manufacturer_domain,
     classify_source_type, build_search_queries, build_direct_urls,
     discover_sources_simulated, discover_sources_batch,
+    extract_pdf_attributes,
     SourceType, SourceStatus, MANUFACTURER_DOMAINS,
 )
+
+
+def _make_pdf(text: str) -> bytes:
+    import fitz
+    document = fitz.open()
+    page = document.new_page()
+    page.insert_text((50, 50), text, fontsize=11)
+    pdf_bytes = document.tobytes()
+    document.close()
+    return pdf_bytes
 
 
 class BlockedSourceTests(unittest.TestCase):
@@ -177,6 +188,40 @@ class BatchDiscoveryTests(unittest.TestCase):
         results = discover_sources_batch(rows)
         assert results[0].source_count >= 2
         assert results[1].source_count == 0
+
+
+class PdfAttributeExtractionTests(unittest.TestCase):
+    def test_extracts_real_label_value_rows(self) -> None:
+        pdf_bytes = _make_pdf(
+            "Datasheet\n"
+            "Series: Professional Series\n"
+            "Voltage Rating: 120 V\n"
+            "Amperage Rating: 15 A\n"
+            "Material: Stainless Steel\n"
+        )
+        attrs = extract_pdf_attributes(pdf_bytes)
+        assert ("Series", "Professional Series") in attrs
+        assert ("Voltage Rating", "120 V") in attrs
+        assert ("Material", "Stainless Steel") in attrs
+
+    def test_ignores_prose_sentences(self) -> None:
+        pdf_bytes = _make_pdf(
+            "During assembly of the advanced-geometry design the installer\n"
+            "should verify torque before use. Visit our website: https://example.com\n"
+            "This is a long descriptive sentence that should not match the pattern at all.\n"
+        )
+        attrs = extract_pdf_attributes(pdf_bytes)
+        assert attrs == ()
+
+    def test_returns_empty_tuple_for_invalid_pdf_bytes(self) -> None:
+        assert extract_pdf_attributes(b"not a real pdf") == ()
+
+    def test_deduplicates_labels_and_caps_count(self) -> None:
+        words = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta"]
+        lines = "\n".join(f"Attribute {word}: Value {i}" for i, word in enumerate(words))
+        pdf_bytes = _make_pdf(lines)
+        attrs = extract_pdf_attributes(pdf_bytes, max_attributes=5)
+        assert len(attrs) == 5
 
 
 if __name__ == "__main__":

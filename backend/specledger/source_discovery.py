@@ -232,6 +232,11 @@ class DiscoveredSource:
     discovered_at: float = 0.0
     fetch_latency_ms: float | None = None
     confidence: float = 0.0
+    # Real label/value pairs parsed from the fetched datasheet's own text —
+    # only populated when a genuine PDF was fetched and parsed (see
+    # extract_pdf_attributes). Never fabricated: absent means nothing was
+    # confidently extracted, not that extraction was skipped.
+    extracted_attributes: tuple[tuple[str, str], ...] = ()
 
     def to_dict(self) -> dict:
         return {
@@ -246,6 +251,9 @@ class DiscoveredSource:
             "discovered_at": self.discovered_at,
             "fetch_latency_ms": self.fetch_latency_ms,
             "confidence": self.confidence,
+            "extracted_attributes": [
+                {"label": label, "value": value} for label, value in self.extracted_attributes
+            ],
         }
 
 
@@ -488,6 +496,70 @@ def _find_datasheet_link(page_html: str, page_url: str) -> str | None:
     return None
 
 
+# Matches "Label: Value" lines typical of datasheet spec tables once PyMuPDF
+# flattens the PDF to plain text — e.g. "Voltage Rating: 120 V". Deliberately
+# narrow: the label must look like a short Title-Case spec term (1-4 words,
+# each starting uppercase), not a fragment of a sentence. Marketing/manual
+# prose routinely contains colons and hyphens too ("During assembly of the
+# advanced-geometry design..."), so a loose pattern turns brochure PDFs into
+# noise; this only fires on genuine label/value rows and yields zero
+# attributes for prose-only or photo-heavy PDFs, which is the honest result.
+_PDF_ATTRIBUTE_LINE_RE = re.compile(
+    r"^([A-Z][A-Za-z0-9/()]*(?:[ \-][A-Z][A-Za-z0-9/()]*){0,3}):\s+(.{1,60})$"
+)
+_PDF_NOISE_LABELS = frozenset({
+    "page", "copyright", "phone", "fax", "email", "website", "note", "notes",
+})
+
+
+def extract_pdf_attributes(pdf_bytes: bytes, max_attributes: int = 20) -> tuple[tuple[str, str], ...]:
+    """Best-effort real attribute extraction from a fetched PDF's own text.
+
+    Uses PyMuPDF to flatten the PDF to plain text, then a conservative
+    "Label: Value" line regex to pull out spec-sheet-style rows. This is
+    genuine extraction from the PDF's real content — not a lookup table or
+    template — but PDF text layout is inherently unreliable (multi-column
+    tables often interleave), so this only catches datasheets with a
+    simple label/value line format. Returns an empty tuple rather than
+    fabricating anything when nothing matches.
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        return ()
+
+    try:
+        document = fitz.open(stream=pdf_bytes, filetype="pdf")
+        text = "\n".join(page.get_text("text") for page in document)
+        document.close()
+    except Exception:
+        return ()
+
+    attributes: list[tuple[str, str]] = []
+    seen_labels: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or len(line) > 120:
+            continue
+        match = _PDF_ATTRIBUTE_LINE_RE.match(line)
+        if not match:
+            continue
+        label = match.group(1).strip()
+        value = match.group(2).strip()
+        label_key = label.lower()
+        if not label or not value or label_key in _PDF_NOISE_LABELS or label_key in seen_labels:
+            continue
+        if "http" in value.lower() or len(value.split()) > 8:
+            continue
+        if value.endswith((".", ",", ";")) or value[0].islower():
+            continue
+        seen_labels.add(label_key)
+        attributes.append((label, value))
+        if len(attributes) >= max_attributes:
+            break
+    return tuple(attributes)
+
+
 _SERPER_SEARCH_URL = "https://google.serper.dev/search"
 
 
@@ -620,6 +692,7 @@ def _fetch_and_verify(
                     pdf_resp = requests.get(datasheet_url, headers=headers, timeout=timeout)
                     pdf_latency_ms = (time.time() - pdf_start) * 1000
                     if pdf_resp.status_code == 200 and "pdf" in pdf_resp.headers.get("content-type", "").lower():
+                        extracted = extract_pdf_attributes(pdf_resp.content)
                         result.sources.append(DiscoveredSource(
                             url=pdf_resp.url,
                             source_type=SourceType.SPECIFICATION_SHEET,
@@ -631,7 +704,8 @@ def _fetch_and_verify(
                             content_hash=hashlib.sha256(pdf_resp.content).hexdigest()[:16],
                             discovered_at=time.time(),
                             fetch_latency_ms=round(pdf_latency_ms, 1),
-                            confidence=0.75,
+                            confidence=0.85 if extracted else 0.75,
+                            extracted_attributes=extracted,
                         ))
                 except requests.RequestException as exc:
                     logger.info("Datasheet fetch failed for %s: %s", datasheet_url, exc)
