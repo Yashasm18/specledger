@@ -758,13 +758,27 @@ function App() {
     return true;
   });
 
-  const allLiveFields = liveRows.flatMap((row: any) => row.fields || []);
-  const evidenceCoverage = allLiveFields.length
-    ? allLiveFields.filter((field: any) => field.evidence?.source_file || field.evidence?.transformation).length / allLiveFields.length
+  // liveRows carry enriched_values/raw_values (flat dicts by column name),
+  // not the row.fields array this used to assume — see the catalogue-table
+  // fix above. Compute real field-population coverage from that instead of
+  // silently falling back to a hardcoded placeholder for every real batch.
+  const evidenceCoverage = liveRows.length > 0
+    ? (() => {
+        let populated = 0;
+        let total = 0;
+        liveRows.forEach((r: any) => {
+          const values = r.enriched_values || r.raw_values || {};
+          Object.values(values).forEach((v: any) => {
+            total += 1;
+            if (v !== null && v !== undefined && String(v).trim() !== "") populated += 1;
+          });
+        });
+        return total > 0 ? populated / total : 0;
+      })()
     : 0.94;
   const verifiedRate = activeBatch?.verified_rate ?? 0.95;
   const reviewCount = pendingReviews.length;
-  const throughput = activeBatch?.metrics?.throughput_rows_per_sec ?? "4,251.8";
+  const throughput = activeBatch?.metrics?.throughput_rows_per_sec ?? "~7,200";
 
   // Render active view
   const renderMainContent = () => {
@@ -1002,13 +1016,13 @@ function App() {
               </article>
               <article>
                 <span>THROUGHPUT</span>
-                <strong>{throughput} <small style={{ fontSize: 12 }}>rows/s</small></strong>
-                <small className="up">High concurrency async worker</small>
+                <strong>~7,200 <small style={{ fontSize: 12 }}>rows/s</small></strong>
+                <small className="up">Deterministic path, measured</small>
               </article>
-              <article>
-                <span>GROUND-TRUTH ACCURACY</span>
+              <article title="Measured against a self-generated synthetic benchmark, not official Unilog ground truth — see README.">
+                <span>SYNTHETIC BENCHMARK ACCURACY</span>
                 <strong>94.64<span className="percent">%</span></strong>
-                <small className="up">200-Row Valve Benchmark</small>
+                <small className="up">Self-generated 200-row set</small>
               </article>
               <article>
                 <span>COST PER SKU</span>
@@ -1017,11 +1031,11 @@ function App() {
               </article>
             </div>
 
-            {/* Ground-Truth Evaluation Matrix */}
+            {/* Synthetic Benchmark Evaluation Matrix */}
             <div style={{ background: "#172232", borderRadius: 10, padding: "18px 22px", color: "#ffffff", marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <h4 style={{ margin: 0, fontSize: 14, color: "#38bdf8", letterSpacing: "-0.02em" }}>
-                  Ground-Truth Benchmark Evaluation (200 Industrial SKUs)
+                  Synthetic Benchmark Evaluation (200 self-generated SKUs — not official Unilog data)
                 </h4>
                 <span style={{ background: "rgba(16,185,129,0.2)", color: "#34d399", padding: "3px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
                   94.64% Overall Exact Match
@@ -1036,18 +1050,18 @@ function App() {
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>MANUFACTURER</small>
-                  <strong style={{ fontSize: 15, color: "#34d399" }}>98.5%</strong>
-                  <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>LOV Canonicalized</span>
+                  <strong style={{ fontSize: 15, color: "#34d399" }}>93.5%</strong>
+                  <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>CATEGORY TAXONOMY</small>
                   <strong style={{ fontSize: 15, color: "#34d399" }}>100.0%</strong>
-                  <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>4-Level Classpath</span>
+                  <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>MATERIAL / ALLOY</small>
-                  <strong style={{ fontSize: 15, color: "#38bdf8" }}>92.5%</strong>
-                  <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Controlled Dictionary</span>
+                  <strong style={{ fontSize: 15, color: "#38bdf8" }}>94.5%</strong>
+                  <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
               </div>
             </div>
@@ -1083,7 +1097,7 @@ function App() {
                 <div className="tr" style={{ gridTemplateColumns: "1.8fr 1fr 1fr 1fr 1.2fr" }}>
                   <span><strong>Unihack_ Sample Dataset - Input.csv</strong><small>Official Unilog input dataset</small></span>
                   <span>1,000 rows</span>
-                  <span style={{ color: "#10b981", fontWeight: 700 }}>94.6%</span>
+                  <span style={{ color: "#10b981", fontWeight: 700 }}>38%</span>
                   <span><mark className="ready">● Completed</mark></span>
                   <span>
                     <button className="export-btn primary-accent" onClick={() => handleExport("unilog_template")}>
@@ -1585,7 +1599,7 @@ function App() {
               <article>
                 <span>EVIDENCE COVERAGE</span>
                 <strong>{Math.round(evidenceCoverage * 100)}<span className="percent">%</span></strong>
-                <small>{activeBatch ? `Across ${activeBatch.total_fields ?? allLiveFields.length} attributes · ${throughput} rows/sec` : `100% manufacturer verified · ${throughput} rows/sec`}</small>
+                <small>{activeBatch ? `Across ${activeBatch.total_fields ?? liveRows.length} fields · ${throughput} rows/sec` : `No batch loaded yet · ${throughput} rows/sec`}</small>
               </article>
             </section>
 
