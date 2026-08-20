@@ -1437,14 +1437,24 @@ function App() {
                 <p className="eyebrow">ACCOUNTABILITY & COMPLIANCE LOG</p>
                 <h3>Audit Trail & Decision Lineage</h3>
               </div>
-              <button
-                className="export-btn amber-accent"
-                onClick={() => handleExport("audit")}
-              >
-                <DownloadIcon size={12} />
-                Export Audit Log (JSON)
-              </button>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "rgba(56,189,248,0.15)", color: "#38bdf8", border: "1px solid rgba(56,189,248,0.3)" }}>
+                  ILLUSTRATIVE EXAMPLE — NOT A LIVE FEED
+                </span>
+                <button
+                  className="export-btn amber-accent"
+                  onClick={() => handleExport("audit")}
+                >
+                  <DownloadIcon size={12} />
+                  Export Audit Log (JSON)
+                </button>
+              </div>
             </div>
+            <p style={{ fontSize: 12, color: "#7d8590", margin: "8px 0 0" }}>
+              The entries below are a fixed sample showing what audit records look like, not a live log of actions taken in this session.
+              Real per-row audit trails (reviewer, timestamp, corrections) are captured server-side — see the <code>audit_trail</code> field on
+              <code> GET /catalogue/batches/&#123;id&#125;/rows/&#123;n&#125;</code> and the row-review endpoints.
+            </p>
 
             <div className="filters" style={{ marginTop: 16 }}>
               <button className={`filter ${auditFilter === "all" ? "active" : ""}`} onClick={() => setAuditFilter("all")}>
