@@ -692,7 +692,8 @@ function App() {
   // When a backend-enriched batch is loaded, real attribute data replaces these.
   const getProductTriplets = (prod: any) => {
     if (!prod) return [];
-    const desc = prod.fields?.find((f: any) => f.role === "description")?.canonical_value || prod[1] || "";
+    const values = prod.enriched_values || prod.raw_values;
+    const desc = findByRole(values, "description") || prod[1] || "";
 
     const baseSpecs = [
       { label: "Body Material (example)", value: desc.includes("Brass") ? "Bronze / Brass" : "Stainless Steel 316", uom: "" },
@@ -1699,11 +1700,15 @@ function App() {
     }
   };
 
-  // Inspect Modal Product Data Extractor
-  const inspectedSku = inspectorProduct?.fields?.find((f: any) => f.role === "part_number")?.canonical_value || inspectorProduct?.[0] || "VLV-600-050";
-  const inspectedDesc = inspectorProduct?.fields?.find((f: any) => f.role === "description")?.canonical_value || inspectorProduct?.[1] || "Ball Valve · DN50 Full Port Stainless Steel";
-  const inspectedMfr = inspectorProduct?.fields?.find((f: any) => f.role === "manufacturer")?.canonical_value || inspectorProduct?.[2] || "Apollo Valves";
-  const inspectedCat = inspectorProduct?.fields?.find((f: any) => f.role === "category")?.canonical_value || inspectorProduct?.[3] || "Industrial Valves";
+  // Inspect Modal Product Data Extractor. inspectorProduct is set from the raw
+  // API row (raw_values/enriched_values dicts), a defaultRows mock array, or
+  // the row_number-only fallback object — so roles are derived via findByRole
+  // the same way displayRows does, with array/object indexing as fallback.
+  const inspectorValues = inspectorProduct?.enriched_values || inspectorProduct?.raw_values;
+  const inspectedSku = findByRole(inspectorValues, "part_number") || inspectorProduct?.[0] || "VLV-600-050";
+  const inspectedDesc = findByRole(inspectorValues, "description") || inspectorProduct?.[1] || "Ball Valve · DN50 Full Port Stainless Steel";
+  const inspectedMfr = findByRole(inspectorValues, "manufacturer") || findByRole(inspectorValues, "brand") || inspectorProduct?.[2] || "Apollo Valves";
+  const inspectedCat = findByRole(inspectorValues, "category") || inspectorProduct?.[3] || "Industrial Valves";
   const inspectedTriplets = getProductTriplets(inspectorProduct);
   const filteredTriplets = inspectedTriplets.filter(t => 
     !tripletSearch || t.label.toLowerCase().includes(tripletSearch.toLowerCase()) || t.value.toLowerCase().includes(tripletSearch.toLowerCase())
