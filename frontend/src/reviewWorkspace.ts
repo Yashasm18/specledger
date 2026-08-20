@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./apiClient";
+import { getApiBaseUrl, getApiKeyHeaders } from "./apiClient";
 
 type Fact = { name: string; value: string; normalized_value?: string; normalized_unit?: string; page: number; confidence: number; evidence: string };
 type ReviewArtifact = {
@@ -61,7 +61,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
           `${API_BASE}/catalogue/batches/${artifact.batch_id}/rows/${artifact.row_number}/review`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
             body: JSON.stringify({ action: reviewState === "approved" ? "approve" : "reject", reviewer: import.meta.env.VITE_REVIEWER_NAME || "Yashas M", comment: `Row ${reviewState} in workspace` }),
           }
         );
@@ -89,7 +89,7 @@ export function openReviewWorkspace(artifact: ReviewArtifact) {
       `${API_BASE}/documents/${artifact.document_id}/artifact/${artifact.artifact_id}/review?organization_id=default`,
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
         body: JSON.stringify({ review_state: reviewState, actor_id: "yashas", comment: `Artifact ${reviewState} from review workspace` }),
       },
     );

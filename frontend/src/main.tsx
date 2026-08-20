@@ -9,7 +9,7 @@ import "./reviewLauncher.css";
 import "./reviewActions.css";
 import "./specInspector.css";
 import { openReviewWorkspace } from "./reviewWorkspace";
-import { apiFetch, getApiBaseUrl, readApiError } from "./apiClient";
+import { apiFetch, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiClient";
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
 
@@ -562,6 +562,7 @@ function App() {
       try {
         const response = await fetch(`${API_BASE}/documents/intake?organization_id=default&category=generic`, {
           method: "POST",
+          headers: getApiKeyHeaders(),
           body,
         });
 
@@ -619,7 +620,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
         body: JSON.stringify({ action, reviewer: reviewerName, comment: comment || `Row ${action}d via workspace` })
       });
       if (res.ok) {
@@ -651,7 +652,7 @@ function App() {
         ids.map((id) =>
           fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${id}/review`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
             body: JSON.stringify({ action: "approve", reviewer: reviewerName, comment: "Bulk approved via workspace" })
           })
         )

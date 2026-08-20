@@ -13,8 +13,24 @@ services:
         value: production
       - key: SPECLEDGER_OBJECT_STORE
         value: /tmp/specledger-object-data
+      - key: SPECLEDGER_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: specledger-artifacts
 
 # DATABASE_URL points at an external Supabase Postgres instance (set via the
 # Render dashboard, not committed here — see "sync: false" above). Render's
 # own managed Postgres add-on requires a card on file; Supabase's free tier
 # does not.
+#
+# SPECLEDGER_API_KEY gates POST/PATCH endpoints behind an X-API-Key header;
+# set the same value as VITE_API_KEY on the GitHub Pages build (repo
+# variable) so the frontend can still write.
+#
+# SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (same Supabase project as the
+# database) give uploaded PDFs/artifacts durable storage instead of Render's
+# ephemeral /tmp disk.

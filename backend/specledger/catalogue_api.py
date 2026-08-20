@@ -20,9 +20,11 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, Query, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, Query, Response
 from pydantic import BaseModel, Field
 
+from .auth import require_api_key
+from .rate_limit import limiter
 from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows
 from .enrichment import enrich_batch
 from .evaluator import evaluate, load_ground_truth_csv
@@ -250,8 +252,10 @@ def normalize_material_endpoint(raw: str = Query(min_length=1)) -> dict[str, Any
 ALLOWED_EXTENSIONS = {".csv", ".tsv", ".xlsx"}
 
 
-@router.post("/ingest")
+@router.post("/ingest", dependencies=[Depends(require_api_key)])
+@limiter.limit("10/minute")
 async def ingest_catalogue(
+    request: Request,
     file: UploadFile = File(...),
     organization_id: str = Query(default="default", min_length=1),
     process_immediately: bool = Query(default=True, description="Process full pipeline on upload"),
@@ -443,7 +447,7 @@ def list_pending_review(
     }
 
 
-@router.post("/batches/{batch_id}/rows/{row_number}/review")
+@router.post("/batches/{batch_id}/rows/{row_number}/review", dependencies=[Depends(require_api_key)])
 def review_row_endpoint(
     batch_id: str,
     row_number: int,
@@ -602,7 +606,9 @@ def export_batch_endpoint(
 # ---------------------------------------------------------------------------
 
 @router.post("/batches/{batch_id}/evaluate")
+@limiter.limit("10/minute")
 def evaluate_batch(
+    request: Request,
     batch_id: str,
     payload: EvaluationInput,
     organization_id: str = Query(default="default"),
@@ -650,7 +656,8 @@ class ScraperQueryInput(BaseModel):
 
 
 @router.post("/scraper/extract")
-def extract_from_web_and_pdf(payload: ScraperQueryInput) -> dict[str, Any]:
+@limiter.limit("15/minute")
+def extract_from_web_and_pdf(request: Request, payload: ScraperQueryInput) -> dict[str, Any]:
     """Execute deep web scraping & PDF parsing for a manufacturer part number."""
     from .pdf_and_web_scraper import industrial_scraper
     profile = industrial_scraper.scrape_product_profile(

@@ -2,29 +2,39 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
+import time
 import hashlib
 from uuid import uuid4
 from typing import Any
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 
 from .api import SpecLedgerService
+from .auth import require_api_key
 from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
+from .rate_limit import limiter
 from .repository import ProductRepository
 from .postgres_repository import PostgresRepository
 from .postgres_jobs import PostgresJobRepository
-from .object_store import LocalObjectStore
+from .object_store import build_object_store
 from .tasks import TaskQueue
 from .extraction import validate_facts, ExtractedFact
 from .catalogue_api import router as catalogue_router
 
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("specledger")
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -40,7 +50,7 @@ service = SpecLedgerService(repository)
 # writer lock. Production uses PostgreSQL for both stores.
 job_repository = PostgresJobRepository(DATABASE_URL) if DATABASE_URL else BatchJobRepository(f"{DATABASE_PATH}.jobs")
 task_queue = TaskQueue(DATABASE_URL) if DATABASE_URL else None
-artifact_store = LocalObjectStore(os.getenv("SPECLEDGER_OBJECT_STORE", "object-data"))
+artifact_store = build_object_store()
 batch_service = BatchImportService(repository, job_repository)
 
 
@@ -55,6 +65,8 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(title="SpecLedger API", version="0.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -63,6 +75,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(catalogue_router)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = (time.monotonic() - start) * 1000
+    logger.info("%s %s -> %s (%.1fms)", request.method, request.url.path, response.status_code, duration_ms)
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 class EvidenceInput(BaseModel):
@@ -131,10 +158,23 @@ def to_domain_product(payload: ProductInput) -> Product:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "specledger"}
+    status: dict[str, str] = {"status": "ok", "service": "specledger"}
+    if hasattr(repository, "pool"):
+        try:
+            with repository.connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+            status["database"] = "ok"
+        except Exception:
+            logger.exception("Health check database ping failed")
+            status["status"] = "degraded"
+            status["database"] = "unreachable"
+    else:
+        status["database"] = "sqlite"
+    return status
 
 
-@app.post("/products")
+@app.post("/products", dependencies=[Depends(require_api_key)])
 def create_product(payload: ProductInput) -> dict[str, Any]:
     try:
         product = to_domain_product(payload)
@@ -169,8 +209,9 @@ def compare_product_versions(product_id: str) -> dict[str, Any]:
     return {"product_id": product_id, "changes": changes, "change_count": len(changes)}
 
 
-@app.post("/imports")
-def run_import(payload: BatchImportInput) -> dict[str, Any]:
+@app.post("/imports", dependencies=[Depends(require_api_key)])
+@limiter.limit("10/minute")
+def run_import(request: Request, payload: BatchImportInput) -> dict[str, Any]:
     try:
         products = [to_domain_product(product) for product in payload.products]
         result = batch_service.run(payload.job_id, payload.organization_id, products)
@@ -192,8 +233,9 @@ def get_import(job_id: str, organization_id: str = Query(default="default", min_
             "review_items": result.review_items}
 
 
-@app.post("/documents/extract")
-async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
+@app.post("/documents/extract", dependencies=[Depends(require_api_key)])
+@limiter.limit("20/minute")
+async def extract_document(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:
     """Extract text with page evidence; semantic attribute extraction comes later."""
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=415, detail="Only PDF files are supported in this milestone")
@@ -232,8 +274,9 @@ async def extract_document(file: UploadFile = File(...)) -> dict[str, Any]:
     return {"filename": file.filename, "page_count": len(pages), "pages": pages}
 
 
-@app.post("/documents/intake")
-async def intake_document(file: UploadFile = File(...), organization_id: str = Query(default="default", min_length=1),
+@app.post("/documents/intake", dependencies=[Depends(require_api_key)])
+@limiter.limit("20/minute")
+async def intake_document(request: Request, file: UploadFile = File(...), organization_id: str = Query(default="default", min_length=1),
                           category: str = Query(default="generic", min_length=1)) -> dict[str, Any]:
     """Persist a source document and enqueue durable worker extraction."""
     if task_queue is None:
@@ -305,7 +348,7 @@ def get_latest_any_artifact(organization_id: str = Query(default="default", min_
     return artifact
 
 
-@app.patch("/documents/{document_id}/artifact/{artifact_id}/review")
+@app.patch("/documents/{document_id}/artifact/{artifact_id}/review", dependencies=[Depends(require_api_key)])
 def review_artifact(document_id: str, artifact_id: str, payload: ArtifactReviewInput,
                     organization_id: str = Query(default="default", min_length=1)) -> dict[str, str]:
     if task_queue is None:

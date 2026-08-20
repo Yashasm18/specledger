@@ -35,8 +35,16 @@ export function requireApiBaseUrl(): string {
   return baseUrl;
 }
 
+export function getApiKeyHeaders(): Record<string, string> {
+  const apiKey = String(import.meta.env.VITE_API_KEY || "").trim();
+  return apiKey ? { "X-API-Key": apiKey } : {};
+}
+
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(`${requireApiBaseUrl()}${path}`, init);
+  const response = await fetch(`${requireApiBaseUrl()}${path}`, {
+    ...init,
+    headers: { ...getApiKeyHeaders(), ...(init?.headers || {}) },
+  });
   return response;
 }
 
