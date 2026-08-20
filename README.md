@@ -1,512 +1,235 @@
 # SpecLedger — AI-Powered Industrial Product Intelligence & Catalogue Enrichment
 
-[![Live Production Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20Production-brightgreen.svg?logo=vercel&logoColor=white)](https://specledger-app.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-2ea44f.svg?logo=github&logoColor=white)](https://yashasm18.github.io/specledger/)
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
 [![Pylint](https://img.shields.io/badge/Pylint-9.91%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Tests](https://img.shields.io/badge/Tests-243%20Passed%20(100%25)-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Benchmark Accuracy](https://img.shields.io/badge/Benchmark%20Accuracy-94.64%25-success.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
-[![Throughput](https://img.shields.io/badge/Throughput-4%2C250%2B%20SKUs%2Fsec-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/batch_processor.py)
-[![Cost Efficiency](https://img.shields.io/badge/Cost-%240.0001%20%2F%20SKU-emerald.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/batch_processor.py)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252--Column%20Compliant-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
-[![schema.org](https://img.shields.io/badge/schema.org-Product%20JSON--LD-8A2BE2.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/export.py)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React + Vite](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB.svg?logo=react&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-> 🌐 **Live Web Application:** [https://specledger-app.vercel.app/](https://specledger-app.vercel.app/)
-> 
-> **UniHack Challenge Submission** — Transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence at an enterprise scale of **150,000 to 750,000 SKUs/month**, delivered in Unilog's official **252-column template format**.
+> **Live demo:** [yashasm18.github.io/specledger](https://yashasm18.github.io/specledger/)
+>
+> **UniHack 2026 submission** — transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence, delivered in Unilog's official **252-column template format**.
 
 ---
 
-## 📑 Table of Contents
-- [Executive Summary](#executive-summary)
-- [Dual-Mode Deployment Architecture](#-dual-mode-enterprise-deployment-architecture)
-- [Datasets, Data Provenance & Reproducibility](#-datasets-data-provenance--reproducibility-matrix)
-- [Empirical Proofs & Benchmark Results](#empirical-proofs--benchmark-results)
-- [Official Unilog 1,000-SKU Dataset Verification](#official-unilog-1000-sku-dataset-verification)
-- [Hackathon Evaluation Criteria Alignment](#hackathon-evaluation-criteria-alignment)
-- [System Architecture](#system-architecture)
-- [Core Subsystems & Technical Details](#core-subsystems--technical-details)
-- [API Reference](#api-reference)
-- [Web Dashboard (React + Vite)](#-web-dashboard-react--vite)
-- [Running Locally & Verification](#running-locally--verification)
-- [Repository Structure](#-repository-structure)
+## Contents
+[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
 
 ---
 
-## Executive Summary
+## Overview
 
-Industrial B2B commerce platforms (such as Unilog CX1 PIM) process hundreds of thousands of raw SKUs from thousands of component manufacturers. Ingested data is frequently fragmented, misspelled, missing units of measure (UOM), or lacking material and pressure specifications.
+Industrial B2B commerce platforms (like Unilog CX1 PIM) process hundreds of thousands of raw SKUs from thousands of component manufacturers. Ingested data is frequently fragmented, misspelled, missing units of measure, or lacking material and pressure specifications.
 
-**SpecLedger** is an enterprise-oriented hackathon prototype for evidence-aware catalogue enrichment. It cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels.
+**SpecLedger** cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels — as a hackathon prototype, not a production data-verification service.
 
-### Core Guarantees:
-- **Provenance-First Output:** Deterministic transformations retain source file, row and column lineage. Generated source candidates and synthetic profiles are explicitly marked unverified and are not substitutes for fetched evidence.
-- **Strict Marketplace Prohibition:** In strict compliance with UniHack requirements, **Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and consumer shopping sites are blocked**. All enrichment data is derived from manufacturer-authoritative sources.
-- **Human Governance:** Rows that pass deterministic validation can follow an automated test path, while conflicts are routed to a review workspace. Production publication should additionally require verified source evidence.
-- **Scale-Oriented Architecture:** The local deterministic benchmark processes 1,000 rows in approximately 0.235 seconds. This is a CPU pipeline benchmark, not a claim about live web retrieval or production infrastructure.
+- **Provenance-first output.** Deterministic transformations retain source file, row, and column lineage. Generated source candidates are explicitly marked unverified, not substitutes for fetched evidence — see [How it works](#how-it-works) for what "generated" means here.
+- **Strict marketplace prohibition.** Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and other resellers are blocked; enrichment data is scoped to manufacturer-authoritative domains only.
+- **Human governance.** Rows that pass deterministic validation can auto-approve; conflicts route to a review workspace. Production publication would additionally require verified source evidence.
+- **Two deployment modes:** a headless REST API for ETL/PIM integration, and an interactive web dashboard for human review.
 
----
-
-## 🏛️ Dual-Mode Enterprise Deployment Architecture
-
-SpecLedger is engineered as a **dual-mode enterprise platform**, providing both **headless standalone automation** for machine-to-machine ETL pipelines and an **interactive visual Control Center** for human catalog governance:
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                     SPECLedger PLATFORM                                     │
-├─────────────────────────────────────────────────────────────┬───────────────────────────────┤
-│                  MODE A: STANDALONE HEADLESS API            │    MODE B: WEB CONTROL CENTER │
-│                  (Automated Batch Pipeline)                 │    (Human Governance Web UI)  │
-├─────────────────────────────────────────────────────────────┼───────────────────────────────┤
-│ • Pure Headless Engine (FastAPI + Python Core)             │ • React 18 + TypeScript + Vite│
-│ • Direct ERP / PIM / ETL Integration via REST API           │ • Dark-Mode Ergonomic UI      │
-│ • Zero Browser / UI Dependency                             │ • Priority Human Review Queue │
-│ • Measured Local Deterministic Benchmark                    │ • Side-by-Side Evidence Modal │
-│ • Validation-Gated Processing                               │ • API-Backed Multi-Format Export│
-│ • Nightly Cron / Serverless Worker Ready                    │ • Real-Time Telemetry & Health│
-└─────────────────────────────────────────────────────────────┴───────────────────────────────┘
-```
-
-### Mode A: Standalone Headless API & Batch Engine
-- **Target Users:** Data Engineers, Automated ETL Pipelines, PIM/ERP Integrations, Nightly Cron Jobs.
-- **How it Works:** Ingests raw CSV/XLSX spreadsheets via REST API (`POST /catalogue/ingest`), generates clearly labelled manufacturer-source candidates, executes deterministic LOV normalization, validates cross-field integrity, and exports the 252-column template (`GET /catalogue/batches/{id}/export?format=unilog_template`).
-
-### Mode B: Interactive Web Control Center
-- **Target Users:** Catalog Managers, Domain Specialists, Compliance Officers.
-- **How it Works:** A responsive web application (`http://localhost:5174`) providing 7 dedicated views (Overview, Full Catalogue, Priority Review Queue, Batch Telemetry, Schemas, Evidence Library, and Audit Trail). Specialists review the 10-15% ambiguous edge cases, inspect exact source evidence snippets, and submit immutable sign-offs with one click.
-
----
-
-## 📦 Datasets, Data Provenance & Reproducibility Matrix
-
-To ensure full transparency and complete reproducibility for Unilog judges, every dataset, ground-truth reference, and external manufacturer source utilized in SpecLedger is explicitly registered and cited below:
-
-### 1. Challenge & Benchmark Datasets
-
-| Dataset File | Role in SpecLedger | Row Count / Size | Columns / Structure |
-|---|---|---|---|
-| [**`data/challenge/Unihack_ Sample Dataset - Input.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Sample%20Dataset%20-%20Input.csv) | **Official Challenge Input** provided by Unilog | 1,000 Rows (107 KB) | 6 sparse supplier columns: `Mfg_Part_Num`, `Part_Desc`, `Part_Manuf`, `E1_Brand`, `Unilog_Brand`, `DIB_Brand` |
-| [**`data/challenge/Unihack_ Expected Output - Delivery Format.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Expected%20Output%20-%20Delivery%20Format.csv) | **Target Template Specification** provided by Unilog | Schema Spec | Exact 252-column schema header reference defining taxonomy, attribute triplets, and media links |
-| [**`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) | **SpecLedger Delivery Output** generated by pipeline | 1,000 Rows (1.49 MB) | Full 252 columns populated with 50 attribute triplets, 20 feature bullets, 6 description copy blocks, and manufacturer URLs |
-| [**`data/ground_truth/synthetic_200_valves.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/ground_truth/synthetic_200_valves.csv) | **Evaluation Ground-Truth Benchmark (Valves & Fluid Handling)** | 200 Rows (48 KB) | 7 ground-truth industrial attributes (Part Number, Manufacturer, Brand, Category, Material, Size, Pressure Rating) |
-| [**`data/ground_truth/electrical_automation_100_benchmark.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/ground_truth/electrical_automation_100_benchmark.csv) | **Evaluation Ground-Truth Benchmark (Electrical & Automation)** | 100 Rows (24 KB) | 7 ground-truth electrical attributes (Schneider Electric, Eaton, Leviton, ABB, Hubbell, Siemens) |
-
----
-
-### 2. Authoritative Manufacturer Source Registry (Data Provenance)
-
-SpecLedger maintains a manufacturer-domain allowlist used to generate source candidates while rejecting third-party resellers. The current batch source-discovery path does not fetch or verify those candidates:
-
-| Manufacturer / Brand | Canonical Manufacturer Domain | Categories Covered | Provenance Status |
-|---|---|---|---|
-| **Freud Tools (Diablo)** | `https://www.freudtools.com` | Saw blades, router bits, sanding belts, abrasives | ✅ Registered Domain |
-| **Parker Hannifin** | `https://www.parker.com` | Ball valves, check valves, hydraulic fittings | ✅ Registered Domain |
-| **Apollo Valves / Conbraco** | `https://www.apollovalves.com` | Industrial bronze/brass valves, actuators | ✅ Registered Domain |
-| **3M Industrial** | `https://www.3m.com` | Abrasive discs, safety equipment, adhesives | ✅ Registered Domain |
-| **Mirka** | `https://www.mirka.com` | Sanding discs, abrasives, surface finishing | ✅ Registered Domain |
-| **Milwaukee Tool** | `https://www.milwaukeetool.com` | Cordless power tools, accessories, drill bits | ✅ Registered Domain |
-| **DeWalt / Stanley** | `https://www.dewalt.com` | Power tools, masonry bits, saw blades | ✅ Registered Domain |
-| **Makita** | `https://www.makitatools.com` | Industrial grinders, routers, circular saws | ✅ Registered Domain |
-| **Frigidaire / Electrolux** | `https://www.frigidaire.com` | Major appliances, dishwashers, refrigerators | ✅ Registered Domain |
-| **Whirlpool / Maytag** | `https://www.whirlpool.com` | Commercial laundry, residential appliances | ✅ Registered Domain |
-| **Rheem Manufacturing** | `https://www.rheem.com` | Commercial water heaters, HVAC heating | ✅ Registered Domain |
-| **Leviton** | `https://www.leviton.com` | Industrial electrical switches, receptacles | ✅ Registered Domain |
-| **Kichler Lighting** | `https://www.kichler.com` | Commercial & architectural lighting fixtures | ✅ Registered Domain |
-| **Boise Cascade** | `https://www.bc.com` | Engineered wood products, structural lumber | ✅ Registered Domain |
-| **Victaulic** | `https://www.victaulic.com` | Grooved mechanical piping, couplings | ✅ Registered Domain |
-
-####  Marketplace Sourcing Prohibition Protocol:
-The following reseller domains are blocked by rule (`source_discovery.py`):
-`amazon.com`, `ebay.com`, `walmart.com`, `alibaba.com`, `aliexpress.com`, `grainger.com`, `zoro.com`, `homedepot.com`, `lowes.com`.
-
----
-
-### 3. Step-by-Step Accuracy & Benchmark Reproducibility
-
-Any evaluator can re-run and verify SpecLedger's execution speed and accuracy scores with the following commands:
-
-```bash
-# 1. Run the full automated test suite (243 tests, 100% pass)
-.venv/bin/python -m pytest tests/ -v
-
-# 2. Run Ground-Truth Accuracy Evaluation (200-Row Benchmark -> 94.64% exact match)
-.venv/bin/python -m pytest tests/test_evaluator.py -v
-
-# 3. Ingest official 1,000-row Unilog dataset & regenerate the 252-column CSV (0.235s)
-.venv/bin/python -m pytest tests/test_unilog_pipeline.py -v
-```
-
----
-
-## Empirical Proofs & Benchmark Results
-
-### 1. 🎯 Ground-Truth Evaluation Benchmark (200-Row Dataset)
-Evaluated against the official 200-row industrial valve ground-truth benchmark (`data/ground_truth/synthetic_200_valves.csv`):
-
-| Metric | Score | Empirical Verification |
+| | Headless API | Web Dashboard |
 |---|---|---|
-| **Overall Exact Match Accuracy** | **94.64%** | Exact match across all 1,400 evaluated attributes |
-| **Average Row Accuracy** | **96.59%** | Average correct attributes per product row |
-| **Category Classification Accuracy** | **100.0%** | 200 / 200 exact category matches |
-| **Part Number Extraction Accuracy** | **100.0%** | 200 / 200 exact matches |
-| **Description Cleansing Accuracy** | **100.0%** | 200 / 200 exact matches |
-| **Material Normalization Accuracy** | **94.50%** | 189 / 200 exact matches (via alias & abbreviation dictionary) |
-| **Size & UOM Standardization** | **95.00%** | 190 / 200 exact matches |
-| **Pressure Rating Accuracy** | **93.50%** | 187 / 200 exact matches |
+| **For** | Data engineers, ETL pipelines, PIM/ERP integrations | Catalog managers, QA, compliance |
+| **Interface** | `POST /catalogue/ingest` → `GET .../export` | React dashboard with 7 workspace views |
+| **Use case** | Automated batch processing, nightly jobs | Reviewing the ~10–15% of rows needing a human call |
 
 ---
 
-## Official Unilog 1,000-SKU Dataset Verification
+## How it works
 
-We validated SpecLedger against the official challenge dataset [**`data/challenge/Unihack_ Sample Dataset - Input.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Sample%20Dataset%20-%20Input.csv) containing 1,000 real industrial product records across 6 minimal supplier columns:
-
-```
-Input Columns: Mfg_Part_Num | Part_Desc | Part_Manuf | E1_Brand | Unilog_Brand | DIB_Brand
-```
-
-### ⚡ Batch Execution Metrics (Real Proof)
-
-```
-================================================================================
- OFFICIAL UNILOG 1,000-ROW BATCH PROCESSING BENCHMARK
-================================================================================
- Total Rows Ingested       : 1,000 SKUs
- Execution Time            : 0.235 seconds
- Processing Throughput     : 4,251.8 rows / second
- Output File Generated     : data/challenge/Unihack_ Enriched_Delivery_Output_252.csv
- File Size                 : 1.49 MB
- Total Columns Populated   : 252 columns (100% Unilog CX1 Delivery Specification)
- Total Attributes Mapped   : 50,000 attribute triplet cells (50 slots x 1,000 rows)
- Features Generated        : 20,000 bullet points (20 slots x 1,000 rows)
- Descriptions Synthesized  : 6,000 copy blocks (6 tiers x 1,000 rows)
- Verified Rate             : 94.6%
- Validation Errors         : 0 critical errors
-================================================================================
-```
-
-### 📊 252-Column Unilog CX1 Output Breakdown
-
-The generated delivery file [**`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) perfectly matches the expected structure:
-
-1. **Source & Reference URLs (Cols 1–6):** `MFR URL`, `Ref URL 1`, `Ref URL 2`, `Ref URL 3`, `Ref URL 4`, `Ref URL 5`.
-2. **Product Identity & Taxonomy (Cols 7–23):** `Manufacturer`, `Brand_Name`, `Trade_Name`, `Part_Number`, `Alternate_Part_Number`, `Dept`, `Class`, `Fine`, `Classpath`.
-3. **6-Tier Description Hierarchy (Cols 24–29):** `MOBILE_DESC`, `INVOICE_DESC`, `SHORT_DESC`, `LONG_DESC1`, `RETAIL_DESC`, `MARKETING_DESCRIPTION`.
-4. **20 Standardized Feature Bullets (Cols 30–49):** `ITEM_FEATURES_1` through `ITEM_FEATURES_20`.
-5. **Commercial Identifiers (Cols 50–55):** `UPC`, `EAN`, `GTIN`, `UNSPSC`, `Warranty`, `List_Price`.
-6. **50 Dynamic Attribute Triplets (Cols 56–205):** `ATTRIBUTE_LABEL 1..50`, `ATTRIBUTE_VALUE 1..50`, `ATTRIBUTE_UOM 1..50`.
-7. **Physical Dimensions (Cols 206–215):** `Length`, `Length_UOM`, `Height`, `Height_UOM`, `Width`, `Width_UOM`, `Weight`, `Weight_UOM`, `Volume`, `Volume_UOM`.
-8. **Compliance & Standards (Cols 216–220):** `Standards_Approvals`, `Prop_65`, `Application`, `Includes`, `With_Feature`.
-9. **Media, Documents & Governance (Cols 221–252):** `Product_Image`, `SDS_URL`, `Specification_Sheet`, `Instruction/Installation_Manual`, `Owners_Manual`, `Video_Link_1..10`, `Country_of_Origin`, `Discontinued`, `Actual_Image`.
-
----
-
-## Hackathon Evaluation Criteria Alignment
-
-| Criterion | Weight | How SpecLedger Achieves It | Evidence & Proof |
-|---|---|---|---|
-| **1. Innovation** | **25%** | **Domain-Agnostic Extraction + Manufacturer-Domain Allowlist:** Generates source candidates across diverse categories (valves, abrasives, tools, appliances). Features strict **Marketplace Sourcing Prohibition** (auto-blocking Amazon/eBay) and generates 50 attribute triplets and 6 description tiers. | Implemented in `source_discovery.py`, `web_enricher.py`, `pdf_and_web_scraper.py`. Tested in `test_unilog_pipeline.py`. |
-| **2. Accuracy** | **25%** | **Deterministic LOV + Provenance-First Output:** Normalizes units and materials with controlled vocabularies. Validates cross-field physics (e.g. PVC vs 1500 PSI). Every deterministic transformation links to source file/row/column evidence. | **94.64% exact-match accuracy** on 200-row benchmark. **100% category accuracy**. Tested across 243 unit tests. |
-| **3. Quality** | **25%** | **Human-in-the-Loop Governance & Lineage:** Validates and routes rows through a confidence-scored review queue. Captures immutable SHA-256 audit events for every action. | Interactive review workspace with one-click bulk approval and full JSON audit log export. Tested in `test_human_review.py`. |
-| **4. Scalability** | **25%** | **Local Benchmark Throughput:** The deterministic CPU pipeline processes 1,000 rows in 0.235s (~4,250 rows/sec) with source memoization. Architecture supports horizontal scaling via PostgreSQL and container deployment. | Benchmark telemetry in dashboard. Tested in `test_batch_processor.py`. |
-
----
-
-## 🔄 End-to-End Product Enrichment Workflow
-
-SpecLedger executes a deterministic, 6-stage multi-modal enrichment pipeline that transforms sparse supplier spreadsheets into rich, evidence-grounded, commerce-ready product intelligence:
+A 6-stage pipeline turns sparse supplier spreadsheets into evidence-grounded, commerce-ready records:
 
 ```mermaid
-flowchart TD
-    %% Styling Classes
-    classDef inputStyle fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
-    classDef sourceStyle fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#f8fafc;
-    classDef enrichStyle fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
-    classDef validStyle fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
-    classDef govStyle fill:#0f172a,stroke:#ec4899,stroke-width:2px,color:#f8fafc;
-    classDef syndStyle fill:#0f172a,stroke:#8b5cf6,stroke-width:2px,color:#f8fafc;
-    classDef blockStyle fill:#450a0a,stroke:#ef4444,stroke-width:2px,color:#fca5a5;
+flowchart LR
+    A["1. Ingest\nCSV/TSV/XLSX/PDF\nSHA-256 fingerprinting"] --> B["2. Source Discovery\nManufacturer-domain allowlist\nMarketplace blocker"]
+    B --> C["3. Enrichment\nLOV normalization\n6 description tiers\n50 attribute triplets"]
+    C --> D["4. Validation\nCross-field physics\nCompleteness scoring"]
+    D --> E{"5. Confidence ≥ 80%\nand 0 errors?"}
+    E -- yes --> F["Auto-approved"]
+    E -- no --> G["Human review queue"]
+    G --> F
+    F --> H["6. Export\n252-col Unilog CSV\nschema.org JSON-LD\nCommerce PIM CSV"]
+```
 
-    %% STAGE 1: INGESTION
-    subgraph STAGE1["Stage 1: Multi-Format Ingestion & Disambiguation"]
-        A1["Raw Supplier Input<br/>(CSV / TSV / XLSX / Technical PDFs)"]:::inputStyle
-        A2["Catalogue Ingestion Engine<br/>(catalogue_ingestion.py)"]:::inputStyle
-        A3["Distributor Noise Cleanser<br/>e.g. 'Freud Inc (2435)' ➔ 'Freud Inc'"]:::inputStyle
-        A4["SHA-256 Row Fingerprinting<br/>& SKU Prefix Deduplication"]:::inputStyle
-        A1 --> A2 --> A3 --> A4
-    end
+**Important limitation, stated plainly:** stage 2 (source discovery) currently runs in *simulated candidate mode* — it constructs plausible manufacturer URLs from a domain allowlist but does not fetch or verify them over HTTP. A separate module, [`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), implements real web/PDF extraction against 100+ manufacturer registries and is exposed via `POST /catalogue/scraper/extract`, but it is not yet the default path for batch ingestion. The accuracy numbers below are measured against synthetic and official-challenge ground truth, not live-scraped data — treat them as pipeline-correctness benchmarks, not real-world retrieval accuracy.
 
-    %% STAGE 2: SOURCING & PROVENANCE
-    subgraph STAGE2["Stage 2: Authoritative Sourcing & Marketplace Prohibition"]
-        B1["Canonical MFR Domain Discovery<br/>(source_discovery.py)"]:::sourceStyle
-        B2["Manufacturer Web Pages<br/>(MFR URL & Ref URLs 1-5)"]:::sourceStyle
-        B3["Technical PDF Datasheets<br/>(Specification Sheet)"]:::sourceStyle
-        B4["Installation & User Manuals<br/>(Instruction/Installation Manual)"]:::sourceStyle
-        B5["Technical Video Links<br/>(Video_Link_1..10)"]:::sourceStyle
-        B6["Reseller Marketplace Blocker<br/>(Amazon, eBay, Walmart, Alibaba, Grainger BLOCKED)"]:::blockStyle
+### Core modules
 
-        A4 --> B1
-        B1 --> B2 & B3 & B4 & B5
-        B1 -.->|Strict Filter| B6
-    end
+| Stage | Module | Responsibility |
+|---|---|---|
+| Ingestion | [`catalogue_ingestion.py`](backend/specledger/catalogue_ingestion.py) | Parses CSV/TSV/XLSX/PDF, strips distributor codes (`Freud Inc (2435)` → `Freud Inc`), computes row fingerprints |
+| Sourcing | [`source_discovery.py`](backend/specledger/source_discovery.py) | Manufacturer-domain candidates; blocks reseller marketplaces |
+| Enrichment | [`web_enricher.py`](backend/specledger/web_enricher.py), [`reference_data.py`](backend/specledger/reference_data.py) | Material/UOM normalization, description synthesis, attribute triplets |
+| Validation | [`validation_engine.py`](backend/specledger/validation_engine.py) | 6 rule categories: required fields, LOV membership, cross-field physics, completeness, duplicates, character limits |
+| Human review | [`human_review.py`](backend/specledger/human_review.py) | Confidence-gated routing, state machine, immutable audit trail |
+| Export | [`export.py`](backend/specledger/export.py), [`unilog_exporter.py`](backend/specledger/unilog_exporter.py) | 252-column Unilog CSV, schema.org JSON-LD, Commerce CSV, audit JSON |
+| Deep extraction | [`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py) | Real web/PDF crawl engine (100+ manufacturer registries), available on demand via `/catalogue/scraper/extract` |
 
-    %% STAGE 3: ENRICHMENT & SYNTHESIS
-    subgraph STAGE3["Stage 3: Multi-Modal Content Enrichment & Synthesis"]
-        C1["Controlled LOV Normalizer<br/>(reference_data.py, uom.py)"]:::enrichStyle
-        C2["6-Tier Description Synthesis<br/>(Mobile, Invoice, Short, Long, Retail, Marketing)"]:::enrichStyle
-        C3["20 Structured Feature Bullets<br/>(ITEM_FEATURES_1..20)"]:::enrichStyle
-        C4["50 Dynamic Attribute Triplets<br/>(Label, Value, UOM 1..50)"]:::enrichStyle
-        C5["Taxonomy & Classpath Hierarchy<br/>(Dept, Class, Fine, Classpath)"]:::enrichStyle
-        C6["Physical Dimensions & Compliance<br/>(L/W/H/Weight, Prop 65, Standards)"]:::enrichStyle
+### Reference data
+- 20+ canonical manufacturers, 14 brands, 18 product categories
+- 30+ material aliases normalized (`CI` → Cast Iron, `SS316` → Stainless Steel 316, `PTFE` → Teflon, …)
+- SKU-prefix inference (`APO-` → Apollo Valves, `PAR-` → Parker Hannifin, …)
+- Reseller blocklist: `amazon.com`, `ebay.com`, `walmart.com`, `alibaba.com`, `aliexpress.com`, `grainger.com`, `zoro.com`, `homedepot.com`, `lowes.com`
 
-        B2 & B3 & B4 & B5 --> C1 & C2 & C3 & C4 & C5 & C6
-    end
+---
 
-    %% STAGE 4: VALIDATION & INTEGRITY
-    subgraph STAGE4["Stage 4: Deterministic Validation & Physics Checks"]
-        D1["Validation Engine<br/>(validation_engine.py)"]:::validStyle
-        D2["Category Required Fields Check"]:::validStyle
-        D3["LOV Membership & Alloy Verification"]:::validStyle
-        D4["Cross-Field Physics Rules<br/>(e.g. PVC Incompatible with >600 PSI)"]:::validStyle
-        D5["Character Limit Enforcement<br/>(PIM/ERP Field Constraints)"]:::validStyle
+## Datasets & provenance
 
-        C1 & C2 & C3 & C4 & C5 & C6 --> D1
-        D1 --> D2 & D3 & D4 & D5
-    end
+| File | Role | Size |
+|---|---|---|
+| [`data/challenge/Unihack_ Sample Dataset - Input.csv`](data/challenge/Unihack_%20Sample%20Dataset%20-%20Input.csv) | Official challenge input (6 sparse supplier columns) | 1,000 rows |
+| [`data/challenge/Unihack_ Expected Output - Delivery Format.csv`](data/challenge/Unihack_%20Expected%20Output%20-%20Delivery%20Format.csv) | Target 252-column schema spec | — |
+| [`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`](data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) | SpecLedger's generated output | 1,000 rows, 1.49 MB |
+| [`data/ground_truth/synthetic_200_valves.csv`](data/ground_truth/synthetic_200_valves.csv) | Evaluation ground truth (valves & fluid handling) | 200 rows |
+| [`data/ground_truth/electrical_automation_100_benchmark.csv`](data/ground_truth/electrical_automation_100_benchmark.csv) | Evaluation ground truth (electrical & automation) | 100 rows |
 
-    %% STAGE 5: GOVERNANCE & HITL
-    subgraph STAGE5["Stage 5: Confidence-Scored Human Governance (HITL)"]
-        E1{"Dual Routing Gate<br/>Confidence >= 80% & 0 Errors?"}:::govStyle
-        E2["Auto-Approved Store<br/>(85%+ Fast-Path Automation)"]:::enrichStyle
-        E3["Priority Review Queue<br/>(human_review.py)"]:::govStyle
-        E4["Interactive Review Workspace<br/>(Side-by-Side Evidence Inspection)"]:::govStyle
-        E5["Immutable Audit Trail<br/>(SHA-256 Decision Lineage Trace)"]:::govStyle
-
-        D2 & D3 & D4 & D5 --> E1
-        E1 -- "YES (>=80%)" --> E2
-        E1 -- "NO (<80% / Issues)" --> E3
-        E3 --> E4
-        E4 -- "Approve / Correct / Reject" --> E5
-        E5 --> E2
-    end
-
-    %% STAGE 6: SYNDICATION & DELIVERY
-    subgraph STAGE6["Stage 6: Enterprise Syndication & Multi-Format Delivery"]
-        F1["Unilog 252-Column CSV Exporter<br/>(unilog_exporter.py)"]:::syndStyle
-        F2["schema.org / Product JSON-LD<br/>(Open-Web Structured Data)"]:::syndStyle
-        F3["Commerce-Ready PIM CSV<br/>(Flat ERP/PIM Import Feed)"]:::syndStyle
-        F4["Structured JSON Attribute Graph<br/>(With Source Evidence Quotes)"]:::syndStyle
-        F5["Audit Lineage JSON<br/>(Full Transformation History)"]:::syndStyle
-
-        E2 --> F1 & F2 & F3 & F4 & F5
-    end
+Reproduce the numbers below yourself:
+```bash
+.venv/bin/python -m pytest tests/ -v                        # 243 tests, 100% pass
+.venv/bin/python -m pytest tests/test_evaluator.py -v        # 200-row accuracy benchmark
+.venv/bin/python -m pytest tests/test_unilog_pipeline.py -v  # official 1,000-row dataset
 ```
 
 ---
 
-### 📊 End-to-End Pipeline Execution Matrix
+## Benchmark results
 
-| Pipeline Stage | Module / Component | Primary Responsibility | Key Output / Deliverable |
-|---|---|---|---|
-| **1. Multi-Format Ingestion** | [`catalogue_ingestion.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/catalogue_ingestion.py) | Ingests CSV, TSV, XLSX, and PDFs; removes supplier distributor brackets (e.g. `Freud Inc (2435)` $\rightarrow$ `Freud Inc`); computes SHA-256 row fingerprints. | Standardized `CatalogueBatch` with normalized supplier tokens. |
-| **2. Authoritative Sourcing** | [`source_discovery.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/source_discovery.py) | Generates manufacturer-domain source candidates (`parker.com`, `apollovalves.com`, `freudtools.com`); constructs PDF datasheet and manual URL patterns; **strictly blocks reseller marketplaces (Amazon/eBay)**. Current implementation uses simulated candidate mode — URLs are not fetched or verified. | Source candidate map with `MFR URL`, `Ref URLs 1..5`, and document URL patterns. |
-| **3. Content Enrichment** | [`web_enricher.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/web_enricher.py) + [`reference_data.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/reference_data.py) | Normalizes alloys/materials and UOMs via controlled dictionaries; synthesizes **6 description tiers**, **20 feature bullets**, **50 dynamic attribute triplets**, and taxonomy classpaths. | Populated 252-column product records with complete evidence quotes. |
-| **4. Validation & Rules** | [`validation_engine.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/validation_engine.py) | Runs 6 deterministic rule sets including category-required attributes, LOV membership, alloy physics checks (PVC vs 1500 PSI), and PIM character limits. | Validation scorecard with error/warning counts and row-level quality score. |
-| **5. Human Governance** | [`human_review.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/human_review.py) | Dual routing gate: auto-approves high confidence ($\ge 80\%$) rows; routes ambiguities to priority review queue with side-by-side evidence inspection and immutable audit logging. | Approved product state with complete SHA-256 reviewer audit trail. |
-| **6. Multi-Format Delivery** | [`export.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/export.py) + [`unilog_exporter.py`](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py) | Generates official Unilog 252-column delivery CSV, `schema.org/Product` JSON-LD graph, flat Commerce PIM CSV, and Audit Lineage JSON. | [**`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) (1.49 MB, 1,000 SKUs). |
+**200-row ground-truth evaluation** ([`synthetic_200_valves.csv`](data/ground_truth/synthetic_200_valves.csv)):
 
----
+| Metric | Score |
+|---|---|
+| Overall exact-match accuracy | **94.64%** (1,400 attributes evaluated) |
+| Category classification | 100.0% (200/200) |
+| Part number extraction | 100.0% (200/200) |
+| Description cleansing | 100.0% (200/200) |
+| Material normalization | 94.50% (189/200) |
+| Size & UOM standardization | 95.00% (190/200) |
+| Pressure rating accuracy | 93.50% (187/200) |
 
-## Core Subsystems & Technical Details
+**Official 1,000-SKU challenge dataset**, local deterministic pipeline:
 
-### 1. Ingestion & Input Normalization (`catalogue_ingestion.py`, `enrichment.py`)
-- Ingests CSV, TSV, XLSX, and PDF files up to 10 MB.
-- Supports Unilog's 6-column input dataset (`Mfg_Part_Num`, `Part_Desc`, `Part_Manuf`, `E1_Brand`, `Unilog_Brand`, `DIB_Brand`).
-- Automatically cleans distributor codes in parentheses (e.g. `Freud Inc (2435)` → `Freud Inc`).
-- Computes SHA-256 source fingerprints for row-level idempotency and version control.
+```
+Execution time      : 0.235s
+Throughput           : 4,251.8 rows/sec
+Columns populated    : 252 / 252 (100% Unilog CX1 spec)
+Attributes mapped    : 50,000 (50 slots × 1,000 rows)
+Verified rate        : 94.6%
+Validation errors    : 0 critical
+```
 
-### 2. Domain-Agnostic Web Extraction (`web_enricher.py`, `source_discovery.py`)
-- **Broad Domain Coverage:** Expands beyond industrial valves to cover abrasives, tools, woodworking machinery, electrical, lighting, building supplies, and consumer appliances (Freud, 3M, Mirka, Milwaukee, Dewalt, Makita, Frigidaire, Whirlpool, GE, LG, Speed Queen, Rheem, Leviton, Kichler, Boise Cascade, etc.).
-- **Source Lineage:** Attaches explicit manufacturer URLs (`MFR URL`, `Ref URL 1..5`) to every record.
-- **Dynamic Attribute Generation:** Builds 6 description levels, 20 feature bullet points, 50 dynamic key-value-unit attribute triplets, physical dimensions, and media/document links.
-
-### 3. Controlled Vocabularies & SKU Intelligence (`reference_data.py`, `uom.py`)
-- **Reference Store:** 20+ canonical industrial manufacturers, 14 brands, and 18 product categories.
-- **Material Normalization:** Maps 30+ material variants and abbreviations (`CI` → Cast Iron, `DI` → Ductile Iron, `CS` → Carbon Steel, `SS316` → Stainless Steel 316, `PTFE` → Teflon).
-- **SKU Prefix Intelligence:** Automatically infers canonical manufacturer names from part number prefixes (`APO-` → Apollo Valves, `PAR-` → Parker Hannifin, `VIC-` → Victaulic).
-
-### 4. Validation & Auto-Approval Engine (`validation_engine.py`)
-Executes 6 rule categories against every enriched record:
-1. **Required Fields by Category:** Category-specific schema validation.
-2. **LOV Membership:** Flags unrecognized manufacturers or materials.
-3. **Cross-Field Consistency:** Checks material ↔ pressure compatibility (e.g. PVC incompatible with >600 psi).
-4. **Completeness Scoring:** Calculates fraction of schema fields populated.
-5. **Batch Anomaly Detection:** Detects duplicate part numbers across batch rows.
-6. **Character Limits:** Enforces maximum character lengths for PIM/ERP export compatibility.
-
-### 5. Human Review & Audit Queue (`human_review.py`)
-- Priority-ordered queue prioritizing rows with errors or low confidence.
-- State machine: `pending_review` → `auto_approved` | `approved` | `rejected` | `corrected`.
-- Logs an immutable `AuditEvent` for every reviewer decision.
-
-### 6. Source Discovery & Marketplace Blocker (`source_discovery.py`)
-- Generates candidate product-page and datasheet URLs from an allowlist of official manufacturer domains.
-- Current batch pipeline uses simulated candidate mode — URLs are constructed but not HTTP-fetched.
-- **Marketplace Blocker:** Explicitly rejects Amazon, eBay, Alibaba, Walmart, Home Depot, Zoro, Grainger, and consumer shopping URLs.
-
-### 7. Multi-Format Exporters (`export.py`, `unilog_exporter.py`)
-- **Unilog 252-Column Template CSV:** Exact delivery format matching `Unihack_ Expected Output - Delivery Format.csv`.
-- **schema.org / Product JSON-LD:** Standard structured data graph conforming to `schema.org/Product`, `schema.org/Brand`, `schema.org/Organization`, and `schema.org/PropertyValue` with ISO UOM units for global search engine indexing and PIM syndication.
-- **Commerce-Ready CSV:** Flat structure with canonical attributes formatted for direct import into PIM/ERP systems.
-- **Structured JSON:** Full attribute graph with evidence citations.
-- **Audit JSON:** Complete lineage showing supplier raw value → transformation applied → evidence source → review decision.
-
-### 8. Live Industrial Web & Technical PDF Scraper Engine (`pdf_and_web_scraper.py`)
-- **100+ Global Manufacturer Registries:** Direct canonical domain mapping for industrial automation, fluidics, HVAC, tools, electrical, and commercial appliances (Schneider Electric, Apollo Valves, Honeywell, Leviton, 3M, Freud, Parker Hannifin, etc.).
-- **PyMuPDF Submittal PDF Generator:** Dynamically generates and streams authentic, high-fidelity engineering submittal PDFs with technical specification tables, 20 feature bullets, standards compliance, and SHA-256 evidence seals on the fly.
-- **Strict Anti-Marketplace Shield:** Actively intercepts and rejects 40+ consumer marketplace domains (Amazon, eBay, Walmart, AliExpress, Temu, etc.) to guarantee 100% manufacturer-grounded data integrity.
+This is a CPU pipeline benchmark on deterministic transformations — not a claim about live web-retrieval latency or production infrastructure throughput.
 
 ---
 
-## API Reference
+## Evaluation criteria
 
-The FastAPI backend exposes comprehensive REST endpoints under `/catalogue`:
+Mapped against UniHack's published judging criteria — Innovation, Technical Implementation, Business Relevance, Scalability, Overall Impact:
+
+| Criterion | How SpecLedger addresses it |
+|---|---|
+| **Innovation** | Domain-agnostic enrichment (valves, abrasives, tools, appliances, electrical) with a manufacturer-domain allowlist and strict marketplace-sourcing prohibition — a constraint most catalogue-enrichment tools don't enforce. |
+| **Technical Implementation** | FastAPI + Postgres backend with real auth, rate limiting, structured logging, and a durable object store; 243 automated tests; deterministic validation engine with 6 rule categories; React dashboard for human-in-the-loop review. |
+| **Business Relevance** | Targets the specific bottleneck Unilog names — converting scattered, sparse supplier data into structured, PIM-ready records — with a human review queue sized to the ~10–15% of rows that need judgment calls rather than full manual re-entry. |
+| **Scalability** | Chunked batch processing with source memoization; Postgres-backed persistence supports horizontal scaling; local benchmark of ~4,250 rows/sec on the deterministic path (see caveats above on what's measured vs. simulated). |
+| **Overall Impact** | A working, end-to-end pipeline from raw 6-column supplier input to a validated, exportable 252-column Unilog delivery file — runnable today at the live demo link above. |
+
+---
+
+## API reference
+
+REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any running instance):
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX file, enrich, validate, and route |
-| `GET` | `/catalogue/batches/{id}` | Retrieve batch details, review summary, metrics, and cost |
-| `GET` | `/catalogue/batches/{id}/rows/{num}` | Retrieve single row with field details, evidence, and review history |
-| `GET` | `/catalogue/batches/{id}/review/pending` | List pending review rows ordered by priority |
-| `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Submit review action (`approve`, `reject`, `correct`) |
-| `GET` | `/catalogue/batches/{id}/sources` | Retrieve manufacturer sources discovered for batch |
-| `GET` | `/catalogue/batches/{id}/export?format=...` | Export batch as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, or `audit` |
-| `POST` | `/catalogue/scraper/extract` | Execute deep web crawl and PDF extraction for any part number/manufacturer |
-| `GET` | `/catalogue/scraper/status` | Retrieve active scraper telemetry, supported portals, and firewall rules |
-| `GET` | `/catalogue/scraper/datasheet.pdf` | Stream a dynamically generated PyMuPDF industrial engineering submittal PDF |
-| `POST` | `/catalogue/batches/{id}/evaluate` | Run ground-truth evaluation against reference CSV |
-| `GET` | `/catalogue/reference/manufacturers` | List canonical manufacturers in reference store |
-| `GET` | `/catalogue/reference/brands` | List canonical brands in reference store |
-| `POST` | `/catalogue/reference/normalize/uom` | Normalize a raw UOM string |
+| `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX, enrich, validate, route for review |
+| `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics |
+| `GET` | `/catalogue/batches/{id}/rows/{num}` | Single row with evidence and review history |
+| `GET` | `/catalogue/batches/{id}/review/pending` | Pending review rows, priority-ordered |
+| `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Approve / reject / correct a row |
+| `GET` | `/catalogue/batches/{id}/sources` | Discovered manufacturer sources |
+| `GET` | `/catalogue/batches/{id}/export?format=...` | Export as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, `audit` |
+| `POST` | `/catalogue/scraper/extract` | Real web/PDF extraction for a given part number |
+| `GET` | `/catalogue/scraper/status` | Scraper telemetry, registered portals, firewall rules |
+| `POST` | `/catalogue/batches/{id}/evaluate` | Ground-truth evaluation against a reference CSV |
+| `GET` | `/catalogue/reference/manufacturers`, `/brands` | Canonical reference data |
+
+Write endpoints (`POST`/`PATCH`) require an `X-API-Key` header in production.
 
 ---
 
-## 🖥️ Web Dashboard (React + Vite)
+## Web dashboard
 
-The frontend application provides an enterprise-grade, dark-mode, control-center workspace for catalogue managers and data engineers running on `http://localhost:5174`:
+React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review, Imports & Telemetry, Schemas & Taxonomy, Evidence Library, Audit Trail.
 
-- **7 Dedicated Functional Views:** Overview (`⌘ 1`), Full Catalogue (`⌘ 2`), Priority Review Queue (`⌘ 3`), Batch Telemetry & Cost (`⌘ 4`), Schemas (`⌘ 5`), Evidence Library (`⌘ 6`), and Audit Trail (`⌘ 7`).
-- **Role Profile Switcher & Fast Evaluation:** Switch between 3 realistic operational personas (Systems Architect, Catalog QA Lead, Merchant Ops) or authenticate with Google Workspace / GitHub SSO for tailored workflow access.
-- **Interactive 252-Column Spec Inspector:** Inspect any SKU from the 1,000 catalogue across 6 specialized tabs including the live search Full 252-Column Grid and 1-Click `⚡ Run Live Web & PDF Crawl`.
-- **Live Human Governance Queue:** Inline `Approve` / `Reject` / `Correct` actions and 1-click `✓ Approve All High Confidence (≥80%)`.
-- **Evidence Review Workspace Modal:** Side-by-side view comparing raw supplier values, normalized values, confidence scores, and source evidence citations.
-- **Batch Telemetry & Operational Cost Modeling:** Displays throughput (rows/sec), p50/p95 latencies, cost per SKU, and projected monthly cost at **150,000 SKUs** and **750,000 SKUs**.
-- **Source Provenance & Marketplace Compliance:** Displays discovered manufacturer web URLs alongside explicit reseller blocking badges.
-- **One-Click Header Exports:** Direct downloads for **Unilog 252-Column CSV (`↓`)** and **Commerce PIM Feed (`🛒`)**.
+- Interactive 252-column spec inspector per SKU, with a live web/PDF crawl trigger
+- Priority review queue: approve / reject / correct, with one-click bulk-approve at ≥80% confidence
+- Side-by-side evidence modal comparing raw supplier values against normalized output
+- Batch telemetry: throughput, latency percentiles, cost-per-SKU
+- One-click exports: Unilog 252-column CSV, Commerce PIM CSV
 
 ---
 
-## Running Locally & Verification
+## Running locally
 
-### 1. Backend (FastAPI)
 ```bash
 git clone https://github.com/Yashasm18/specledger.git
 cd specledger
 
-# Set up virtual environment and install dependencies
+# Backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install pytest httpx pymupdf
-
-# Run the FastAPI server
 uvicorn backend.specledger.http_api:app --reload --port 8000
-```
 
-### 2. Frontend (React + Vite)
-```bash
+# Frontend (separate terminal)
 cd frontend
 npm install
-npm run dev
-# Open http://localhost:5174
+npm run dev   # http://localhost:5174
+
+# Tests
+.venv/bin/python -m pytest tests/ -v   # 243 passed
 ```
 
-### 3. Run Automated Tests
-```bash
-.venv/bin/python -m pytest tests/ -v
-# 243 passed in ~1.6 seconds (100%)
-```
+Without `DATABASE_URL` set, the backend falls back to local SQLite/in-memory storage automatically — no external services required for local dev.
 
 ---
 
-## 📁 Repository Structure
+## Repository structure
 
 ```
 specledger/
 ├── backend/specledger/
-│   ├── catalogue_api.py        # FastAPI router for catalogue endpoints
-│   ├── catalogue_ingestion.py  # Ingestion & normalization primitives (clean_manufacturer_name)
-│   ├── pdf_and_web_scraper.py  # Deep industrial web & PyMuPDF PDF extraction engine
-│   ├── web_enricher.py         # Domain-agnostic web extraction & taxonomy builder
-│   ├── unilog_exporter.py      # Unilog 252-column template CSV exporter
-│   ├── enrichment.py           # Field-level enrichment pipeline & description extraction
-│   ├── validation_engine.py    # Deterministic validation rules & auto-approval logic
-│   ├── human_review.py         # Priority review queue, state machine & audit trail
-│   ├── source_discovery.py     # Manufacturer source discovery & marketplace blocker
-│   ├── batch_processor.py      # Chunked processing, source cache, metrics & cost model
-│   ├── export.py               # Exporters (Unilog 252-col, Enriched CSV, Commerce CSV, JSON, Audit)
-│   ├── catalogue_persistence.py# PostgreSQL (migration 007) & in-memory persistence
-│   ├── reference_data.py       # Controlled vocabulary reference store (20 mfrs, 14 brands)
-│   ├── uom.py                  # UOM normalization & material canonical dictionary
-│   ├── evaluator.py            # Ground-truth evaluation scoring engine
-│   ├── http_api.py             # Main FastAPI application entry point
-│   ├── postgres_repository.py  # Product & version PostgreSQL repository
-│   └── models.py               # Core typed domain primitives
+│   ├── http_api.py               # FastAPI app entry point, auth, rate limiting
+│   ├── catalogue_api.py          # Catalogue ingestion/review/export router
+│   ├── catalogue_ingestion.py    # Parsing & normalization primitives
+│   ├── source_discovery.py       # Manufacturer source discovery & marketplace blocker
+│   ├── pdf_and_web_scraper.py    # Real web/PDF extraction engine
+│   ├── web_enricher.py           # Domain-agnostic enrichment & taxonomy
+│   ├── validation_engine.py      # Deterministic validation rules
+│   ├── human_review.py           # Review queue, state machine, audit trail
+│   ├── export.py, unilog_exporter.py  # Multi-format exporters
+│   ├── reference_data.py, uom.py # Controlled vocabularies
+│   ├── postgres_repository.py, catalogue_persistence.py  # Postgres + in-memory stores
+│   ├── object_store.py           # Supabase Storage / local disk object store
+│   ├── auth.py, rate_limit.py    # API-key gate, rate limiting
+│   └── evaluator.py              # Ground-truth evaluation scoring
 ├── data/
-│   ├── challenge/              # Official Unilog challenge dataset and target 252-col delivery CSV
-│   ├── ground_truth/           # Synthetic 200-row industrial valve benchmark dataset
-│   └── reference/              # Private reference data overrides
-├── frontend/                   # React + Vite dashboard web application
-│   ├── src/                    # Components, API clients, workspace views & CSS styles
-│   └── package.json            # Vite, React, TypeScript & vitest dependencies
-├── migrations/
-│   └── 007_catalogue_reference.sql # PostgreSQL schema for catalogue & reference data
-├── tests/                      # 243 backend + 6 frontend safety tests
-│   ├── test_pdf_and_web_scraper.py # Scraper engine & PyMuPDF submittal tests
-│   ├── test_unilog_pipeline.py # Unilog ingestion, web enrichment & 252-column export tests
-│   ├── test_catalogue_api.py
-│   ├── test_catalogue_persistence.py
-│   ├── test_validation_engine.py
-│   ├── test_human_review.py
-│   ├── test_source_discovery.py
-│   ├── test_batch_processor.py
-│   ├── test_export.py
-│   ├── test_enrichment.py
-│   ├── test_evaluator.py
-│   └── test_reference_data.py
-├── LICENSE                     # Official MIT Open-Source License
-├── pytest.ini                  # Pytest test discovery & execution configuration
-├── .pylintrc                   # Static analysis & code quality rules
-└── README.md                   # Comprehensive technical documentation & architecture
+│   ├── challenge/                 # Official Unilog dataset + expected output
+│   ├── ground_truth/              # Evaluation benchmarks
+│   └── reference/                 # Reference data overrides
+├── frontend/                      # React + Vite dashboard
+├── migrations/                    # Postgres schema migrations
+├── tests/                         # 243 backend tests + 6 frontend tests
+├── Dockerfile, render.yaml        # Container & deploy config
+└── .github/workflows/             # CI + GitHub Pages deploy
 ```
 
 ---
 
-## 🏆 Summary of Accomplishments
-
-- **Dual-Mode Enterprise Architecture** supporting both standalone headless pipelines and interactive human governance web UI.
-- **243 / 243 Unit Tests Passing** (100% pass rate in ~1.6s) plus 6 frontend safety tests.
-- **Official 1,000-Row Dataset Enriched & Verified** — local deterministic benchmark: **0.235 seconds** (**~4,250 rows/sec**).
-- **Official 252-Column Unilog Template Exporter** generating [**`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`**](https://github.com/Yashasm18/specledger/blob/main/data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) (1.49 MB).
-- **94.64% Ground-Truth Accuracy** achieved on the 200-row benchmark.
-- **Industrial Web & PDF Scraper Engine** with PyMuPDF submittal generator and strict anti-shopping marketplace firewall.
-- **Domain-Agnostic Enrichment** handling valves, abrasives, tools, woodworking, lighting, electrical, and consumer appliances.
-- **Enterprise Dark-Mode Web App** with live human governance review, marketplace blocking badges, schema downloads, and audit trail.
-- **Containerized Deployment** ready via Dockerfile, render.yaml, and Vercel frontend.
-
----
-
 *Built for UniHack 2026 by Yashas M.*
-
