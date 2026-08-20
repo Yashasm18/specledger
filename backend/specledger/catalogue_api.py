@@ -518,19 +518,25 @@ def get_batch_sources(
         return {"batch_id": real_id, "source_count": 0, "sources": []}
 
     sources = []
+    verified_count = 0
     for discovery in result.sources:
         for source in discovery.sources:
             item = source.to_dict()
             item["discovery_mode"] = discovery.discovery_mode
-            item["evidence_status"] = "candidate_unverified"
+            is_verified = source.status.value == "verified"
+            item["evidence_status"] = "verified_live" if is_verified else "candidate_unverified"
+            if is_verified:
+                verified_count += 1
             sources.append(item)
+
+    discovery_modes = {discovery.discovery_mode for discovery in result.sources if discovery.sources or discovery.search_queries}
 
     return {
         "batch_id": real_id,
         "source_count": len(sources),
         "sources": sources,
-        "verified_source_count": 0,
-        "discovery_mode": "simulated_candidates",
+        "verified_source_count": verified_count,
+        "discovery_mode": "live" if "live" in discovery_modes else "simulated_candidates",
     }
 
 
