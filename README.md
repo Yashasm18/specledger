@@ -2,9 +2,9 @@
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-2ea44f.svg?logo=github&logoColor=white)](https://yashasm18.github.io/specledger/)
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
-[![Pylint](https://img.shields.io/badge/Pylint-9.91%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
-[![Tests](https://img.shields.io/badge/Tests-243%20Passed%20(100%25)-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
-[![Benchmark Accuracy](https://img.shields.io/badge/Benchmark%20Accuracy-94.64%25-success.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
+[![Pylint](https://img.shields.io/badge/Pylint-9.82%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
+[![Tests](https://img.shields.io/badge/Tests-242%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20Benchmark-94.64%25-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252--Column%20Compliant-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -61,7 +61,11 @@ flowchart LR
     F --> H["6. Export\n252-col Unilog CSV\nschema.org JSON-LD\nCommerce PIM CSV"]
 ```
 
-**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. On a real 20-row sample from the official challenge dataset, this found genuine verified manufacturer pages for 6 rows via simple URL-pattern guessing alone (no paid search API) — a real, imperfect hit rate, not 100%, which is what an honest first pass looks like. It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. The deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`, used by the dashboard's per-SKU spec inspector) still only synthesizes a plausible profile — its own docstring says so directly — and hasn't been converted to live fetching yet.
+**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. On a real 20-row sample from the official challenge dataset, this found genuine verified manufacturer pages for 6 rows via simple URL-pattern guessing alone — a real, imperfect hit rate, not 100%, which is what an honest first pass looks like.
+
+When domain guessing finds nothing (very common — the raw input's manufacturer field is frequently a distributor, e.g. "Appliance Dealers Cooperative", not the real manufacturer), `live_fetch` falls back to a real web search (via [Serper.dev](https://serper.dev), optional — set `SERPER_API_KEY`) and accepts a manufacturer only when a returned result links to a domain already in the registry, never inventing a name from search text. Tested against Unilog's own real worked example: correctly identified "Frigidaire" as the true manufacturer of part `PDSH4816AF` from a raw "Appliance Dealers Cooperative" input, matching Unilog's real answer — though the manufacturer's own page then failed to load in time (bot protection on their end), so the resolved name is surfaced honestly as search-identified rather than page-verified in that case. A second real example found no match at all, because the manufacturer's page didn't rank in top search results for that query — real search has real limits.
+
+It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. The deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`, used by the dashboard's per-SKU spec inspector) still only synthesizes a plausible profile — its own docstring says so directly — and hasn't been converted to live fetching yet.
 
 ### Core modules
 
@@ -85,47 +89,49 @@ flowchart LR
 
 ## Datasets & provenance
 
+What Unilog actually published for this challenge is three things: a Solution Guide, a 1,000-row sample input, and an Expected Output sheet containing the static 252-column header plus 2 fully-worked real examples (a Frigidaire and a Whirlpool dishwasher). There is no larger officially-labeled ground-truth set available to participants.
+
 | File | Role | Size |
 |---|---|---|
 | [`data/challenge/Unihack_ Sample Dataset - Input.csv`](data/challenge/Unihack_%20Sample%20Dataset%20-%20Input.csv) | Official challenge input (6 sparse supplier columns) | 1,000 rows |
-| [`data/challenge/Unihack_ Expected Output - Delivery Format.csv`](data/challenge/Unihack_%20Expected%20Output%20-%20Delivery%20Format.csv) | Target 252-column schema spec | — |
-| [`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`](data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) | SpecLedger's generated output | 1,000 rows, 1.49 MB |
-| [`data/ground_truth/synthetic_200_valves.csv`](data/ground_truth/synthetic_200_valves.csv) | Evaluation ground truth (valves & fluid handling) | 200 rows |
-| [`data/ground_truth/electrical_automation_100_benchmark.csv`](data/ground_truth/electrical_automation_100_benchmark.csv) | Evaluation ground truth (electrical & automation) | 100 rows |
+| [`data/challenge/Unihack_ Expected Output - Delivery Format.csv`](data/challenge/Unihack_%20Expected%20Output%20-%20Delivery%20Format.csv) | Official 252-column header **plus 2 real worked examples** — the only genuine Unilog-labeled ground truth available | 2 rows |
+| [`data/challenge/Unihack_ Enriched_Delivery_Output_252.csv`](data/challenge/Unihack_%20Enriched_Delivery_Output_252.csv) | SpecLedger's generated output on the full 1,000-row input | 1,000 rows, 1.49 MB |
+| [`data/ground_truth/synthetic_200_valves.csv`](data/ground_truth/synthetic_200_valves.csv) | **Self-generated, fictional** benchmark (invented manufacturers/part numbers) — useful for regression-testing our own pipeline logic, not a claim about real-world or official Unilog accuracy | 200 rows |
+| [`data/ground_truth/electrical_automation_100_benchmark.csv`](data/ground_truth/electrical_automation_100_benchmark.csv) | Also self-generated/fictional, same caveat as above | 100 rows |
 
 Reproduce the numbers below yourself:
 ```bash
 .venv/bin/python -m pytest tests/ -v                        # 243 tests, 100% pass
-.venv/bin/python -m pytest tests/test_evaluator.py -v        # 200-row accuracy benchmark
-.venv/bin/python -m pytest tests/test_unilog_pipeline.py -v  # official 1,000-row dataset
+.venv/bin/python -m pytest tests/test_evaluator.py -v        # self-generated 200-row regression benchmark
+.venv/bin/python -m pytest tests/test_unilog_pipeline.py -v  # official 1,000-row dataset, structural checks
 ```
 
 ---
 
 ## Benchmark results
 
-**200-row ground-truth evaluation** ([`synthetic_200_valves.csv`](data/ground_truth/synthetic_200_valves.csv)):
+**Against Unilog's own 2 real worked examples** (the only official ground truth available — see table above): SpecLedger correctly extracts the part number for both, but gets manufacturer/brand wrong for both in its default mode, because the raw input's manufacturer field is actually the *distributor* ("Appliance Dealers Cooperative"), not the manufacturer — the real answer ("Frigidaire", "Whirlpool Corporation") isn't derivable from the 6 input columns alone. With real web search enabled (`live_fetch=true`, see [How it works](#how-it-works)), the pipeline correctly identified "Frigidaire" from a genuine Google search hit; it did not find "Whirlpool" because whirlpool.com's own product page didn't rank in the top search results for that query. This is reported as-is, not smoothed over — 2 examples is a very small sample, and this is the honest result on it.
+
+**Self-generated 200-row synthetic benchmark** (fictional data, not Unilog's — see caveat above; useful only for catching regressions in our own normalization logic):
 
 | Metric | Score |
 |---|---|
-| Overall exact-match accuracy | **94.64%** (1,400 attributes evaluated) |
+| Overall exact-match accuracy | 94.64% (1,400 attributes evaluated) |
 | Category classification | 100.0% (200/200) |
 | Part number extraction | 100.0% (200/200) |
-| Description cleansing | 100.0% (200/200) |
 | Material normalization | 94.50% (189/200) |
-| Size & UOM standardization | 95.00% (190/200) |
-| Pressure rating accuracy | 93.50% (187/200) |
 
-**Official 1,000-SKU challenge dataset**, local deterministic pipeline:
+**Official 1,000-SKU challenge input**, deterministic pipeline, freshly measured (not a stale/hand-written figure):
 
 ```
-Execution time      : 0.235s
-Throughput           : 4,251.8 rows/sec
-Columns populated    : 252 / 252 (100% Unilog CX1 spec)
-Attributes mapped    : 50,000 (50 slots × 1,000 rows)
-Verified rate        : 94.6%
-Validation errors    : 0 critical
+Rows processed       : 1,000
+Wall-clock time       : 0.138s
+Throughput            : ~7,200 rows/sec
+Field verified_rate   : 38.1% (fraction of all fields matched against reference data)
+Auto-approve rate     : 0% — every row currently routes to human review
 ```
+
+That last two numbers are worth explaining honestly rather than hiding: `verified_rate` is lower than earlier drafts of this README claimed (an unsourced "94.6%" figure that didn't trace back to any actual test run — corrected here). And auto-approval is 0% because almost every row in the real input has placeholder brand fields (`-- Unbranded --`, `-- No Unilog Brand --`) that our validation rules treat as an unconditional block on auto-approval. That's a legitimate, disclosed business-rule question — whether "no brand" should count as acceptable rather than a warning — not a bug we've silently patched over.
 
 This is a CPU pipeline benchmark on deterministic transformations — not a claim about live web-retrieval latency or production infrastructure throughput.
 
@@ -137,10 +143,10 @@ Per UniHack's own team briefing, judging centers on the **approach**, not the te
 
 | Criterion | How SpecLedger addresses it |
 |---|---|
-| **Quality of approach** | A deterministic, auditable pipeline: every transformation retains source lineage, ambiguous rows route to a confidence-gated human review queue instead of silently guessing, and known limitations (like "simulated candidate mode," above) are stated rather than hidden. FastAPI/Postgres/React are implementation details in service of that approach, not the pitch itself. |
-| **Accuracy of data** | 94.64% exact-match accuracy on a 200-row ground-truth benchmark, with per-field breakdowns (100% category classification, 94.5% material normalization — see [Benchmark results](#benchmark-results)). Cross-field physics validation (e.g. rejecting a PVC part rated above 600 PSI) catches errors a naive field-by-field pipeline would miss. |
-| **Scalability** | Chunked batch processing with source memoization; Postgres-backed persistence built for horizontal scaling rather than a single-machine prototype; ~4,250 rows/sec measured on the deterministic CPU path (not simulated — see caveats above). |
-| **Innovation** | A manufacturer-domain allowlist with strict marketplace-sourcing prohibition enforced at the architecture level (not a post-hoc filter), applied across a domain-agnostic set of categories — valves, abrasives, tools, appliances, electrical — rather than one narrow vertical. |
+| **Quality of approach** | A deterministic, auditable pipeline: every transformation retains source lineage, ambiguous rows route to a confidence-gated human review queue instead of silently guessing, and known limitations (simulated vs. live modes, the 0% auto-approve finding above) are stated rather than hidden. FastAPI/Postgres/React are implementation details in service of that approach, not the pitch itself. |
+| **Accuracy of data** | Tested against Unilog's own real worked examples, not just self-generated data (see [Benchmark results](#benchmark-results)) — including reporting where it currently gets the real answer wrong and why. Cross-field physics validation (e.g. rejecting a PVC part rated above 600 PSI) catches errors a naive field-by-field pipeline would miss. |
+| **Scalability** | Chunked batch processing with source memoization; Postgres-backed persistence built for horizontal scaling; ~7,200 rows/sec measured (not simulated) on the deterministic path — raw throughput was never the bottleneck, see the [150K→750K math](#overview) above. |
+| **Innovation** | A manufacturer-domain allowlist with strict marketplace-sourcing prohibition enforced at the architecture level, plus real search-based manufacturer resolution (`live_fetch=true`) for the common real-world case where the input's manufacturer field is actually a distributor. |
 
 ---
 
