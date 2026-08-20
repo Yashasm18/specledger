@@ -26,6 +26,28 @@ const defaultRows = [
   ["VAL-CHK-075", "Check Valve · 3/4 inch Bronze 200 WOG", "Milwaukee Valve", "Industrial Valves", "Ready", "96% verified"],
 ];
 
+// Mirrors backend/specledger/enrichment.py's detect_role() keyword heuristic.
+// The catalogue persistence API returns raw_values/enriched_values keyed by
+// original CSV column name (e.g. "mfg_part_num"), not a role-tagged fields
+// array, so the frontend re-derives role from column name the same way.
+function detectRole(column: string): string {
+  const k = column.toLowerCase().trim();
+  if (["part_num", "part_no", "part_number", "sku", "item_num", "item_no", "model_num", "mfg_part", "item_code"].some((p) => k.includes(p))) return "part_number";
+  if (["desc", "description", "product_name", "item_title", "title", "part_desc"].some((d) => k.includes(d))) return "description";
+  if (["manufacturer", "mfr", "mfg", "vendor", "supplier", "part_manuf"].some((m) => k.includes(m))) return "manufacturer";
+  if (["brand", "trade_name"].some((b) => k.includes(b))) return "brand";
+  if (["category", "prod_type", "taxonomy"].some((c) => k.includes(c))) return "category";
+  return "other";
+}
+
+function findByRole(values: Record<string, string> | undefined, role: string): string | undefined {
+  if (!values) return undefined;
+  for (const [col, val] of Object.entries(values)) {
+    if (val && detectRole(col) === role) return val;
+  }
+  return undefined;
+}
+
 const ALL_252_UNILOG_HEADERS: string[] = [
   "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5",
   "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num",
@@ -702,15 +724,19 @@ function App() {
     return all50;
   };
 
-  // Format table rows
+  // Format table rows. liveRows come from GET /catalogue/batches/{id}, which
+  // returns raw_values/enriched_values as flat dicts keyed by original CSV
+  // column name — not a role-tagged fields array — so roles are re-derived
+  // via detectRole/findByRole.
   const displayRows = liveRows.length > 0
     ? liveRows.map((r: any) => {
-        const skuField = r.fields?.find((f: any) => f.role === "part_number")?.canonical_value || r.fields?.[0]?.canonical_value || `ROW-${r.row_number}`;
-        const descField = r.fields?.find((f: any) => f.role === "description")?.canonical_value || r.fields?.[1]?.canonical_value || "Industrial Product Component";
-        const mfrField = r.fields?.find((f: any) => f.role === "manufacturer")?.canonical_value || r.fields?.[2]?.canonical_value || "Verified Manufacturer";
-        const catField = r.fields?.find((f: any) => f.role === "category")?.canonical_value || "Industrial Valves";
-        const status = r.overall_status === "verified" || r.overall_status === "approved" ? "Ready" : "Needs review";
-        const quality = `${Math.round((r.overall_confidence || 0.95) * 100)}% verified`;
+        const values = r.enriched_values || r.raw_values || {};
+        const skuField = findByRole(values, "part_number") || `ROW-${r.row_number}`;
+        const descField = findByRole(values, "description") || "Uncategorized product";
+        const mfrField = findByRole(values, "manufacturer") || findByRole(values, "brand") || "Unknown manufacturer";
+        const catField = findByRole(values, "category") || "Uncategorized";
+        const status = r.overall_status === "verified" || r.overall_status === "approved" || r.review_state === "approved" ? "Ready" : "Needs review";
+        const quality = `${Math.round((r.overall_confidence ?? 0.5) * 100)}% verified`;
         return [skuField, `${descField}`, mfrField, catField, status, quality, r];
       })
     : defaultRows;
@@ -901,8 +927,8 @@ function App() {
                   <span>HUMAN ACTION</span>
                 </div>
                 {pendingReviews.map((item: any, idx: number) => {
-                  const rowObj = liveRows.find((r) => r.row_number === item.row_number);
-                  const sku = rowObj?.fields?.find((f: any) => f.role === "part_number")?.canonical_value || `Row ${item.row_number}`;
+                  const rowObj: any = liveRows.find((r: any) => r.row_number === item.row_number);
+                  const sku = findByRole(rowObj?.enriched_values || rowObj?.raw_values, "part_number") || `Row ${item.row_number}`;
                   return (
                     <div className="tr" key={item.row_number || idx} style={{ gridTemplateColumns: "1.4fr 1.2fr 0.8fr 1fr 1.2fr" }}>
                       <span>
