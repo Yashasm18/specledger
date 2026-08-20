@@ -129,15 +129,14 @@ This is a CPU pipeline benchmark on deterministic transformations — not a clai
 
 ## Evaluation criteria
 
-Mapped against UniHack's published judging criteria — Innovation, Technical Implementation, Business Relevance, Scalability, Overall Impact:
+Per UniHack's own team briefing, judging centers on the **approach**, not the technology choices behind it — specifically: quality of approach, accuracy of data, scalability, and innovation.
 
 | Criterion | How SpecLedger addresses it |
 |---|---|
-| **Innovation** | Domain-agnostic enrichment (valves, abrasives, tools, appliances, electrical) with a manufacturer-domain allowlist and strict marketplace-sourcing prohibition — a constraint most catalogue-enrichment tools don't enforce. |
-| **Technical Implementation** | FastAPI + Postgres backend with real auth, rate limiting, structured logging, and a durable object store; 243 automated tests; deterministic validation engine with 6 rule categories; React dashboard for human-in-the-loop review. |
-| **Business Relevance** | Targets the specific bottleneck Unilog names — converting scattered, sparse supplier data into structured, PIM-ready records — with a human review queue sized to the ~10–15% of rows that need judgment calls rather than full manual re-entry. |
-| **Scalability** | Chunked batch processing with source memoization; Postgres-backed persistence supports horizontal scaling; local benchmark of ~4,250 rows/sec on the deterministic path (see caveats above on what's measured vs. simulated). |
-| **Overall Impact** | A working, end-to-end pipeline from raw 6-column supplier input to a validated, exportable 252-column Unilog delivery file — runnable today at the live demo link above. |
+| **Quality of approach** | A deterministic, auditable pipeline: every transformation retains source lineage, ambiguous rows route to a confidence-gated human review queue instead of silently guessing, and known limitations (like "simulated candidate mode," above) are stated rather than hidden. FastAPI/Postgres/React are implementation details in service of that approach, not the pitch itself. |
+| **Accuracy of data** | 94.64% exact-match accuracy on a 200-row ground-truth benchmark, with per-field breakdowns (100% category classification, 94.5% material normalization — see [Benchmark results](#benchmark-results)). Cross-field physics validation (e.g. rejecting a PVC part rated above 600 PSI) catches errors a naive field-by-field pipeline would miss. |
+| **Scalability** | Chunked batch processing with source memoization; Postgres-backed persistence built for horizontal scaling rather than a single-machine prototype; ~4,250 rows/sec measured on the deterministic CPU path (not simulated — see caveats above). |
+| **Innovation** | A manufacturer-domain allowlist with strict marketplace-sourcing prohibition enforced at the architecture level (not a post-hoc filter), applied across a domain-agnostic set of categories — valves, abrasives, tools, appliances, electrical — rather than one narrow vertical. |
 
 ---
 
