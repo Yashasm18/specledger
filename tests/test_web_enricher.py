@@ -211,3 +211,69 @@ class ManufacturerUrlHonestyTests(unittest.TestCase):
         )
         self.assertTrue(res.mfr_url)
         self.assertIn("apollo", res.mfr_url)
+
+
+class SpecExtractionPrecisionTests(unittest.TestCase):
+    """Specs must come from the description, never from the part number.
+
+    Identifiers sitting at the head of a description were being mined for
+    specifications on the official dataset:
+
+      "49-94-0013 Milw 5\"x.045\" Metal Cut Off Disc"  -> Grit 49   (34 rows)
+      "37418A Kichler Bath Light"                     -> 37418 A
+      "9A-570-240 Abranet 2.75x30"                    -> 9 A
+
+    None of those are specs, and a cut-off disc has no grit at all. A part
+    number is an identifier by definition, so it is removed before any spec
+    is read out of the text.
+    """
+
+    def test_no_grit_from_a_part_number_prefix(self) -> None:
+        res = enrich_product_web(
+            "49-94-0013", "Milwaukee Tool",
+            '49-94-0013 Milw 5"x.045"x7/8" Metal Cut Off Disc',
+        )
+        self.assertNotIn("Grit", [a.label for a in res.attributes])
+
+    def test_no_amperage_from_a_part_number_suffix(self) -> None:
+        res = enrich_product_web("37418A", "Kichler", "37418A Kichler Bath Light")
+        self.assertNotIn("Amperage Rating", [a.label for a in res.attributes])
+
+    def test_no_grit_from_a_fractional_size(self) -> None:
+        # 1/2" is a width. It is not grit 1.
+        res = enrich_product_web(
+            "DCB518ASTS06G", "Freud Inc",
+            'DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc',
+        )
+        self.assertNotIn("Grit", [a.label for a in res.attributes])
+
+    def test_a_real_p_designation_is_still_read(self) -> None:
+        res = enrich_product_web(
+            "3MABR-7100075678", "3M",
+            "3M 775L Stikit Film P150 - Cubitron II 50 Disc/Box",
+        )
+        grit = [a for a in res.attributes if a.label == "Grit"]
+        self.assertEqual([a.value for a in grit], ["P150"])
+
+    def test_a_number_stated_as_grit_is_still_read(self) -> None:
+        res = enrich_product_web(
+            "DFBLBLOMFN01G", "Freud Inc",
+            "DFBLBLOMFN01G Diablo 220 Grit - Flat Edge Sanding Sponge",
+        )
+        grit = [a for a in res.attributes if a.label == "Grit"]
+        self.assertEqual([a.value for a in grit], ["220"])
+
+    def test_a_real_amperage_is_still_read(self) -> None:
+        res = enrich_product_web(
+            "R02D215P1RW", "Leviton", "R02D215P1RW 15A Mini Outlet Wh",
+        )
+        amps = [a for a in res.attributes if a.label == "Amperage Rating"]
+        self.assertEqual([(a.value, a.uom) for a in amps], [("15", "A")])
+
+    def test_voltage_and_horsepower_are_unaffected(self) -> None:
+        res = enrich_product_web(
+            "10047VS", "Oliver", "10047VS Oliver 3HP 230V 1PH Shaper 1-1/4 Spindle",
+        )
+        found = {a.label: a.value for a in res.attributes}
+        self.assertEqual(found.get("Voltage Rating"), "230")
+        self.assertEqual(found.get("Horsepower"), "3")
