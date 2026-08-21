@@ -593,13 +593,31 @@ def list_pending_review(
 
     pending = queue.get_pending(real_id, limit=limit)
     summary = queue.get_batch_summary(real_id)
+
+    # Attach each row's confidence from the recomputed enrichment rather than
+    # the value persisted at ingest time — the stored copy reflects whatever
+    # scoring logic was in effect when the batch was first ingested, so a
+    # reviewer would otherwise be shown a stale number next to freshly
+    # recomputed validation issues.
+    result = _batch_results.get(real_id)
+    confidence_by_row = (
+        {r.row_number: r.overall_confidence for r in result.enriched.rows}
+        if result else {}
+    )
+
+    rows_out = []
+    for r in pending:
+        row_dict = r.to_dict()
+        row_dict["overall_confidence"] = confidence_by_row.get(r.row_number)
+        rows_out.append(row_dict)
+
     return {
         "batch_id": real_id,
         "count": len(pending),
         "total_pending": summary["pending_review"],
         "limit": limit,
         "summary": summary,
-        "pending_rows": [r.to_dict() for r in pending],
+        "pending_rows": rows_out,
     }
 
 

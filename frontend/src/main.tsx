@@ -932,17 +932,32 @@ function App() {
                 {pendingReviews.map((item: any, idx: number) => {
                   const rowObj: any = liveRows.find((r: any) => r.row_number === item.row_number);
                   const sku = findByRole(rowObj?.enriched_values || rowObj?.raw_values, "part_number") || `Row ${item.row_number}`;
+                  // The real validation findings for this row, as computed by
+                  // the pipeline — errors first so the most serious reason is
+                  // the one the reviewer sees.
+                  const issues: any[] = item.validation?.issues ?? [];
+                  const primaryIssue =
+                    issues.find((i: any) => i.severity === "error") ?? issues[0] ?? null;
+                  const issueCount = issues.length;
+                  // Prefer the freshly recomputed confidence from the review
+                  // API over the copy persisted on the batch row at ingest.
+                  const confidence = item.overall_confidence ?? rowObj?.overall_confidence ?? null;
                   return (
                     <div className="tr" key={item.row_number || idx} style={{ gridTemplateColumns: "1.4fr 1.2fr 0.8fr 1fr 1.2fr" }}>
                       <span>
                         <strong>{sku}</strong>
                         <small>Row #{item.row_number}</small>
                       </span>
-                      <span style={{ color: "#d97706", fontSize: 11 }}>
-                        {item.errors?.[0] || item.reason || "Requires human verification"}
+                      <span style={{ color: "#d97706", fontSize: 11 }} title={primaryIssue?.suggestion || undefined}>
+                        {primaryIssue ? primaryIssue.message : "Requires human verification"}
+                        {issueCount > 1 && (
+                          <small style={{ display: "block", color: "#94a3b8" }}>
+                            +{issueCount - 1} more issue{issueCount > 2 ? "s" : ""}
+                          </small>
+                        )}
                       </span>
                       <span style={{ fontFamily: "DM Mono", fontSize: 11 }}>
-                        {rowObj?.overall_confidence != null ? `${Math.round(rowObj.overall_confidence * 100)}%` : "—"}
+                        {confidence != null ? `${Math.round(confidence * 100)}%` : "—"}
                       </span>
                       <span>
                         <mark className="review">● {item.state || "pending_review"}</mark>
