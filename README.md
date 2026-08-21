@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-[![Tests](https://img.shields.io/badge/Tests-294%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-297%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Pylint](https://img.shields.io/badge/Pylint-9.93%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20benchmark-94.37%25-blue.svg)](#benchmark-results)
 [![Throughput](https://img.shields.io/badge/Throughput-~7%2C000%20rows%2Fsec-blue.svg)](#benchmark-results)
@@ -27,7 +27,7 @@
 ---
 
 ## Contents
-[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
+[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
 
 ---
 
@@ -107,7 +107,7 @@ flowchart LR
     G --> I["6. Export\n252-col Unilog CSV\nschema.org JSON-LD\nCommerce PIM CSV"]
 ```
 
-**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. On a real 20-row sample from the official challenge dataset, this found genuine verified manufacturer pages for 6 rows via simple URL-pattern guessing alone — a real, imperfect hit rate, not 100%, which is what an honest first pass looks like.
+**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. See [Measured hit rate](#measured-hit-rate-on-real-rows) below for what it actually achieves.
 
 **When a real datasheet PDF is found, its text is actually read — not just linked.** This is the direct answer to the "few parameters given, the rest comes from manuals" scenario Unilog's own team described (e.g. the Samsung spec-sheet example): once `live_fetch` confirms a genuine linked PDF datasheet, [`extract_pdf_attributes()`](backend/specledger/source_discovery.py) opens the real fetched bytes with PyMuPDF, flattens them to text, and pulls out genuine "Label: Value" spec rows (e.g. `Voltage Rating: 120 V`) with a conservative Title-Case pattern — tuned specifically to reject flowing marketing prose (verified against a real third-party manufacturer catalog PDF, which correctly yielded near-zero false positives) rather than a loose match that would turn brochure sentences into fake attributes. A PDF with no clean label/value layout — a photo-heavy brochure, a prose-only manual — honestly yields zero extracted attributes rather than a guess; this is intentionally conservative, not a claim that every manufacturer PDF gets parsed. Surfaced in the dashboard's Evidence Library alongside the source link itself.
 
@@ -116,6 +116,29 @@ When domain guessing finds nothing (very common — the raw input's manufacturer
 It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. A separate deep-crawl module that only ever synthesized plausible-looking profiles — never fetching anything — was **deleted**, along with the three endpoints that exposed it, rather than left in place behind a disclaimer: its `/scraper/datasheet.pdf` route was still reachable on the public API and would stream an invented "submittal" document. Its marketplace blocklist was genuinely broader than the real one, so those domains were merged into [`source_discovery.py`](backend/specledger/source_discovery.py) first. The per-SKU inspector shows the real computed 252-column record for every row.
 
 **On source breadth — manuals, videos, and beyond a manufacturer's own domain.** The architecture already models this: `SourceType` in [`source_discovery.py`](backend/specledger/source_discovery.py) classifies `PDF_DATASHEET`, `TECHNICAL_MANUAL`, `VIDEO`, and `SPECIFICATION_SHEET` as distinct source kinds, and nothing in the pipeline assumes the source is a manufacturer's own website specifically — only that it isn't a blocked marketplace (see `BLOCKED_DOMAINS`). What's real today is HTML product pages and PDF datasheets, with the PDF path now reading actual text out of the file (previous paragraph) rather than just linking to it. Video transcription and non-manufacturer third-party sources (review sites, forums, social) are anticipated in the type system but not implemented — stated here directly rather than left ambiguous.
+
+### Measured hit rate on real rows
+
+Verification was run against live manufacturer sites for 21 real rows from the official dataset, sampled three per department so the result measures generality rather than one comfortable vertical:
+
+| Department | Verified |
+|---|---|
+| Tools & Equipment | 3/3 |
+| Electrical Supplies | 3/3 |
+| Appliances & Consumer Electronics | 1/3 |
+| Industrial Supplies | 1/3 |
+| Building Supplies | 0/3 |
+| Electrical | 0/3 |
+| Safety & PPE | 0/3 |
+| **Overall** | **8/21 — 38%** |
+
+**38%, not 90%.** Publishing the number that survives checking is the point; a tool claiming near-total success against live manufacturer sites would be describing something other than the open web.
+
+Two findings from that sweep are worth stating, because both were surprises:
+
+**Search is most of the value.** The same sweep scores **24%** without `SERPER_API_KEY` and **38%** with it. Electrical Supplies goes 1/3 → 3/3 purely because search resolves `Square D Con Prod Dv` — a name absent from the registry — to `Square D`. Most failures are not missing registry entries but **URL-pattern mismatches**: the pipeline guesses `/product/{sku}`, while Unilog's own worked example sits at `/en/p/owner-center/product-support/{sku}`, which no pattern list would guess. Search finds the real URL whatever its shape.
+
+**It caught a bug pointed the wrong way.** One row resolved `3 M Co` → `Jam Industrial Supply LLC` — a real manufacturer collapsing into its distributor, the exact inversion this pipeline exists to correct. The distributor's own domain had been listed as authoritative in the registry, so search accepted their page as evidence. Fixed, with tests pinning the invariant.
 
 ### Core modules
 
