@@ -6,11 +6,12 @@
 [![Deploy](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-[![Tests](https://img.shields.io/badge/Tests-282%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-294%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Pylint](https://img.shields.io/badge/Pylint-9.93%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20benchmark-94.37%25-blue.svg)](#benchmark-results)
 [![Throughput](https://img.shields.io/badge/Throughput-~7%2C000%20rows%2Fsec-blue.svg)](#benchmark-results)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252%20columns%2C%20exact%20match-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
+[![Live verification](https://img.shields.io/badge/Sources-verified%20on%20demand-16a34a.svg)](#verify-live--the-claim-you-can-check-yourself)
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -26,7 +27,7 @@
 ---
 
 ## Contents
-[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
+[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
 
 ---
 
@@ -228,6 +229,46 @@ Per UniHack's own team briefing, judging centers on the **approach**, not the te
 
 ---
 
+## Verify live — the claim you can check yourself
+
+Every enriched value in a catalogue is a claim. The useful question is not whether a pipeline is confident, but whether a reviewer can **check it in one click**.
+
+Open any row's inspector, go to **Verified Sourcing**, and press **⚡ Verify live**. Nothing is replayed — the request happens then:
+
+1. The manufacturer's own site is fetched over real HTTP (marketplaces blocked at discovery time, never fetched)
+2. A source counts as verified **only if the part number actually appears on the fetched page** — a search page echoing your query back is explicitly rejected, because that proves the search box works, not that the product exists
+3. The **visible page text surrounding the part number** is captured and shown back to you
+4. If a linked datasheet PDF is found, its real text is read and label/value specs extracted
+5. Where the input named a distributor rather than a manufacturer, the real manufacturer is resolved by live search and confirmed on their own site
+
+That third step is the point. You get the URL *and* the sentence, so you can open the page, search for the words, and confirm the match yourself:
+
+```
+✓ VERIFIED AGAINST LIVE MANUFACTURER SOURCE          fetched just now · 15.1s
+  Source fetched
+  https://diablotools.com/products/D1050X
+  Text found on that page — open the link and search for it
+  │ D1050X | Circular Saw Blades | Wood Cutting | Combination - Diablo Tools
+```
+
+**Failure is a first-class result.** When nothing verifies, the response says exactly that, with an empty source list — no plausible-looking URL is generated to fill the gap:
+
+```
+NO VERIFIED SOURCE FOUND
+  Nothing could be confirmed for 3MABR-7100075678 right now. No value is invented
+  to fill the gap — the row keeps whatever the deterministic pipeline could
+  establish, and this stays unverified.
+```
+
+On real catalogue data that happens often. Manufacturers retire pages, some parts were never published on the open web, and some sites refuse automated requests. A tool that reported 100% success on this data would be lying.
+
+```bash
+curl -X POST -H "X-API-Key: $SPECLEDGER_API_KEY" \
+  "https://specledger-production.up.railway.app/catalogue/batches/latest/rows/2/verify"
+```
+
+Bounded at 20 seconds. Candidates that cannot verify — search endpoints — are tried last, so the budget goes to URLs that might actually be product pages.
+
 ## Known limits
 
 Stated plainly, because a reviewer will find these anyway and a pipeline that hides them is worth less than one that names them.
@@ -257,6 +298,7 @@ REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any runni
 | `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Approve / reject / correct a row |
 | `GET` | `/catalogue/batches/{id}/sources` | Discovered manufacturer sources |
 | `GET` | `/catalogue/batches/{id}/export?format=...` | Export as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, `audit` |
+| `POST` | `/catalogue/batches/{id}/rows/{num}/verify` | Fetch this row's manufacturer sources live and return the URL, the page snippet containing the part number, and any specs read from a linked datasheet |
 | `POST` | `/catalogue/batches/{id}/evaluate` | Ground-truth evaluation against a reference CSV |
 | `GET` | `/catalogue/reference/manufacturers`, `/brands` | Canonical reference data |
 
