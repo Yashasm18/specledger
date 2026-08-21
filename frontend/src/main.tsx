@@ -125,12 +125,17 @@ const ENTERPRISE_PERSONAS: Record<string, EnterprisePersona> = {
   },
   lead_reviewer: {
     id: "lead_reviewer",
-    name: "Sarah Jenkins",
-    shortName: "Sarah",
+    // Roles, not invented people. Whatever name is selected here is written
+    // into the audit trail as the human who signed off a record, and a
+    // compliance artifact naming someone who does not exist is worse than
+    // one naming nobody. Until there are real accounts (see "Known limits"
+    // in the README), the honest identity is the role itself.
+    name: "Catalog QA Reviewer",
+    shortName: "Catalog QA",
     role: "Senior Catalog QA & Content Lead",
     badge: "Catalog QA",
-    org: "Unilog Content Operations",
-    avatar: "SJ",
+    org: "Unassigned — demo workspace",
+    avatar: "QA",
     avatarBg: "linear-gradient(135deg, #238636, #2ea043)",
     accentColor: "#3fb950",
     permissions: [
@@ -144,12 +149,12 @@ const ENTERPRISE_PERSONAS: Record<string, EnterprisePersona> = {
   },
   merchant: {
     id: "merchant",
-    name: "Alex Rivera",
-    shortName: "Alex",
+    name: "Merchant Ops Specialist",
+    shortName: "Merchant Ops",
     role: "E-Commerce & Distribution Specialist",
     badge: "Merchant Ops",
-    org: "Commercial Distribution Alliance",
-    avatar: "AR",
+    org: "Unassigned — demo workspace",
+    avatar: "MO",
     avatarBg: "linear-gradient(135deg, #d29922, #e3b341)",
     accentColor: "#d29922",
     permissions: [
