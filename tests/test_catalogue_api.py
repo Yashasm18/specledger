@@ -342,6 +342,75 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_verify_endpoint_reports_honest_failure_without_inventing_sources(self) -> None:
+        # The whole value of live verification is that it can say "nothing
+        # found". A fabricated URL here would be worse than no answer.
+        from unittest.mock import patch
+        from backend.specledger.source_discovery import SourceDiscoveryResult
+
+        csv_path = self._make_csv([{"Manufacturer": "Nonexistent Vendor Ltd", "Part Number": "ZZZ-999"}])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("verify.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            empty = SourceDiscoveryResult(manufacturer="Nonexistent Vendor Ltd", part_number="ZZZ-999")
+            with patch("backend.specledger.catalogue_api.discover_sources_live", return_value=empty) as live:
+                res = self.client.post(f"/catalogue/batches/{batch_id}/rows/2/verify")
+
+            live.assert_called_once()
+            body = res.json()
+            self.assertEqual(res.status_code, 200)
+            self.assertFalse(body["verified"])
+            self.assertEqual(body["sources"], [])
+            self.assertEqual(body["verified_source_count"], 0)
+            self.assertTrue(body["fetched_at_request_time"])
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_verify_endpoint_surfaces_the_match_snippet_and_corrected_manufacturer(self) -> None:
+        from unittest.mock import patch
+        from backend.specledger.source_discovery import (
+            DiscoveredSource, SourceDiscoveryResult, SourceStatus, SourceType,
+        )
+
+        csv_path = self._make_csv([{"Manufacturer": "Appliance Dealers Cooperative", "Part Number": "WDTS7024RZ"}])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("verify2.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            found = SourceDiscoveryResult(
+                manufacturer="Appliance Dealers Cooperative", part_number="WDTS7024RZ",
+                resolved_manufacturer="Whirlpool Corporation", discovery_mode="live",
+            )
+            found.sources.append(DiscoveredSource(
+                url="https://www.whirlpool.com/p/WDTS7024RZ",
+                source_type=SourceType.PRODUCT_PAGE, status=SourceStatus.VERIFIED,
+                manufacturer="Whirlpool Corporation", part_number="WDTS7024RZ",
+                domain="whirlpool.com", confidence=0.9,
+                match_snippet="Whirlpool WDTS7024RZ Dishwasher, 41 dBA",
+                extracted_attributes=(("Voltage Rating", "120 V"),),
+            ))
+            with patch("backend.specledger.catalogue_api.discover_sources_live", return_value=found):
+                body = self.client.post(f"/catalogue/batches/{batch_id}/rows/2/verify").json()
+
+            self.assertTrue(body["verified"])
+            # The distributor -> real manufacturer correction must be explicit.
+            self.assertTrue(body["manufacturer_was_corrected"])
+            self.assertEqual(body["resolved_manufacturer"], "Whirlpool Corporation")
+            # The snippet is the receipt that makes the claim checkable.
+            self.assertIn("WDTS7024RZ", body["sources"][0]["match_snippet"])
+            self.assertEqual(body["extracted_attributes"][0]["label"], "Voltage Rating")
+            self.assertEqual(
+                body["extracted_attributes"][0]["source_url"],
+                "https://www.whirlpool.com/p/WDTS7024RZ",
+            )
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_batch_rows_are_paginated_and_cover_every_row_once(self) -> None:
         rows = [{"Manufacturer": "Parker Hannifin", "Part Number": f"V-{i}"} for i in range(12)]
         csv_path = self._make_csv(rows)

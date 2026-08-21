@@ -3,7 +3,7 @@
 import unittest
 
 from backend.specledger.source_discovery import (
-    is_blocked_source, extract_domain, is_manufacturer_domain,
+    is_blocked_source, extract_domain, is_manufacturer_domain, extract_match_snippet,
     classify_source_type, build_search_queries, build_direct_urls,
     discover_sources_simulated, discover_sources_batch,
     extract_pdf_attributes,
@@ -244,3 +244,45 @@ class PdfAttributeExtractionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MatchSnippetTests(unittest.TestCase):
+    """The snippet is the receipt — it must come from text a reader can find."""
+
+    def test_returns_visible_text_around_the_part_number(self) -> None:
+        html = "<h1>Diablo D1050X</h1><p>The D1050X is a 10 in. combination blade.</p>"
+        snippet = extract_match_snippet(html, {"d1050x"})
+        self.assertIsNotNone(snippet)
+        self.assertIn("D1050X", snippet)
+        self.assertIn("combination blade", snippet)
+
+    def test_ignores_matches_inside_script_and_style_blocks(self) -> None:
+        # A hit in a JSON blob is not something a reader can find on the page,
+        # so quoting it back as evidence would be misleading.
+        html = (
+            '<script>var data = {"sku":"D1050X","internal":"unreachable text"};</script>'
+            "<p>Visible copy mentioning D1050X here.</p>"
+        )
+        snippet = extract_match_snippet(html, {"d1050x"})
+        self.assertIn("Visible copy", snippet)
+        self.assertNotIn("unreachable text", snippet)
+
+    def test_returns_none_when_the_part_number_is_absent(self) -> None:
+        self.assertIsNone(extract_match_snippet("<p>Some other product</p>", {"d1050x"}))
+
+    def test_collapses_whitespace_so_the_snippet_is_readable(self) -> None:
+        html = "<p>Model\n\n   D1050X   \t  blade</p>"
+        self.assertEqual(extract_match_snippet(html, {"d1050x"}), "Model D1050X blade")
+
+    def test_marks_truncation_with_ellipses(self) -> None:
+        html = "<p>" + ("padding " * 40) + "D1050X" + (" padding" * 40) + "</p>"
+        snippet = extract_match_snippet(html, {"d1050x"})
+        self.assertTrue(snippet.startswith("…"))
+        self.assertTrue(snippet.endswith("…"))
+
+    def test_prefers_the_longest_matching_variant(self) -> None:
+        # "d1050x" and "d1050" both appear; the more specific one is the
+        # stronger evidence and should anchor the snippet.
+        html = "<p>D1050 family. The exact model is D1050X here.</p>"
+        snippet = extract_match_snippet(html, {"d1050", "d1050x"}, window=10)
+        self.assertIn("D1050X", snippet)

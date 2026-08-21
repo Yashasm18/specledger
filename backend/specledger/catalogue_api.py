@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 
 from .auth import require_api_key
 from .rate_limit import limiter
-from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows, SourceRow
+from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows, SourceRow, clean_manufacturer_name
 from .enrichment import enrich_batch
 from .evaluator import evaluate, load_ground_truth_csv
 from .reference_data import ReferenceStore
@@ -43,6 +43,7 @@ from .export import (
 )
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
 from .database import resolve_database_url
+from .source_discovery import discover_sources_live, SourceStatus
 from .unilog_exporter import row_to_unilog_dict
 from .web_enricher import classify_category
 from .llm_enricher import enrich_unresolved, is_llm_configured, needs_llm
@@ -844,6 +845,83 @@ def review_row_endpoint(
 # ---------------------------------------------------------------------------
 # Source Discovery & Verification
 # ---------------------------------------------------------------------------
+
+@router.post("/batches/{batch_id}/rows/{row_number}/verify", dependencies=[Depends(require_api_key)])
+@limiter.limit("20/minute")
+def verify_row_live(
+    request: Request,
+    batch_id: str,
+    row_number: int,
+    organization_id: str = Query(default="default"),
+) -> dict[str, Any]:
+    """Verify one row against live manufacturer sources, on demand.
+
+    Everything returned here is fetched during this request. The point is not
+    that the pipeline claims a value — it is that the caller can check the
+    claim: each verified source carries the URL that was fetched and the
+    visible page text surrounding the part number, so opening the link and
+    searching the page reproduces the match.
+
+    Honest failure is a first-class outcome. When nothing is found this
+    returns verified=false with the URLs that were tried, rather than a
+    plausible-looking guess. On real catalogue data that happens often —
+    manufacturers retire pages, some parts were never published, and some
+    sites refuse automated requests.
+    """
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    stored = catalogue_store.get_batch_row(organization_id, real_id, row_number)
+    if stored is None:
+        raise HTTPException(status_code=404, detail=f"Row {row_number} not found in batch")
+
+    vals = stored.get("raw_values") or {
+        f["column"]: f["raw_value"] for f in stored.get("fields", [])
+    }
+    part_number = (vals.get("mfg_part_num") or vals.get("part_number") or "").strip()
+    raw_manufacturer = (vals.get("part_manuf") or vals.get("manufacturer") or "").strip()
+    description = (vals.get("part_desc") or vals.get("description") or "").strip()
+    if not part_number:
+        raise HTTPException(status_code=422, detail="Row has no part number to verify")
+
+    started = time.perf_counter()
+    discovery = discover_sources_live(
+        manufacturer=clean_manufacturer_name(raw_manufacturer) or raw_manufacturer,
+        part_number=part_number,
+        description=description,
+    )
+    elapsed = time.perf_counter() - started
+
+    sources = []
+    attributes: list[dict[str, str]] = []
+    for source in discovery.sources:
+        item = source.to_dict()
+        item["is_verified"] = source.status == SourceStatus.VERIFIED
+        sources.append(item)
+        for label, value in source.extracted_attributes:
+            attributes.append({"label": label, "value": value, "source_url": source.url})
+
+    verified = [s for s in sources if s["is_verified"]]
+
+    # The raw input's manufacturer field is frequently a distributor. Saying
+    # so explicitly is the point of the exercise, not an incidental detail.
+    resolved = discovery.resolved_manufacturer
+    return {
+        "batch_id": real_id,
+        "row_number": row_number,
+        "part_number": part_number,
+        "input_manufacturer": raw_manufacturer,
+        "resolved_manufacturer": resolved,
+        "manufacturer_was_corrected": bool(resolved and resolved.strip().casefold()
+                                           != raw_manufacturer.strip().casefold()),
+        "verified": bool(verified),
+        "verified_source_count": len(verified),
+        "sources": sources,
+        "urls_attempted": discovery.search_queries,
+        "blocked_urls": discovery.blocked_urls,
+        "extracted_attributes": attributes,
+        "seconds": round(elapsed, 2),
+        "fetched_at_request_time": True,
+    }
+
 
 @router.get("/batches/{batch_id}/sources")
 def get_batch_sources(

@@ -243,6 +243,10 @@ class DiscoveredSource:
     # extract_pdf_attributes). Never fabricated: absent means nothing was
     # confidently extracted, not that extraction was skipped.
     extracted_attributes: tuple[tuple[str, str], ...] = ()
+    # The visible page text surrounding the part number, captured when the
+    # source was verified. This is the receipt: it lets a reader confirm the
+    # match on the real page instead of trusting a boolean.
+    match_snippet: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -256,6 +260,7 @@ class DiscoveredSource:
             "content_hash": self.content_hash,
             "discovered_at": self.discovered_at,
             "fetch_latency_ms": self.fetch_latency_ms,
+            "match_snippet": self.match_snippet,
             "confidence": self.confidence,
             "extracted_attributes": [
                 {"label": label, "value": value} for label, value in self.extracted_attributes
@@ -493,6 +498,34 @@ def _strip_tags(html: str) -> str:
     return re.sub(r"<[^>]+>", " ", html)
 
 
+def extract_match_snippet(page_html: str, pn_variants: set[str], window: int = 90) -> str | None:
+    """Return the human-readable text surrounding the part number on a page.
+
+    Confirming a part number appears on a manufacturer's page is what makes a
+    source VERIFIED, but the boolean alone asks the reader to take our word
+    for it. Returning the sentence it was found in makes the claim checkable:
+    open the URL, search the page, see the same text.
+
+    Matches against visible text, not raw HTML, so a hit inside a script blob
+    or meta tag doesn't produce a snippet nobody can find on the page.
+    """
+    text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", page_html, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r"\s+", " ", _strip_tags(text)).strip()
+    lowered = text.lower()
+
+    for variant in sorted(pn_variants, key=len, reverse=True):
+        index = lowered.find(variant)
+        if index == -1:
+            continue
+        start = max(0, index - window)
+        end = min(len(text), index + len(variant) + window)
+        snippet = text[start:end].strip()
+        if not snippet:
+            continue
+        return f"{'…' if start > 0 else ''}{snippet}{'…' if end < len(text) else ''}"
+    return None
+
+
 def _find_datasheet_link(page_html: str, page_url: str) -> str | None:
     """Look for a linked PDF whose href or link text suggests a datasheet/spec."""
     for href, link_text in _PDF_LINK_RE.findall(page_html):
@@ -688,6 +721,7 @@ def _fetch_and_verify(
             discovered_at=time.time(),
             fetch_latency_ms=round(latency_ms, 1),
             confidence=confidence,
+            match_snippet=extract_match_snippet(page_html, pn_variants) if pn_in_page else None,
         ))
 
         if found_pn:

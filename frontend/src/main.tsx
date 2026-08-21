@@ -226,6 +226,10 @@ function App() {
   // 252-Column Inspector Modal State
   const [inspectorProduct, setInspectorProduct] = useState<any>(null);
   const [inspectorTab, setInspectorTab] = useState<"diff" | "triplets" | "descriptions" | "features" | "evidence" | "all252">("diff");
+  // Live verification of a single row against real manufacturer sources.
+  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const [tripletSearch, setTripletSearch] = useState("");
   const [colSearch, setColSearch] = useState("");
   // Real 252-column record for the inspected row, fetched from the backend
@@ -699,6 +703,35 @@ function App() {
     );
   };
 
+  // Fetches this row's manufacturer sources live, right now. Nothing is
+  // replayed: the URL, the page snippet and any extracted specs all come from
+  // requests made during this call, so the reader can open the link and check.
+  const runLiveVerify = async () => {
+    const batchId = activeBatch?.batch_id;
+    const rowNumber = inspectorProduct?.row_number;
+    if (!batchId || !rowNumber || !API_BASE) {
+      setVerifyError("No row loaded to verify.");
+      return;
+    }
+    setIsVerifying(true);
+    setVerifyError(null);
+    setVerifyResult(null);
+    try {
+      // Deliberately not retried: it performs real outbound fetches, and a
+      // retry would just repeat them.
+      const res = await fetch(
+        `${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/verify`,
+        { method: "POST", headers: getApiKeyHeaders() }
+      );
+      if (!res.ok) throw new Error(`Verification failed (HTTP ${res.status})`);
+      setVerifyResult(await res.json());
+    } catch (err: any) {
+      setVerifyError(err?.message ?? "Could not reach the API to verify.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   // Actually re-runs the deterministic pipeline on the server, over whichever
   // batch is currently loaded, and reports the timings measured during that
   // request. Nothing is replayed or pre-computed — upload your own file and
@@ -751,6 +784,8 @@ function App() {
   const openInspector = (row: any) => {
     setInspectorProduct(row);
     setInspectorTab("diff");
+    setVerifyResult(null);
+    setVerifyError(null);
     setUnilog252(null);
 
     const rowNumber = row?.row_number;
@@ -2145,14 +2180,110 @@ function App() {
                 );
                 return (
                   <div>
-                    <div style={{ marginBottom: 14 }}>
-                      <strong style={{ color: "#0f172a", fontSize: 14, display: "block" }}>
-                        Manufacturer Provenance &amp; Documents
-                      </strong>
-                      <small style={{ color: "#64748b" }}>
-                        Real sources discovered for this SKU during batch ingestion. Reseller marketplaces (Amazon, eBay, Walmart) are blocked at discovery time, never surfaced here.
-                      </small>
+                    <div style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+                      <div>
+                        <strong style={{ color: "#0f172a", fontSize: 14, display: "block" }}>
+                          Manufacturer Provenance &amp; Documents
+                        </strong>
+                        <small style={{ color: "#64748b" }}>
+                          Real sources discovered for this SKU during batch ingestion. Reseller marketplaces (Amazon, eBay, Walmart) are blocked at discovery time, never surfaced here.
+                        </small>
+                      </div>
+                      <button
+                        onClick={runLiveVerify}
+                        disabled={isVerifying}
+                        title="Fetch this part's manufacturer page right now and show the evidence — the URL fetched and the text on that page containing the part number."
+                        style={{
+                          background: isVerifying ? "#94a3b8" : "#2563eb", color: "#fff",
+                          border: 0, borderRadius: 6, padding: "8px 14px",
+                          fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
+                          cursor: isVerifying ? "wait" : "pointer",
+                        }}
+                      >
+                        {isVerifying ? "Fetching live…" : "⚡ Verify live"}
+                      </button>
                     </div>
+
+                    {isVerifying && (
+                      <div className="diff-card" style={{ marginBottom: 14, color: "#64748b", fontSize: 12 }}>
+                        Contacting the manufacturer's own site for <strong>{inspectedSku}</strong>. Real
+                        network requests — this takes a few seconds and may find nothing.
+                      </div>
+                    )}
+
+                    {verifyError && (
+                      <div className="diff-card" style={{ marginBottom: 14, color: "#dc2626", fontSize: 12 }}>
+                        {verifyError}
+                      </div>
+                    )}
+
+                    {verifyResult && (
+                      <div className="diff-card" style={{ marginBottom: 16, borderColor: verifyResult.verified ? "#16a34a" : "#f59e0b" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                          <span className="eyebrow" style={{ color: verifyResult.verified ? "#15803d" : "#b45309" }}>
+                            {verifyResult.verified ? "✓ VERIFIED AGAINST LIVE MANUFACTURER SOURCE" : "NO VERIFIED SOURCE FOUND"}
+                          </span>
+                          <small style={{ color: "#64748b" }}>fetched just now · {verifyResult.seconds}s</small>
+                        </div>
+
+                        {verifyResult.manufacturer_was_corrected && (
+                          <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 6, padding: "8px 10px", marginBottom: 10, fontSize: 12 }}>
+                            <strong style={{ color: "#065f46" }}>Manufacturer corrected.</strong>{" "}
+                            <span style={{ color: "#334155" }}>
+                              Input said <em>{verifyResult.input_manufacturer}</em> — a distributor. The real
+                              manufacturer is <strong>{verifyResult.resolved_manufacturer}</strong>, identified
+                              from a live search and confirmed on their own site.
+                            </span>
+                          </div>
+                        )}
+
+                        {verifyResult.verified ? (
+                          verifyResult.sources.filter((s: any) => s.is_verified).map((s: any, i: number) => (
+                            <div key={i} style={{ marginBottom: 12 }}>
+                              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3 }}>Source fetched</div>
+                              <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontFamily: "DM Mono", fontSize: 11, wordBreak: "break-all" }}>
+                                {s.url}
+                              </a>
+                              {s.match_snippet && (
+                                <>
+                                  <div style={{ fontSize: 11, color: "#64748b", margin: "8px 0 3px" }}>
+                                    Text found on that page — open the link and search for it
+                                  </div>
+                                  <blockquote style={{
+                                    margin: 0, padding: "8px 10px", background: "#f8fafc",
+                                    borderLeft: "3px solid #16a34a", fontSize: 12, color: "#0f172a",
+                                  }}>
+                                    {s.match_snippet}
+                                  </blockquote>
+                                </>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ fontSize: 12, color: "#334155" }}>
+                            Nothing could be confirmed for <strong>{verifyResult.part_number}</strong> right now.
+                            No value is invented to fill the gap — the row keeps whatever the deterministic
+                            pipeline could establish, and this stays unverified. Manufacturers retire pages,
+                            some parts were never published, and some sites refuse automated requests.
+                          </div>
+                        )}
+
+                        {verifyResult.extracted_attributes?.length > 0 && (
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>
+                              Specs read from the linked datasheet
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                              {verifyResult.extracted_attributes.map((a: any, i: number) => (
+                                <span key={i} title={a.source_url} style={{ background: "#e0f2fe", color: "#0c4a6e", padding: "3px 8px", borderRadius: 5, fontSize: 11 }}>
+                                  <strong>{a.label}:</strong> {a.value}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {rowSources.length > 0 ? (
                       <div className="diff-card">
