@@ -141,10 +141,30 @@ class PostgresCatalogueStore(CatalogueStore):
 
     def __init__(self, connection_url: str) -> None:
         self.connection_url = connection_url
+        self._pool: Any = None
+
+    def _get_pool(self) -> Any:
+        """Lazily open a shared connection pool.
+
+        Every call used to open its own connection. Against a managed
+        Postgres in another region that is a TLS handshake per query, and a
+        single dashboard load makes several — measured at roughly 1 second
+        of pure connection setup each, dominating request time regardless of
+        how many rows were actually fetched.
+        """
+        if self._pool is None:
+            from psycopg_pool import ConnectionPool
+            self._pool = ConnectionPool(
+                self.connection_url, min_size=1, max_size=10, open=True,
+            )
+        return self._pool
 
     def _get_connection(self) -> Any:
-        import psycopg
-        return psycopg.connect(self.connection_url)
+        return self._get_pool().getconn()
+
+    def _release(self, conn: Any) -> None:
+        """Return a connection to the pool instead of closing it."""
+        self._get_pool().putconn(conn)
 
     def save_batch(self, batch_data: dict[str, Any]) -> str:
         org_id = batch_data.get("organization_id", "default")
@@ -209,7 +229,7 @@ class PostgresCatalogueStore(CatalogueStore):
                         )
             return batch_id
         finally:
-            conn.close()
+            self._release(conn)
 
     def get_batch(
         self, organization_id: str, batch_id: str,
@@ -270,7 +290,7 @@ class PostgresCatalogueStore(CatalogueStore):
                     ],
                 }
         finally:
-            conn.close()
+            self._release(conn)
 
     def get_batch_row(self, organization_id: str, batch_id: str, row_number: int) -> dict[str, Any] | None:
         batch = self.get_batch(organization_id, batch_id)
@@ -305,7 +325,7 @@ class PostgresCatalogueStore(CatalogueStore):
                     for r in rows
                 ]
         finally:
-            conn.close()
+            self._release(conn)
 
     def update_row_review_state(
         self, organization_id: str, batch_id: str, row_number: int,
@@ -335,4 +355,4 @@ class PostgresCatalogueStore(CatalogueStore):
                         }
                     return None
         finally:
-            conn.close()
+            self._release(conn)

@@ -94,3 +94,61 @@ class InMemoryCatalogueStoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PostgresConnectionPoolingTests(unittest.TestCase):
+    """The store must borrow and return connections, not open one per call.
+
+    These verify the pool wiring only — real Postgres semantics are not
+    exercised here. A fresh connection per query against a managed database
+    in another region was measured at roughly a second of setup each, and a
+    single dashboard load makes several.
+    """
+
+    def _store_with_fake_pool(self):
+        from backend.specledger.catalogue_persistence import PostgresCatalogueStore
+
+        class FakeCursor:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def execute(self, *a, **k): self.last = a
+            def fetchone(self): return None
+            def fetchall(self): return []
+
+        class FakeConn:
+            def __init__(self): self.closed = False
+            def cursor(self): return FakeCursor()
+            def close(self): self.closed = True
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        class FakePool:
+            def __init__(self): self.conn = FakeConn(); self.got = 0; self.put = 0
+            def getconn(self): self.got += 1; return self.conn
+            def putconn(self, conn): self.put += 1
+
+        store = PostgresCatalogueStore("postgresql://unused")
+        pool = FakePool()
+        store._pool = pool
+        return store, pool
+
+    def test_reads_borrow_and_return_a_connection(self) -> None:
+        store, pool = self._store_with_fake_pool()
+        store.get_batch("org", "missing-batch")
+        self.assertEqual(pool.got, 1)
+        self.assertEqual(pool.put, 1, "connection was not returned to the pool")
+        self.assertFalse(pool.conn.closed, "pooled connection must not be closed")
+
+    def test_repeated_calls_reuse_one_pool(self) -> None:
+        store, pool = self._store_with_fake_pool()
+        for _ in range(5):
+            store.get_batch("org", "missing-batch")
+        self.assertEqual(pool.got, 5)
+        self.assertEqual(pool.put, 5)
+        self.assertIs(store._get_pool(), pool, "pool was recreated instead of reused")
+
+    def test_list_batches_also_returns_its_connection(self) -> None:
+        store, pool = self._store_with_fake_pool()
+        store.list_batches("org")
+        self.assertEqual(pool.put, pool.got)
+        self.assertFalse(pool.conn.closed)
