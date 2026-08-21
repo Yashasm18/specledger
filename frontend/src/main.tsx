@@ -174,6 +174,7 @@ function App() {
   const [filterMode, setFilterMode] = useState<"all" | "review" | "changed">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [auditFilter, setAuditFilter] = useState<"all" | "human" | "auto" | "security">("all");
+  const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
@@ -328,6 +329,11 @@ function App() {
           if (sourcesRes.ok) {
             const srcData = await sourcesRes.json();
             setBatchSources(srcData.sources || []);
+          }
+          const auditRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/audit?limit=50`);
+          if (auditRes.ok) {
+            const auditData = await auditRes.json();
+            setAuditEvents(auditData.events || []);
           }
         }
       }
@@ -1223,7 +1229,12 @@ function App() {
           </section>
         );
 
-      case "audit":
+      case "audit": {
+        const filteredAuditEvents = auditEvents.filter((e: any) => {
+          if (auditFilter === "human") return !!e.reviewer;
+          if (auditFilter === "auto") return e.action === "auto_approve";
+          return true;
+        });
         return (
           <section className="section-card" style={{ marginTop: 0 }}>
             <div className="table-head">
@@ -1232,8 +1243,8 @@ function App() {
                 <h3>Audit Trail & Decision Lineage</h3>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "rgba(56,189,248,0.15)", color: "#38bdf8", border: "1px solid rgba(56,189,248,0.3)" }}>
-                  ILLUSTRATIVE EXAMPLE — NOT A LIVE FEED
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}>
+                  {auditEvents.length} real events
                 </span>
                 <button
                   className="export-btn amber-accent"
@@ -1245,9 +1256,8 @@ function App() {
               </div>
             </div>
             <p style={{ fontSize: 12, color: "#7d8590", margin: "8px 0 0" }}>
-              The entries below are a fixed sample showing what audit records look like, not a live log of actions taken in this session.
-              Real per-row audit trails (reviewer, timestamp, corrections) are captured server-side — see the <code>audit_trail</code> field on
-              <code> GET /catalogue/batches/&#123;id&#125;/rows/&#123;n&#125;</code> and the row-review endpoints.
+              Real audit events recorded server-side for the active batch — every row is routed through validation at ingest time (recording
+              an auto_approve or submit_for_review event even before any human acts), and every approve/reject/correct action adds another.
             </p>
 
             <div className="filters" style={{ marginTop: 16 }}>
@@ -1260,39 +1270,23 @@ function App() {
               <button className={`filter ${auditFilter === "auto" ? "active" : ""}`} onClick={() => setAuditFilter("auto")}>
                 Auto-verifications
               </button>
-              <button className={`filter ${auditFilter === "security" ? "active" : ""}`} onClick={() => setAuditFilter("security")}>
-                Marketplace filters
-              </button>
             </div>
 
             <div className="activity" style={{ marginTop: 16 }}>
-              {(auditFilter === "all" || auditFilter === "human") && (
-                <p>
-                  <b>{import.meta.env.VITE_REVIEWER_NAME || "Yashas M"}. (Owner)</b> approved SKU <strong>VLV-600-050</strong>
-                  <small>Just now · Verified pressure rating (600 PSI) against manufacturer datasheet</small>
-                </p>
-              )}
-              {(auditFilter === "all" || auditFilter === "auto") && (
-                <p>
-                  <b>Pipeline Engine</b> auto-approved SKU <strong>PMP-CEN-220</strong>
-                  <small>12 minutes ago · 98% confidence score, 0 validation errors</small>
-                </p>
-              )}
-              {(auditFilter === "all" || auditFilter === "human") && (
-                <p>
-                  <b>{import.meta.env.VITE_REVIEWER_NAME || "Yashas M"}. (Owner)</b> ingested <strong>Unihack_ Sample Dataset - Input.csv</strong>
-                  <small>24 minutes ago · 1,000 product rows enriched in 252-column delivery format</small>
-                </p>
-              )}
-              {(auditFilter === "all" || auditFilter === "security") && (
-                <p>
-                  <b>Marketplace Filter</b> blocked reseller URL <strong>amazon.com/dp/12345</strong>
-                  <small>30 minutes ago · Disallowed source type per UniHack compliance rules</small>
-                </p>
+              {filteredAuditEvents.length === 0 ? (
+                <div className="empty-review">No audit events recorded yet for this batch.</div>
+              ) : (
+                filteredAuditEvents.map((e: any) => (
+                  <p key={e.event_id}>
+                    <b>{e.reviewer || "Pipeline Engine"}</b> {e.action.replace(/_/g, " ")} row <strong>#{e.row_number}</strong>
+                    <small>{new Date(e.timestamp * 1000).toLocaleString()} · {e.comment || `${e.previous_state} → ${e.new_state}`}</small>
+                  </p>
+                ))
               )}
             </div>
           </section>
         );
+      }
 
       case "overview":
       default:
@@ -1817,7 +1811,7 @@ function App() {
                       <div className="desc-box">
                         <div className="desc-box-header">
                           <span>Col 27 · LONG_DESC1</span>
-                          <small>Real input prefix + a fixed generic closing sentence — see README, this is a known simplification, not per-product content</small>
+                          <small>Brand + part number + real input description — no generic filler appended</small>
                         </div>
                         <p>{unilog252.LONG_DESC1 || "—"}</p>
                       </div>
@@ -1833,7 +1827,7 @@ function App() {
                       <div className="desc-box">
                         <div className="desc-box-header">
                           <span>Col 29 · MARKETING_DESCRIPTION</span>
-                          <small>Fixed generic marketing copy — same known simplification as LONG_DESC1 above</small>
+                          <small>Left honestly empty — no real marketing-copy source exists for this row without live_fetch pulling the manufacturer's own page</small>
                         </div>
                         <p>{unilog252.MARKETING_DESCRIPTION || "—"}</p>
                       </div>
@@ -1848,7 +1842,7 @@ function App() {
                   <div style={{ marginBottom: 12 }}>
                     <h4 style={{ margin: 0, fontSize: 14 }}>Item Feature Bullets (Columns 30–49)</h4>
                     <small style={{ color: "#64748b" }}>
-                      {unilog252 ? `${Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length} of 20 slots populated` : "Loading…"} — generic construction-quality bullets computed deterministically, not sourced from a manufacturer datasheet
+                      {unilog252 ? `${Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length} of 20 slots populated` : "Loading…"} — each bullet restates a spec genuinely found in the raw input description (e.g. voltage, grit); empty when the description doesn't state one
                     </small>
                   </div>
 

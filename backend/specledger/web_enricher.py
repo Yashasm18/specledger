@@ -240,25 +240,23 @@ def enrich_product_web(
     # Infer classification taxonomy
     dept, cls, fine, classpath = _infer_taxonomy(desc_clean, mfr_clean)
 
-    # Build description levels
+    # Build description levels — real input content only. No generic
+    # marketing-flavored filler sentence appended: if it isn't derived from
+    # the actual input or a real fetched source, it doesn't belong here.
     short_desc = desc_clean[:100]
     invoice_desc = desc_clean.upper()[:60]
     mobile_desc = f"{brand_name} {pn_clean} {desc_clean}"[:120]
-    long_desc1 = f"{brand_name} {pn_clean} - {desc_clean}. Industrial grade component manufactured for high reliability and heavy-duty commercial applications."
+    long_desc1 = f"{brand_name} {pn_clean} - {desc_clean}"
     retail_desc = desc_clean
-    marketing_desc = f"{brand_name} {pn_clean} provides industry-leading reliability, precise manufacturing standards, and durable construction designed for demanding environment requirements."
+    # No real marketing-copy source exists without live_fetch pulling the
+    # manufacturer's own page — left honestly empty rather than fabricated.
+    marketing_desc = ""
 
     # Extract dimensions
     dims = _extract_dimensions(desc_clean)
 
-    # Build features
-    features = [
-        f"Industrial grade {mfr_clean} quality construction",
-        f"Model / Part Number: {pn_clean}",
-        "Engineered for high performance and durability",
-    ]
-
-    # Build attribute triplets (Key, Value, UOM)
+    # Build attribute triplets (Key, Value, UOM): identity pair plus any
+    # spec genuinely present in the raw description text.
     attributes: list[ExtractedAttribute] = [
         ExtractedAttribute(label="Manufacturer", value=mfr_clean),
         ExtractedAttribute(label="Part Number", value=pn_clean),
@@ -281,6 +279,16 @@ def enrich_product_web(
     m_hp = re.search(r'\b(\d+(?:\.\d+)?)\s*HP\b', desc_clean, re.IGNORECASE)
     if m_hp:
         attributes.append(ExtractedAttribute(label="Horsepower", value=m_hp.group(1), uom="HP"))
+
+    # Feature bullets are derived only from the attributes actually
+    # extracted above (skipping the baseline Manufacturer/Part Number
+    # pair, which already have their own columns) — no generic filler
+    # text. Sparse or empty is the honest result when the raw description
+    # doesn't contain an extractable spec.
+    features = [
+        f"{attr.label}: {attr.value} {attr.uom}".strip() if attr.uom else f"{attr.label}: {attr.value}"
+        for attr in attributes[2:]
+    ]
 
     # Generate image asset names
     slug_file = re.sub(r'[^A-Z0-9_-]+', '_', pn_clean.upper())

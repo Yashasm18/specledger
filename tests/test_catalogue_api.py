@@ -199,6 +199,27 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_list_audit_events(self) -> None:
+        csv_path = self._make_csv([
+            {"Mfg_Part_Num": "V-100", "Part_Desc": "Ball valve", "Part_Manuf": "Parker Hannifin"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_response = self.client.post(
+                    "/catalogue/ingest",
+                    files={"file": ("test.csv", f, "text/csv")},
+                )
+            batch_id = ingest_response.json()["batch_id"]
+            response = self.client.get(f"/catalogue/batches/{batch_id}/audit")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["batch_id"] == batch_id
+            assert data["count"] >= 1
+            assert data["events"][0]["batch_id"] == batch_id
+            assert data["events"][0]["action"] in ("auto_approve", "submit_for_review")
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_export_csv_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},

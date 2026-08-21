@@ -67,7 +67,12 @@ def test_domain_agnostic_web_enricher():
     assert res1.manufacturer_clean == "Freud Inc"
     assert "freudtools.com" in (res1.mfr_url or "")
     assert res1.dept == "Abrasives & Cutting Tools"
-    assert len(res1.features) >= 3
+    # Features are derived only from genuinely extracted attributes (no
+    # generic filler text), so the count reflects what's actually in the
+    # raw description — real, not padded.
+    assert res1.features == [f"{a.label}: {a.value}" for a in res1.attributes[2:]]
+    assert res1.marketing_desc == ""
+    assert "Industrial grade component" not in res1.long_desc1
 
     # Test appliance product
     res2 = enrich_product_web(

@@ -541,6 +541,32 @@ def list_pending_review(
     }
 
 
+@router.get("/batches/{batch_id}/audit")
+def list_audit_events(
+    batch_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    organization_id: str = Query(default="default"),
+) -> dict[str, Any]:
+    """List real audit events recorded for a batch, most recent first.
+
+    Every ingest routes each row through route_batch_for_review, which
+    records a real AuditEvent (auto_approve or submit_for_review) even
+    before any human acts — so this reflects genuine pipeline activity,
+    not a fixed illustrative sample.
+    """
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    queue = _get_review_queue(real_id, organization_id)
+    if not queue:
+        return {"batch_id": real_id, "events": [], "count": 0}
+
+    events = queue.get_audit_events(real_id, limit=limit)
+    return {
+        "batch_id": real_id,
+        "count": len(events),
+        "events": [e.to_dict() for e in events],
+    }
+
+
 @router.post("/batches/{batch_id}/rows/{row_number}/review", dependencies=[Depends(require_api_key)])
 def review_row_endpoint(
     batch_id: str,

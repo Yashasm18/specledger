@@ -126,6 +126,17 @@ class ReviewQueue:
         pending.sort(key=lambda r: r.priority)
         return pending[:limit]
 
+    def get_audit_events(self, batch_id: str, limit: int = 50) -> list[AuditEvent]:
+        """Get every real audit event recorded for a batch, most recent first."""
+        events = [
+            event
+            for row in self._rows.values()
+            if row.batch_id == batch_id
+            for event in row.audit_trail
+        ]
+        events.sort(key=lambda e: e.timestamp, reverse=True)
+        return events[:limit]
+
     def get_batch_summary(self, batch_id: str) -> dict:
         """Get review status summary for a batch."""
         batch_rows = [r for r in self._rows.values() if r.batch_id == batch_id]
