@@ -788,6 +788,55 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_audit_can_filter_to_human_actions_across_the_whole_trail(self) -> None:
+        # Restored approvals are dated when the human decided, which is older
+        # than the routing events a rebuild mints. Sorted newest-first they
+        # fall outside any reasonable page, so "Human approvals" must be a
+        # server-side filter — filtering the fetched page finds nothing and
+        # reports "no audit events" while the approvals plainly exist.
+        from backend.specledger import catalogue_api
+
+        rows = [
+            {"Manufacturer": f"UnknownMfg{i}", "Part Number": f"V-{i}"}
+            for i in range(30)
+        ]
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("audit_filter.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            self.client.post(
+                f"/catalogue/batches/{batch_id}/rows/2/review",
+                json={"action": "approve", "reviewer": "qa@example.com"},
+            )
+            catalogue_api._review_queues.pop(batch_id, None)
+            catalogue_api._batch_results.pop(batch_id, None)
+
+            human = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?actor=human&limit=5"
+            ).json()
+            self.assertEqual(human["total_events"], 1)
+            self.assertEqual(len(human["events"]), 1)
+            self.assertEqual(human["events"][0]["reviewer"], "qa@example.com")
+
+            system = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?actor=system&limit=100"
+            ).json()
+            self.assertTrue(all(e["reviewer"] is None for e in system["events"]))
+            self.assertGreater(system["total_events"], 1)
+
+            everything = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?limit=100"
+            ).json()
+            self.assertEqual(
+                everything["total_events"],
+                human["total_events"] + system["total_events"],
+            )
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},

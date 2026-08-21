@@ -127,19 +127,35 @@ class ReviewQueue:
         pending.sort(key=lambda r: r.priority)
         return pending[:limit]
 
-    def get_audit_events(self, batch_id: str, limit: int = 50) -> list[AuditEvent]:
+    def get_audit_events(
+        self, batch_id: str, limit: int = 50, actor: str = "all",
+    ) -> list[AuditEvent]:
         """Get a batch's audit events, most recent first, capped at `limit`.
+
+        `actor` selects "human" (events carrying a reviewer), "system" (events
+        the pipeline recorded on its own), or "all". It is applied before the
+        limit deliberately: a decision restored after a rebuild is dated when
+        the human made it, which is older than every routing event the rebuild
+        just minted, so filtering a fetched page would never find it.
 
         Use count_audit_events() for the real total — len() of this list is
         the page size, not how many events exist.
         """
-        events = self._all_audit_events(batch_id)
+        events = self._filtered_audit_events(batch_id, actor)
         events.sort(key=lambda e: e.timestamp, reverse=True)
         return events[:limit]
 
-    def count_audit_events(self, batch_id: str) -> int:
-        """Total number of audit events recorded for a batch, unpaginated."""
-        return len(self._all_audit_events(batch_id))
+    def count_audit_events(self, batch_id: str, actor: str = "all") -> int:
+        """Total events recorded for a batch, unpaginated, for the given actor."""
+        return len(self._filtered_audit_events(batch_id, actor))
+
+    def _filtered_audit_events(self, batch_id: str, actor: str) -> list[AuditEvent]:
+        events = self._all_audit_events(batch_id)
+        if actor == "human":
+            return [e for e in events if e.reviewer]
+        if actor == "system":
+            return [e for e in events if not e.reviewer]
+        return events
 
     def _all_audit_events(self, batch_id: str) -> list[AuditEvent]:
         return [

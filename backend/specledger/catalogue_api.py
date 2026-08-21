@@ -823,6 +823,17 @@ def list_pending_review(
 def list_audit_events(
     batch_id: str,
     limit: int = Query(default=50, ge=1, le=200),
+    actor: str = Query(
+        default="all",
+        pattern="^(all|human|system)$",
+        description=(
+            "Filter the whole trail before paging: 'human' returns only "
+            "events carrying a reviewer, 'system' only pipeline-recorded "
+            "ones. Applied server-side because a decision restored after a "
+            "rebuild is dated when the human made it and therefore sorts "
+            "below every routing event the rebuild just created."
+        ),
+    ),
     organization_id: str = Query(default="default"),
 ) -> dict[str, Any]:
     """List real audit events recorded for a batch, most recent first.
@@ -835,14 +846,18 @@ def list_audit_events(
     real_id = _resolve_batch_id(batch_id, organization_id)
     queue = _get_review_queue(real_id, organization_id)
     if not queue:
-        return {"batch_id": real_id, "events": [], "count": 0, "total_events": 0, "limit": limit}
+        return {
+            "batch_id": real_id, "events": [], "count": 0,
+            "total_events": 0, "limit": limit, "actor": actor,
+        }
 
-    events = queue.get_audit_events(real_id, limit=limit)
+    events = queue.get_audit_events(real_id, limit=limit, actor=actor)
     return {
         "batch_id": real_id,
         "count": len(events),
-        "total_events": queue.count_audit_events(real_id),
+        "total_events": queue.count_audit_events(real_id, actor=actor),
         "limit": limit,
+        "actor": actor,
         "events": [e.to_dict() for e in events],
     }
 

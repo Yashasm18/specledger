@@ -172,7 +172,12 @@ function App() {
   const [activeTab, setActiveTab] = useState<"overview" | "catalogue" | "review" | "imports" | "schemas" | "evidence" | "audit">("overview");
   const [filterMode, setFilterMode] = useState<"all" | "review" | "changed">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [auditFilter, setAuditFilter] = useState<"all" | "human" | "auto" | "security">("all");
+  // "auto" is the pipeline's own events. The server groups by whether an
+  // event carries a reviewer, which is the real distinction the data model
+  // makes, so these map onto actor=all|human|system.
+  const [auditFilter, setAuditFilter] = useState<"all" | "human" | "system">("all");
+  const auditFilterRef = useRef<"all" | "human" | "system">("all");
+  auditFilterRef.current = auditFilter;
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
   // Total events recorded for the batch, independent of the page size.
   const [totalAuditEvents, setTotalAuditEvents] = useState(0);
@@ -285,6 +290,31 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageOffset, debouncedSearch]);
 
+  // Changing the audit actor filter refetches only the trail. The filter is
+  // applied server-side across every event, so it cannot be done on the
+  // fetched page — but it also shouldn't drag the whole batch along with it.
+  useEffect(() => {
+    const batchId = activeBatch?.batch_id;
+    if (!API_BASE || !batchId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchWithRetry(
+          `${API_BASE}/catalogue/batches/${batchId}/audit?limit=50&actor=${auditFilter}`
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setAuditEvents(data.events || []);
+        setTotalAuditEvents(data.total_events ?? (data.events || []).length);
+      } catch {
+        // The dashboard-wide outage banner already covers an unreachable API;
+        // a failed filter refresh leaves the previous events on screen.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auditFilter, activeBatch?.batch_id]);
+
   // Comprehensive Keyboard shortcut listener (Cmd/Ctrl + 1..7, Alphabet commands O, C, R, I, S, E, A, Escape)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -388,7 +418,9 @@ function App() {
             const srcData = await sourcesRes.json();
             setBatchSources(srcData.sources || []);
           }
-          const auditRes = await fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}/audit?limit=50`);
+          const auditRes = await fetchWithRetry(
+            `${API_BASE}/catalogue/batches/${latestId}/audit?limit=50&actor=${auditFilterRef.current}`
+          );
           if (auditRes.ok) {
             const auditData = await auditRes.json();
             setAuditEvents(auditData.events || []);
@@ -931,7 +963,12 @@ function App() {
   // not the row.fields array this used to assume — see the catalogue-table
   // fix above. Compute real field-population coverage from that instead of
   // silently falling back to a hardcoded placeholder for every real batch.
-  const evidenceCoverage = liveRows.length > 0
+  // Report the denominator too. The label used to read
+  // `activeBatch.total_fields ?? liveRows.length` — the API has never sent
+  // total_fields, so it always printed the page size and called it a field
+  // count ("Across 100 fields" for 100 loaded rows), a number that changed
+  // meaninglessly when you paged.
+  const evidence = liveRows.length > 0
     ? (() => {
         let populated = 0;
         let total = 0;
@@ -942,9 +979,10 @@ function App() {
             if (v !== null && v !== undefined && String(v).trim() !== "") populated += 1;
           });
         });
-        return total > 0 ? populated / total : 0;
+        return { coverage: total > 0 ? populated / total : 0, fields: total, rows: liveRows.length };
       })()
-    : 0;
+    : { coverage: 0, fields: 0, rows: 0 };
+  const evidenceCoverage = evidence.coverage;
   const verifiedRate = activeBatch?.verified_rate ?? 0;
   // How many rows are loaded in the review pane right now (one page).
   const reviewCount = pendingReviews.length;
@@ -1579,11 +1617,12 @@ function App() {
         );
 
       case "audit": {
-        const filteredAuditEvents = auditEvents.filter((e: any) => {
-          if (auditFilter === "human") return !!e.reviewer;
-          if (auditFilter === "auto") return e.action === "auto_approve";
-          return true;
-        });
+        // No client-side predicate: the API filtered the entire trail before
+        // paging. Filtering the fetched page here is what made "Human
+        // approvals" report nothing — restored approvals are dated when the
+        // human decided, so they sort below every event a rebuild minted and
+        // never appear in the newest 50.
+        const filteredAuditEvents = auditEvents;
         return (
           <section className="section-card" style={{ marginTop: 0 }}>
             <div className="table-head">
@@ -1618,14 +1657,20 @@ function App() {
               <button className={`filter ${auditFilter === "human" ? "active" : ""}`} onClick={() => setAuditFilter("human")}>
                 Human approvals
               </button>
-              <button className={`filter ${auditFilter === "auto" ? "active" : ""}`} onClick={() => setAuditFilter("auto")}>
-                Auto-verifications
+              <button className={`filter ${auditFilter === "system" ? "active" : ""}`} onClick={() => setAuditFilter("system")}>
+                Pipeline events
               </button>
             </div>
 
             <div className="activity" style={{ marginTop: 16 }}>
               {filteredAuditEvents.length === 0 ? (
-                <div className="empty-review">No audit events recorded yet for this batch.</div>
+                <div className="empty-review">
+                  {auditFilter === "human"
+                    ? "No human review decisions recorded for this batch yet — every event so far was recorded by the pipeline."
+                    : auditFilter === "system"
+                      ? "No pipeline events recorded for this batch."
+                      : "No audit events recorded yet for this batch."}
+                </div>
               ) : (
                 filteredAuditEvents.map((e: any) => (
                   <p key={e.event_id}>
@@ -1778,7 +1823,7 @@ function App() {
               <article>
                 <span>EVIDENCE COVERAGE</span>
                 <strong>{isLoadingBatch ? "…" : `${Math.round(evidenceCoverage * 100)}`}<span className="percent">{isLoadingBatch ? "" : "%"}</span></strong>
-                <small>{isLoadingBatch ? "Loading…" : activeBatch ? `Across ${activeBatch.total_fields ?? liveRows.length} fields${throughput ? ` · ${throughput} rows/sec` : ""}` : "No batch loaded yet"}</small>
+                <small>{isLoadingBatch ? "Loading…" : activeBatch ? `Across ${evidence.fields.toLocaleString()} fields in ${evidence.rows.toLocaleString()} loaded rows${throughput ? ` · ${throughput} rows/sec` : ""}` : "No batch loaded yet"}</small>
               </article>
             </section>
 
@@ -1922,6 +1967,20 @@ function App() {
     });
   };
 
+  // Real populated counts for the inspector's tab labels. Derived once so
+  // the tab label and the transformation card can't drift apart — they did:
+  // the card computed "5 of 6 computed" while the tab claimed a flat "(6)".
+  const DESCRIPTION_TIER_COLUMNS = [
+    "MOBILE_DESC", "INVOICE_DESC", "SHORT_DESC",
+    "LONG_DESC1", "RETAIL_DESC", "MARKETING_DESCRIPTION",
+  ] as const;
+  const descriptionTierCount = unilog252
+    ? DESCRIPTION_TIER_COLUMNS.filter((col) => unilog252[col]).length
+    : 0;
+  const featureBulletCount = unilog252
+    ? Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length
+    : 0;
+
   const all252ColumnsList = getAll252Columns(unilog252);
   const filtered252Cols = all252ColumnsList.filter(col =>
     !colSearch ||
@@ -1978,10 +2037,10 @@ function App() {
                 Spec Triplets ({inspectedTriplets.length} of 50)
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "descriptions" ? "active" : ""}`} onClick={() => setInspectorTab("descriptions")}>
-                Description Tiers (6)
+                Description Tiers ({descriptionTierCount} of {DESCRIPTION_TIER_COLUMNS.length})
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "features" ? "active" : ""}`} onClick={() => setInspectorTab("features")}>
-                Feature Bullets ({unilog252 ? Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length : 0} of 20)
+                Feature Bullets ({featureBulletCount} of 20)
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "evidence" ? "active" : ""}`} onClick={() => setInspectorTab("evidence")}>
                 Verified Sourcing & Safety
@@ -2050,11 +2109,11 @@ function App() {
                       </div>
                       <div className="diff-field-row">
                         <strong>Description Tiers (Cols 24-29)</strong>
-                        <span>{unilog252 ? [unilog252.MOBILE_DESC, unilog252.SHORT_DESC, unilog252.LONG_DESC1, unilog252.RETAIL_DESC, unilog252.MARKETING_DESCRIPTION, unilog252.INVOICE_DESC].filter(Boolean).length : 0} of 6 computed</span>
+                        <span>{descriptionTierCount} of {DESCRIPTION_TIER_COLUMNS.length} computed</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Item Feature Bullets (Cols 30-49)</strong>
-                        <span>{unilog252 ? Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length : 0} of 20 populated</span>
+                        <span>{featureBulletCount} of 20 populated</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Prop 65 (Col 51)</strong>
@@ -2227,7 +2286,7 @@ function App() {
                   <div style={{ marginBottom: 12 }}>
                     <h4 style={{ margin: 0, fontSize: 14 }}>Item Feature Bullets (Columns 30–49)</h4>
                     <small style={{ color: "#64748b" }}>
-                      {unilog252 ? `${Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length} of 20 slots populated` : "Loading…"} — each bullet restates a spec genuinely found in the raw input description (e.g. voltage, grit); empty when the description doesn't state one
+                      {unilog252 ? `${featureBulletCount} of 20 slots populated` : "Loading…"} — each bullet restates a spec genuinely found in the raw input description (e.g. voltage, grit); empty when the description doesn't state one
                     </small>
                   </div>
 
