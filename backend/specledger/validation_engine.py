@@ -17,6 +17,7 @@ Rule categories:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
@@ -147,6 +148,16 @@ HIGH_PRESSURE_INCOMPATIBLE_MATERIALS = frozenset({
 # Auto-approval confidence threshold
 AUTO_APPROVE_CONFIDENCE = 0.80
 
+# Warnings serious enough to require a human even though nothing is
+# provably wrong. An unmatched vocabulary entry means we could not confirm a
+# value; an uninformative description means there is barely a value to
+# confirm. Neither is publishable unreviewed.
+_AUTO_APPROVE_BLOCKING_CODES = frozenset({
+    "LOV_UNMATCHED",
+    "MISSING_DESCRIPTION",
+    "UNINFORMATIVE_DESCRIPTION",
+})
+
 
 # ---------------------------------------------------------------------------
 # Individual validation rules
@@ -171,6 +182,53 @@ def _check_required_fields(row: EnrichedRow, required: frozenset[str]) -> list[V
                 "Provide a value or mark as intentionally blank",
             ))
     return issues
+
+
+def _check_description_is_informative(row: EnrichedRow) -> list[ValidationIssue]:
+    """Flag rows whose description carries no information beyond the SKU.
+
+    A row can pass every other check and still be unpublishable: no errors,
+    no vocabulary mismatches, high confidence — because there is nothing
+    there to be wrong. Real catalogue extracts contain rows like part number
+    "SC" with description "SC", which auto-approved at 100% confidence
+    before this rule existed.
+
+    Confidence measures how sure we are about the values present. It says
+    nothing about whether enough is present to sell from, which is what a
+    reviewer actually needs to decide.
+    """
+    field_map = row.role_map
+    desc_field = field_map.get("description")
+    pn_field = field_map.get("part_number")
+
+    description = (desc_field.canonical_value if desc_field else None) or ""
+    part_number = (pn_field.canonical_value if pn_field else None) or ""
+
+    if not description.strip():
+        if part_number.strip():
+            return [ValidationIssue(
+                "MISSING_DESCRIPTION", "warning", "description",
+                "Row has a part number but no description — nothing to publish beyond the SKU",
+                "Add a description, or enrich from the manufacturer's own listing",
+            )]
+        return []
+
+    # Compare with separators stripped: real catalogue data is inconsistent
+    # about them, so part number "RK-007-S2" and description "RK 007-S2" are
+    # the same string carrying no extra information, and an exact-substring
+    # removal would miss it.
+    def _normalise(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+    normalised_pn = _normalise(part_number)
+    remainder = _normalise(description).replace(normalised_pn, "") if normalised_pn else _normalise(description)
+    if normalised_pn and len(remainder) < 3:
+        return [ValidationIssue(
+            "UNINFORMATIVE_DESCRIPTION", "warning", "description",
+            f"Description '{description.strip()}' adds nothing beyond the part number",
+            "Enrich from the manufacturer's listing before publishing",
+        )]
+    return []
 
 
 def _check_lov_membership(row: EnrichedRow) -> list[ValidationIssue]:
@@ -307,7 +365,7 @@ def _can_auto_approve(row: EnrichedRow, issues: Sequence[ValidationIssue]) -> bo
     """
     if any(i.severity == "error" for i in issues):
         return False
-    if any(i.code == "LOV_UNMATCHED" for i in issues):
+    if any(i.code in _AUTO_APPROVE_BLOCKING_CODES for i in issues):
         return False
     if row.overall_confidence < AUTO_APPROVE_CONFIDENCE:
         return False
@@ -333,6 +391,7 @@ def validate_row(row: EnrichedRow, category: str | None = None) -> RowValidation
     issues: list[ValidationIssue] = []
 
     issues.extend(_check_required_fields(row, required))
+    issues.extend(_check_description_is_informative(row))
     issues.extend(_check_lov_membership(row))
     issues.extend(_check_low_confidence(row))
     issues.extend(_check_character_limits(row))

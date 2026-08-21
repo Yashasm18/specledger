@@ -1,0 +1,37 @@
+"""Tests for taxonomy classification signal priority."""
+
+import unittest
+
+from backend.specledger.web_enricher import classify_category
+
+
+class TaxonomySignalPriorityTests(unittest.TestCase):
+    """Description outranks manufacturer name.
+
+    Both are useful, but they are not equal: the description says what a
+    product *is*, while the manufacturer name only suggests what they tend to
+    make. Matching them together let the weaker signal win — testing a real
+    14-product Diablo catalogue, saw blades, hole saws, auger bits and
+    chisels all classified as Coated Abrasives on the brand name alone.
+    """
+
+    def test_description_beats_a_conflicting_manufacturer_hint(self) -> None:
+        # Mirka is an abrasives specialist, but this row is plainly a valve.
+        path = classify_category("2 in Brass Ball Valve 600 PSI", "Mirka Abrasives Inc")
+        self.assertIn("Valves", path)
+        self.assertNotIn("Abrasives", path)
+
+    def test_manufacturer_hint_still_applies_when_the_description_says_nothing(self) -> None:
+        # The case the hint was added for: a description that is a bare code.
+        path = classify_category("49-94-0803", "Mirka Abrasives Inc")
+        self.assertIn("Abrasives", path)
+
+    def test_a_multi_category_manufacturer_does_not_force_one_bucket(self) -> None:
+        # Freud/Diablo make saw blades, hole saws and drill bits as well as
+        # abrasives, so their name must not decide the category by itself.
+        hole_saw = classify_category("DHS3250 Bi-Metal Hole Saws", "Freud Inc")
+        self.assertNotIn("Abrasives", hole_saw)
+
+    def test_a_real_freud_abrasive_still_classifies_from_its_description(self) -> None:
+        path = classify_category('DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc', "Freud Inc")
+        self.assertIn("Abrasives", path)

@@ -143,6 +143,9 @@ class RowValidationTests(TestHelpers):
         enriched = self._make_enriched([{
             "Manufacturer": "Parker Hannifin",
             "Part Number": "V-100",
+            # A real description: a record carrying nothing but its own SKU
+            # is not publishable unreviewed, whatever the confidence.
+            "Description": "1/2 in Brass Ball Valve 600 PSI",
         }])
         result = validate_row(enriched.rows[0], None)
         # Both fields should be verified with high confidence
@@ -200,8 +203,8 @@ class BatchValidationTests(TestHelpers):
 
     def test_batch_auto_approve_count(self) -> None:
         enriched = self._make_enriched([
-            {"Manufacturer": "Parker Hannifin", "Part Number": "V-1"},
-            {"Manufacturer": "UnknownCo", "Part Number": "V-2"},
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-1", "Description": "1/2 in Brass Ball Valve 600 PSI"},
+            {"Manufacturer": "UnknownCo", "Part Number": "V-2", "Description": "1/2 in Brass Ball Valve 600 PSI"},
         ])
         result = validate_batch(enriched)
         assert result.auto_approve_count >= 1
@@ -259,3 +262,55 @@ class BatchValidationTests(TestHelpers):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UninformativeDescriptionTests(unittest.TestCase):
+    """A row can pass every other check and still be unpublishable.
+
+    Confidence measures how sure we are about the values present. It says
+    nothing about whether enough is present to sell from. A real Watts
+    catalogue extract contained part number "SC" with description "SC",
+    which auto-approved at 100% confidence before this rule existed.
+    """
+
+    def _validate(self, row: dict):
+        from backend.specledger.catalogue_ingestion import normalize_rows
+        from backend.specledger.enrichment import enrich_batch
+        enriched = enrich_batch(normalize_rows("t.csv", [row]))
+        return validate_row(enriched.rows[0], None)
+
+    def test_description_identical_to_part_number_blocks_auto_approval(self) -> None:
+        result = self._validate({
+            "mfg_part_num": "SC", "part_desc": "SC",
+            "part_manuf": "Watts Water Technologies",
+        })
+        self.assertFalse(result.can_auto_approve)
+        self.assertIn("UNINFORMATIVE_DESCRIPTION", [i.code for i in result.issues])
+
+    def test_description_that_is_only_the_sku_with_punctuation_is_caught(self) -> None:
+        result = self._validate({
+            "mfg_part_num": "RK-007-S2", "part_desc": "RK 007-S2",
+            "part_manuf": "Watts Water Technologies",
+        })
+        self.assertFalse(result.can_auto_approve)
+
+    def test_missing_description_blocks_auto_approval(self) -> None:
+        result = self._validate({
+            "mfg_part_num": "V-100", "part_manuf": "Parker Hannifin",
+        })
+        self.assertFalse(result.can_auto_approve)
+        self.assertIn("MISSING_DESCRIPTION", [i.code for i in result.issues])
+
+    def test_a_real_description_still_auto_approves(self) -> None:
+        result = self._validate({
+            "mfg_part_num": "D1050X",
+            "part_desc": "D1050X Diablo 10in Combination Saw Blade",
+            "part_manuf": "Freud Inc",
+        })
+        self.assertTrue(result.can_auto_approve)
+        self.assertEqual(result.issues, ())
+
+    def test_a_row_with_neither_is_not_double_flagged(self) -> None:
+        result = self._validate({"part_manuf": "Parker Hannifin"})
+        codes = [i.code for i in result.issues]
+        self.assertNotIn("UNINFORMATIVE_DESCRIPTION", codes)

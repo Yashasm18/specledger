@@ -124,19 +124,12 @@ def _extract_dimensions(desc: str) -> dict[str, str]:
     return dims
 
 
-def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, str, str, str]:
-    """Infer (Dept, Class, Fine, Classpath) based on product description and manufacturer.
+def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
+    """Run the keyword cascade against `text`, returning None if nothing hits.
 
-    Keyword matching runs against description + manufacturer combined —
-    manufacturer-name keywords (e.g. "leviton", "mirka") are real, useful
-    signal, but almost never appear inside the description text itself.
-
-    Either field may be absent in real catalogue data, so both are coerced
-    here rather than relying on every caller to guard them.
+    `desc_l` is used only to pick the fine-grained bucket within a matched
+    branch, so it stays the real description in both matching passes.
     """
-    desc_l = (desc or "").lower()
-    mfr_l = (manufacturer or "").lower()
-    text = f"{desc_l} {mfr_l}"
 
     # 1. HVAC & Refrigeration
     if any(kw in text for kw in ("water heater", "heat pump", "furnace", "boiler", "compressor", "refrigerant", "hvac", "thermostat", "air conditioner", "condenser", "rheem", "carrier", "trane", "lennox")):
@@ -156,8 +149,15 @@ def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, st
 
     # 3. Abrasives & Sanding Media (checked ahead of Electrical/Tools since
     # e.g. Milwaukee-brand cut-off discs are abrasive accessories, not the
-    # power tools branch a bare manufacturer-name match would suggest)
-    if any(kw in text for kw in ("sanding belt", "cut-off disc", "cut off disc", "cutoff disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "abrasives", "sandpaper", "stikit", "cubitron", "hiolit", "freud", "mirka", "diablo")):
+    # power tools branch a bare manufacturer-name match would suggest).
+    #
+    # "freud" and "diablo" were removed from this list. A manufacturer name
+    # is only usable as a category signal when that manufacturer makes one
+    # category — Mirka does; Freud/Diablo make saw blades, router bits, hole
+    # saws, chisels and drill bits alongside abrasives. Testing a real
+    # 14-product Diablo catalogue, every row landed in Coated Abrasives on
+    # the strength of the brand name alone.
+    if any(kw in text for kw in ("sanding belt", "cut-off disc", "cut off disc", "cutoff disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "abrasives", "sandpaper", "stikit", "cubitron", "hiolit", "mirka")):
         dept = "Abrasives & Cutting Tools"
         cls = "Abrasives"
         fine = "Sanding Belts & Discs" if "belt" in desc_l or "disc" in desc_l else "Coated Abrasives"
@@ -251,7 +251,44 @@ def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, st
         path = f"Building Supplies > Adhesives & Sealants > {fine}"
         return dept, cls, fine, path
 
-    return "Industrial Supplies", "General Hardware", "Maintenance Products", "Industrial Supplies > Maintenance"
+    return None
+
+
+# The generic bucket, returned when neither the description nor the
+# manufacturer name places a product anywhere more specific.
+_GENERIC_TAXONOMY = (
+    "Industrial Supplies", "General Hardware", "Maintenance Products",
+    "Industrial Supplies > Maintenance",
+)
+
+
+def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, str, str, str]:
+    """Infer (Dept, Class, Fine, Classpath) from a product description, using
+    the manufacturer name only as a fallback hint.
+
+    Both signals are useful but they are not equal. What a product *is* comes
+    from its description; the manufacturer name only suggests what they tend
+    to make. Matching them together let the weaker signal win whenever its
+    branch was checked first — "Freud Inc" hits the abrasives keyword, so a
+    real catalogue of Freud parts classified saw blades, hole saws, auger
+    bits and chisels all as Coated Abrasives, because every row carried the
+    manufacturer name.
+
+    So description is matched alone first. Only when it places the product
+    nowhere does the manufacturer name get a say, which is the case it was
+    added for: rows whose description is a bare part number.
+
+    Either field may be absent in real catalogue data, so both are coerced
+    here rather than relying on every caller to guard them.
+    """
+    desc_l = (desc or "").lower()
+    mfr_l = (manufacturer or "").lower()
+
+    return (
+        _match_taxonomy(desc_l, desc_l)
+        or _match_taxonomy(mfr_l, desc_l)
+        or _GENERIC_TAXONOMY
+    )
 
 
 def classify_category(desc: str | None, manufacturer: str | None) -> str:

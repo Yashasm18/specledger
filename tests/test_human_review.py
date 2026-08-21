@@ -27,7 +27,9 @@ class ReviewHelpers(unittest.TestCase):
 class ReviewRoutingTests(ReviewHelpers):
     def test_verified_rows_auto_approved(self) -> None:
         enriched, validation = self._make_enriched_and_validated([
-            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+            # Needs a real description: a record carrying nothing but its
+            # own SKU is not publishable unreviewed, whatever the confidence.
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100", "Description": "1/2 in Brass Ball Valve 600 PSI"},
         ])
         queue = route_batch_for_review("batch-1", enriched, validation)
         row = queue.get_row("batch-1", 2)
@@ -66,9 +68,9 @@ class ReviewRoutingTests(ReviewHelpers):
 
     def test_mixed_batch_routing(self) -> None:
         enriched, validation = self._make_enriched_and_validated([
-            {"Manufacturer": "Parker Hannifin", "Part Number": "V-1"},
-            {"Manufacturer": "UnknownCo", "Part Number": "V-2"},
-            {"Manufacturer": "Emerson", "Part Number": "V-3"},
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-1", "Description": "1/2 in Brass Ball Valve 600 PSI"},
+            {"Manufacturer": "UnknownCo", "Part Number": "V-2", "Description": "1/2 in Brass Ball Valve 600 PSI"},
+            {"Manufacturer": "Emerson", "Part Number": "V-3", "Description": "1/2 in Brass Ball Valve 600 PSI"},
         ])
         queue = route_batch_for_review("batch-1", enriched, validation)
         assert queue.total_count == 3
@@ -170,7 +172,9 @@ class ReviewActionTests(ReviewHelpers):
 
     def test_cannot_reject_auto_approved(self) -> None:
         enriched, validation = self._make_enriched_and_validated([
-            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+            # Must actually auto-approve for this to test what it claims.
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100",
+             "Description": "1/2 in Brass Ball Valve 600 PSI"},
         ])
         queue = route_batch_for_review("batch-1", enriched, validation)
         with self.assertRaises(ReviewError):
