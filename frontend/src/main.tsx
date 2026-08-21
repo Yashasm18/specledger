@@ -9,7 +9,7 @@ import "./reviewLauncher.css";
 import "./reviewActions.css";
 import "./specInspector.css";
 import { openReviewWorkspace } from "./reviewWorkspace";
-import { apiFetch, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiClient";
+import { apiFetch, fetchWithRetry, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiClient";
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
 
@@ -167,6 +167,9 @@ function App() {
   // hardcoded here — the hardcoded copies had drifted from what the
   // pipeline actually scores.
   const [syntheticEval, setSyntheticEval] = useState<any>(null);
+  // Set only after every retry has failed, so "the API is down" never gets
+  // rendered as "this batch is empty".
+  const [apiError, setApiError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
@@ -312,20 +315,24 @@ function App() {
       setIsLoadingBatch(false); // No backend configured — nothing to wait for
       return;
     }
+    setApiError(null);
     try {
-      const res = await fetch(`${API_BASE}/catalogue/batches`);
-      if (res.ok) {
+      const res = await fetchWithRetry(`${API_BASE}/catalogue/batches`);
+      if (!res.ok) {
+        throw new Error(`The API responded with HTTP ${res.status}.`);
+      }
+      {
         const data = await res.json();
         setBatchList(data.batches || []);
         if (data.batches && data.batches.length > 0) {
           const latestId = data.batches[0].batch_id;
-          const batchRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}`);
+          const batchRes = await fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}`);
           if (batchRes.ok) {
             const batch = await batchRes.json();
             setActiveBatch(batch);
             setLiveRows(batch.rows || []);
           }
-          const pendingRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/review/pending`);
+          const pendingRes = await fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}/review/pending`);
           if (pendingRes.ok) {
             const pending = await pendingRes.json();
             const rawPending = pending.pending_rows || [];
@@ -333,12 +340,12 @@ function App() {
             // pending_rows is one page; total_pending is the whole backlog.
             setTotalPending(pending.total_pending ?? rawPending.length);
           }
-          const sourcesRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/sources`);
+          const sourcesRes = await fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}/sources`);
           if (sourcesRes.ok) {
             const srcData = await sourcesRes.json();
             setBatchSources(srcData.sources || []);
           }
-          const auditRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/audit?limit=50`);
+          const auditRes = await fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}/audit?limit=50`);
           if (auditRes.ok) {
             const auditData = await auditRes.json();
             setAuditEvents(auditData.events || []);
@@ -349,12 +356,19 @@ function App() {
 
       // Scores the bundled synthetic benchmark server-side so the dashboard
       // reports what the pipeline currently achieves, not a stale constant.
-      const evalRes = await fetch(`${API_BASE}/catalogue/evaluation/synthetic`);
+      const evalRes = await fetchWithRetry(`${API_BASE}/catalogue/evaluation/synthetic`);
       if (evalRes.ok) {
         setSyntheticEval(await evalRes.json());
       }
-    } catch (err) {
-      console.log("Backend offline or loading:", err);
+    } catch (err: any) {
+      // Every retry failed — this is a real outage, not a slow start, and
+      // must read differently from "this batch is empty".
+      console.error("Could not reach the SpecLedger API:", err);
+      setApiError(
+        err?.message?.startsWith("The API responded")
+          ? err.message
+          : "Could not reach the SpecLedger API after several attempts."
+      );
     } finally {
       setIsLoadingBatch(false);
     }
@@ -2384,6 +2398,42 @@ function App() {
         </header>
 
         <div className="content">
+          {apiError && (
+            <div
+              role="alert"
+              style={{
+                background: "rgba(248,81,73,0.08)",
+                border: "1px solid rgba(248,81,73,0.35)",
+                borderRadius: 8,
+                padding: "12px 16px",
+                marginBottom: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+              }}
+            >
+              <div style={{ fontSize: 13, color: "#f85149" }}>
+                <strong>Can’t reach the API.</strong>{" "}
+                <span style={{ color: "#8b949e" }}>
+                  {apiError} Figures below are unavailable — nothing shown is
+                  substituted or cached.
+                </span>
+              </div>
+              <button
+                onClick={() => { setIsLoadingBatch(true); fetchLatestBatch(); }}
+                style={{
+                  background: "#238636", color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  padding: "6px 14px", borderRadius: 6,
+                  fontWeight: 500, fontSize: 13, cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {renderMainContent()}
         </div>
       </main>
