@@ -3,8 +3,8 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-2ea44f.svg?logo=github&logoColor=white)](https://yashasm18.github.io/specledger/)
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
 [![Pylint](https://img.shields.io/badge/Pylint-9.82%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
-[![Tests](https://img.shields.io/badge/Tests-251%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
-[![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20Benchmark-94.64%25-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
+[![Tests](https://img.shields.io/badge/Tests-272%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20Benchmark-94.37%25-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252--Column%20Compliant-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -39,7 +39,23 @@ Unilog's platform doesn't perform product enrichment itself — that work is lar
 
 **Domain-agnostic by design.** Unilog's own catalogue skews HVAC, plumbing, and electrical (and so does the sample dataset this challenge provides), but nothing in the pipeline is hardcoded to that vertical. Column-to-role detection (`detect_role()` in [`enrichment.py`](backend/specledger/enrichment.py)) is keyword-based, not a fixed schema; the validation framework's 6 rule categories (required fields, LOV membership, cross-field consistency, completeness, duplicates, character limits) apply to any category, and the one example cross-field rule shown in this README (PVC vs. 600 PSI) is a single illustrative rule within that generic framework, not evidence the framework only works for valves. Point it at a different catalogue — electronics, apparel, food service equipment — and the same pipeline runs; only the reference data (`reference_data.py`'s manufacturer/brand/material tables) would need extending with that vertical's own vocabulary.
 
-**On cost — paid APIs are fine, but the pipeline avoids needing them for the expensive part.** Enrichment itself is 100% deterministic, rule-based normalization: **zero LLM API calls** anywhere in this pipeline, at any stage (verifiable in `batch_processor.py` — the LLM-cost code path exists in the cost model for completeness but is never invoked). That's a real, structural cost advantage in a thin-margin industry, not a policy choice we're asking to be credited for. The one real external dependency is optional: `live_fetch`'s Serper.dev search fallback, used only when direct manufacturer-domain URL guessing finds nothing, at Serper.dev's own published per-query pricing (their free tier alone covers 2,500 queries — see [External sources and services](#datasets--provenance)). The dashboard's benchmark tile reflects this honestly: the deterministic run it displays makes no external calls at all, so its real cost is $0, not an estimated per-SKU figure dressed up as measured.
+**On cost — the expensive part is deliberately not where the AI is.** The default path is 100% deterministic, rule-based normalization: **zero LLM calls**, for every row, at any stage. That covers the ~69% of the official dataset the keyword classifier resolves outright, at exactly $0.
+
+The remaining ~31% is where deterministic matching genuinely fails — sparse, ambiguous descriptions no keyword list resolves. Those rows, and only those, can be sent to an **opt-in LLM tier** (`ai_assist=true`, or the "AI assist" toggle in the dashboard). It is off by default, and a no-op without `GEMINI_API_KEY`.
+
+That tier is bounded by construction rather than by promise:
+
+| Property | How |
+|---|---|
+| Only sees the residue | Deterministic classification runs first and keeps everything it resolved. |
+| Batched | 25 products per request — 308 unresolved rows cost ~13 calls, not 308. |
+| Constrained | Output is restricted to the existing taxonomy via a response schema; anything outside the controlled vocabulary is discarded. `temperature=0` keeps re-runs stable. |
+| Never authoritative | Every suggestion is marked `ai_inferred`, carries the model and prompt version, keeps the deterministic answer alongside it, and **cannot auto-approve** — it always routes to human review. |
+| Never load-bearing | No key, an HTTP error, a timeout or a malformed response all degrade to "no suggestion". A failing LLM never fails an ingest. |
+
+**Measured cost:** $0.0000088 per enriched row (40 rows, 2 calls, 2,080 tokens). Extrapolated to the 750,000 SKUs/month target with ~31% needing the tier, that is roughly **$2/month in model spend**. Token counts come from the API and are reported as measured; the per-token rate is configuration (`SPECLEDGER_LLM_INPUT_RATE`/`_OUTPUT_RATE`) and is labelled as such in the payload rather than presented as a measurement.
+
+The other optional external dependency is `live_fetch`'s Serper.dev search fallback, used only when direct manufacturer-domain URL guessing finds nothing (their free tier alone covers 2,500 queries — see [External sources and services](#datasets--provenance)). The dashboard's benchmark tile reflects all of this honestly: the deterministic run it displays makes no external calls at all, so its real cost is $0.
 
 | | Headless API | Web Dashboard |
 |---|---|---|
@@ -230,6 +246,10 @@ React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review,
 | `DATABASE_URL` | Backend | No | Postgres connection string. Unset → falls back to local SQLite automatically (see [Running locally](#running-locally)). |
 | `SPECLEDGER_API_KEY` | Backend | No | Gates `POST`/`PATCH` `/catalogue/*` endpoints behind an `X-API-Key` header. Unset → the check is a no-op (local dev/CI only; always set in the deployed instance). |
 | `SERPER_API_KEY` | Backend | No | Enables `live_fetch`'s real web-search fallback via [Serper.dev](https://serper.dev). Unset → search fallback is skipped, direct-domain fetching still works. |
+| `GEMINI_API_KEY` | Backend | No | Enables the opt-in LLM tier for rows the deterministic classifier leaves unresolved. Unset → `ai_assist=true` is a no-op and the pipeline is unchanged. |
+| `SPECLEDGER_LLM_MODEL` | Backend | No | Model for the LLM tier (default `gemini-2.0-flash`). |
+| `SPECLEDGER_LLM_BATCH_SIZE` | Backend | No | Products per LLM request (default 25). Higher = fewer calls. |
+| `SPECLEDGER_LLM_INPUT_RATE`, `SPECLEDGER_LLM_OUTPUT_RATE` | Backend | No | Per-million-token rates used to derive reported cost. Configuration, not measurement — token counts come from the API. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` | Backend | No | Object storage for extraction artifacts. Unset → falls back to local disk storage. |
 | `VITE_API_URL` | Frontend build | Yes (prod) | Base URL the dashboard calls for the API. Baked in at build time. |
 | `VITE_API_KEY` | Frontend build | No | Sent as `X-API-Key` on write requests. **Not a real secret** — GitHub Pages is a static host, so this value ends up readable in the shipped JS bundle. It deters casual/scripted abuse, not a determined reader of the bundle; see [SECURITY.md](SECURITY.md) for the full note. |
