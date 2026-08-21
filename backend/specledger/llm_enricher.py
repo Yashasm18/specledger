@@ -63,13 +63,21 @@ ALLOWED_CLASSPATHS: tuple[str, ...] = (
     "Electrical > Lighting > Commercial & Residential Lighting",
     "Building Supplies > Adhesives & Sealants > Specialty Tapes",
     "Building Supplies > Adhesives & Sealants > Masonry & Mortar",
+    "Building Supplies > Decking & Outdoor Living > Composite & PVC Decking",
+    "Building Supplies > Decking & Outdoor Living > Railing & Balusters",
+    "Building Supplies > Decking & Outdoor Living > Trim & Fascia",
+    "Building Supplies > Lumber & Sheet Goods > Panels & Sheathing",
+    "Building Supplies > Lumber & Sheet Goods > Dimensional Lumber",
+    "Safety & PPE > Personal Protective Equipment > Eye & Face Protection",
+    "Safety & PPE > Personal Protective Equipment > Hand Protection",
+    "Safety & PPE > Personal Protective Equipment > Protective Equipment",
     GENERIC_CLASSPATH,
 )
 
 # Bumped whenever the prompt or schema changes, and recorded on every
 # suggestion — an AI-derived value is only auditable if you can tell which
 # prompt produced it.
-PROMPT_VERSION = "cls-v1"
+PROMPT_VERSION = "cls-v2"
 
 _ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 

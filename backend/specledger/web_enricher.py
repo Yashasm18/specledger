@@ -193,8 +193,55 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
         path = "Electrical > Lighting > Commercial & Residential Lighting"
         return dept, cls, fine, path
 
-    # 8. Building Supplies & Adhesives
-    if any(kw in text for kw in ("tape", "mortar", "sealant", "joint", "lumber", "plywood", "boise cascade")):
+    # 8. Decking, Railing & Outdoor Living. Checked before the general
+    # building-materials branch because composite decking brands and profile
+    # terms ("grooved", "fascia", "post sleeve") are specific enough to
+    # classify on their own, and they are the single largest group in this
+    # dataset that keyword matching previously left unclassified.
+    if any(kw in text for kw in (
+        "decking", "deck board", "azek", "trex", "timbertech", "fiberon",
+        "fascia", "baluster", "post sleeve", "rail kit", "railing",
+        "grooved", "riser", "pergola", "lattice",
+    )):
+        dept = "Building Materials"
+        cls = "Decking & Outdoor Living"
+        if any(k in text for k in ("baluster", "rail kit", "railing", "post sleeve")):
+            fine = "Railing & Balusters"
+        elif "fascia" in text or "riser" in text:
+            fine = "Trim & Fascia"
+        else:
+            fine = "Composite & PVC Decking"
+        path = f"Building Supplies > Decking & Outdoor Living > {fine}"
+        return dept, cls, fine, path
+
+    # 9. Safety & Personal Protective Equipment
+    if any(kw in text for kw in (
+        "safety glass", "safety glasses", "goggle", "hard hat", "respirator",
+        "ear muff", "earplug", "hearing protect", "work glove", "safety vest",
+        "high visibility", "hi-vis", "face shield", "knee pad", "kneeling pad",
+    )):
+        dept = "Safety & PPE"
+        cls = "Personal Protective Equipment"
+        if any(k in text for k in ("glass", "goggle", "face shield")):
+            fine = "Eye & Face Protection"
+        elif "glove" in text:
+            fine = "Hand Protection"
+        else:
+            fine = "Protective Equipment"
+        path = f"Safety & PPE > Personal Protective Equipment > {fine}"
+        return dept, cls, fine, path
+
+    # 10. Lumber & Sheet Goods — structural material, distinct from the
+    # adhesives branch it used to be lumped into.
+    if any(kw in text for kw in ("lumber", "plywood", "osb", "sheathing", "boise cascade", "stud ")):
+        dept = "Building Materials"
+        cls = "Lumber & Sheet Goods"
+        fine = "Panels & Sheathing" if any(k in text for k in ("plywood", "osb", "sheathing")) else "Dimensional Lumber"
+        path = f"Building Supplies > Lumber & Sheet Goods > {fine}"
+        return dept, cls, fine, path
+
+    # 11. Building Supplies & Adhesives
+    if any(kw in text for kw in ("tape", "mortar", "sealant", "joint", "caulk", "grout")):
         dept = "Building Materials"
         cls = "Adhesives & Tapes"
         fine = "Specialty Tapes" if "tape" in desc_l else "Masonry & Mortar"
