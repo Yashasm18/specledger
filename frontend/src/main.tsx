@@ -589,6 +589,15 @@ function App() {
     event.target.value = "";
   };
 
+  // Past tense per action. Appending "d" works for "approve" but produces
+  // "rejectd"/"correctd", and that string is written into the audit trail —
+  // a permanent compliance record, not a transient toast.
+  const PAST_TENSE: Record<"approve" | "reject" | "correct", string> = {
+    approve: "approved",
+    reject: "rejected",
+    correct: "corrected",
+  };
+
   // Human Review Actions
   const handleReviewAction = async (rowNumber: number, action: "approve" | "reject" | "correct", comment?: string) => {
     const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
@@ -617,7 +626,7 @@ function App() {
 
     if (!API_BASE) {
       revertOptimisticUpdate();
-      setNotice(`No backend configured — row #${rowNumber} was NOT ${action}d.`);
+      setNotice(`No backend configured — row #${rowNumber} was NOT ${PAST_TENSE[action]}.`);
       return;
     }
     try {
@@ -626,10 +635,10 @@ function App() {
       const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
-        body: JSON.stringify({ action, reviewer: reviewerName, comment: comment || `Row ${action}d via workspace` })
+        body: JSON.stringify({ action, reviewer: reviewerName, comment: comment || `Row ${PAST_TENSE[action]} via workspace` })
       });
       if (res.ok) {
-        setNotice(`Row #${rowNumber} ${action}d successfully by ${currentPersona.shortName}.`);
+        setNotice(`Row #${rowNumber} ${PAST_TENSE[action]} successfully by ${currentPersona.shortName}.`);
       } else {
         // The decision was not recorded, so it must not look like it was.
         revertOptimisticUpdate();
