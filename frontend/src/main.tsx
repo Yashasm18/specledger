@@ -163,6 +163,10 @@ function App() {
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
   // Total events recorded for the batch, independent of the page size.
   const [totalAuditEvents, setTotalAuditEvents] = useState(0);
+  // Synthetic-benchmark scores, measured server-side on request rather than
+  // hardcoded here — the hardcoded copies had drifted from what the
+  // pipeline actually scores.
+  const [syntheticEval, setSyntheticEval] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
@@ -299,6 +303,10 @@ function App() {
 
   const API_BASE = getApiBaseUrl();
 
+  // Format a 0–1 accuracy as a percentage, or "—" when it isn't available.
+  const pct = (v: number | null | undefined) =>
+    typeof v === "number" ? `${(v * 100).toFixed(1)}%` : "—";
+
   const fetchLatestBatch = async () => {
     if (!API_BASE) {
       setIsLoadingBatch(false); // No backend configured — nothing to wait for
@@ -337,6 +345,13 @@ function App() {
             setTotalAuditEvents(auditData.total_events ?? (auditData.events || []).length);
           }
         }
+      }
+
+      // Scores the bundled synthetic benchmark server-side so the dashboard
+      // reports what the pipeline currently achieves, not a stale constant.
+      const evalRes = await fetch(`${API_BASE}/catalogue/evaluation/synthetic`);
+      if (evalRes.ok) {
+        setSyntheticEval(await evalRes.json());
       }
     } catch (err) {
       console.log("Backend offline or loading:", err);
@@ -1030,13 +1045,29 @@ function App() {
               </article>
               <article>
                 <span>THROUGHPUT</span>
-                <strong>~7,200 <small style={{ fontSize: 12 }}>rows/s</small></strong>
-                <small className="up">Deterministic path, measured</small>
+                <strong>
+                  {benchStats
+                    ? <>{benchStats.throughput.replace(" rows/s", "")} <small style={{ fontSize: 12 }}>rows/s</small></>
+                    : "—"}
+                </strong>
+                <small className="up">
+                  {benchStats
+                    ? "Deterministic path, measured this session"
+                    : "Run the benchmark on Overview to measure"}
+                </small>
               </article>
               <article title="Measured against a self-generated synthetic benchmark, not official Unilog ground truth — see README.">
                 <span>SYNTHETIC BENCHMARK ACCURACY</span>
-                <strong>94.64<span className="percent">%</span></strong>
-                <small className="up">Self-generated 200-row set</small>
+                <strong>
+                  {syntheticEval
+                    ? <>{(syntheticEval.overall_exact_accuracy * 100).toFixed(2)}<span className="percent">%</span></>
+                    : "—"}
+                </strong>
+                <small className="up">
+                  {syntheticEval
+                    ? `Self-generated ${syntheticEval.rows_evaluated}-row set`
+                    : "Self-generated 200-row set"}
+                </small>
               </article>
               <article title="No LLM API is used anywhere in this pipeline — enrichment is entirely deterministic, rule-based normalization. The only real per-call cost is the optional Serper.dev search fallback under live_fetch, which this batch's average reflects when available.">
                 <span>COST PER SKU</span>
@@ -1052,29 +1083,31 @@ function App() {
                   Synthetic Benchmark Evaluation (200 self-generated SKUs — not official Unilog data)
                 </h4>
                 <span style={{ background: "rgba(16,185,129,0.2)", color: "#34d399", padding: "3px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
-                  94.64% Overall Exact Match
+                  {syntheticEval
+                    ? `${pct(syntheticEval.overall_exact_accuracy)} Overall Exact Match`
+                    : "Measuring…"}
                 </span>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>PART NUMBER</small>
-                  <strong style={{ fontSize: 15, color: "#34d399" }}>100.0%</strong>
+                  <strong style={{ fontSize: 15, color: "#34d399" }}>{syntheticEval ? pct(syntheticEval.field_accuracy?.part_number) : "—"}</strong>
                   <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>MANUFACTURER</small>
-                  <strong style={{ fontSize: 15, color: "#34d399" }}>93.5%</strong>
+                  <strong style={{ fontSize: 15, color: "#34d399" }}>{syntheticEval ? pct(syntheticEval.field_accuracy?.manufacturer) : "—"}</strong>
                   <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>CATEGORY TAXONOMY</small>
-                  <strong style={{ fontSize: 15, color: "#34d399" }}>100.0%</strong>
+                  <strong style={{ fontSize: 15, color: "#34d399" }}>{syntheticEval ? pct(syntheticEval.field_accuracy?.category) : "—"}</strong>
                   <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.05)", padding: 10, borderRadius: 6 }}>
                   <small style={{ color: "#94a3b8", display: "block", fontSize: 9 }}>MATERIAL / ALLOY</small>
-                  <strong style={{ fontSize: 15, color: "#38bdf8" }}>94.5%</strong>
+                  <strong style={{ fontSize: 15, color: "#38bdf8" }}>{syntheticEval ? pct(syntheticEval.field_accuracy?.material) : "—"}</strong>
                   <span style={{ fontSize: 9, color: "#64748b", display: "block" }}>Exact match</span>
                 </div>
               </div>

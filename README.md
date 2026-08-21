@@ -135,10 +135,17 @@ Nothing in the enrichment path reads from a private or paywalled dataset. If you
 
 | Metric | Score |
 |---|---|
-| Overall exact-match accuracy | 94.64% (1,400 attributes evaluated) |
+| Overall exact-match accuracy | 94.37% |
 | Category classification | 100.0% (200/200) |
 | Part number extraction | 100.0% (200/200) |
-| Material normalization | 94.50% (189/200) |
+| Material normalization | 95.0% (190/200) |
+| Manufacturer resolution | 90.0% (180/200) |
+
+These are scored on request rather than transcribed — `GET /catalogue/evaluation/synthetic` re-runs the evaluation against the committed input/ground-truth pair and returns what the pipeline currently achieves, and the dashboard reads that endpoint instead of hardcoded constants. An earlier version of this table did hardcode them, and they had quietly drifted from reality (94.64% claimed vs 94.37% actual, 93.5% manufacturer claimed vs 90.0% actual) after changes to the enrichment logic. Reproduce with:
+
+```bash
+curl -s https://specledger-production.up.railway.app/catalogue/evaluation/synthetic
+```
 
 **These numbers are reproducible on demand, not transcribed.** `POST /catalogue/batches/{batch_id}/benchmark` re-runs enrichment, validation, and 252-column synthesis over a batch's persisted raw values and returns the timings measured during that request, broken down per stage. The dashboard's "Run benchmark" button calls exactly that endpoint against whichever batch is loaded — including one you uploaded yourself — and displays nothing until a real run returns. Run it twice and the figures move, because they're measured rather than replayed:
 
