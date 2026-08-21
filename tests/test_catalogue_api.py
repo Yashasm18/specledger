@@ -339,6 +339,39 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_row_review_state_agrees_with_review_summary(self) -> None:
+        # review_state and review_summary are both derived from the routing
+        # decision, so they must agree within a single response. They used to
+        # disagree because the per-row value was replayed from what was
+        # persisted at ingest while the summary was recomputed live.
+        csv_path = self._make_csv([
+            {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-200"},
+            {"Manufacturer": "UnknownMfg998", "Part Number": "V-300"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post(
+                    "/catalogue/ingest", files={"file": ("consistency.csv", f, "text/csv")}
+                )
+            batch_id = ingest_res.json()["batch_id"]
+
+            batch = self.client.get(f"/catalogue/batches/{batch_id}").json()
+            summary = batch["review_summary"]
+
+            counts: dict[str, int] = {}
+            for row in batch["rows"]:
+                state = row["review_state"]
+                counts[state] = counts.get(state, 0) + 1
+
+            for state in ("pending_review", "auto_approved", "approved"):
+                assert counts.get(state, 0) == summary[state], (
+                    f"per-row {state}={counts.get(state, 0)} but "
+                    f"summary says {summary[state]}"
+                )
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_rebuild_preserves_human_decisions_but_not_auto_routing(self) -> None:
         # A queue rebuild (which happens whenever the process-local cache is
         # lost, e.g. after a redeploy) must re-derive auto-routing from the

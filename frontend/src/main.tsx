@@ -703,8 +703,20 @@ function App() {
         // computes a real classpath from the description (r.category) and
         // this falls back to it before giving up.
         const catField = findByRole(values, "category") || r.category || "Uncategorized";
-        const status = r.overall_status === "verified" || r.overall_status === "approved" || r.review_state === "approved" ? "Ready" : "Needs review";
-        const quality = `${Math.round((r.overall_confidence ?? 0.5) * 100)}% verified`;
+        // A row is "Ready" when the pipeline cleared it without a human
+        // (auto_approved) or a reviewer signed it off (approved/corrected).
+        // review_state is the live routing decision, so it governs; the
+        // older overall_status check stays as a fallback for rows a queue
+        // rebuild hasn't covered.
+        const clearedStates = ["auto_approved", "approved", "corrected"];
+        const status = clearedStates.includes(r.review_state)
+          || r.overall_status === "verified"
+          || r.overall_status === "approved"
+            ? "Ready"
+            : "Needs review";
+        const quality = r.overall_confidence != null
+          ? `${Math.round(r.overall_confidence * 100)}% verified`
+          : "—";
         return [skuField, `${descField}`, mfrField, catField, status, quality, r];
       })
     : [];

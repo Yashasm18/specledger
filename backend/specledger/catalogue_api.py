@@ -490,6 +490,32 @@ def _attach_categories(rows: list[dict[str, Any]]) -> None:
         row["category"] = classify_category(desc, mfr)
 
 
+def _overlay_live_review_state(
+    rows: list[dict[str, Any]], batch_id: str, queue: ReviewQueue,
+    result: BatchProcessingResult | None,
+) -> None:
+    """Refresh each row's review_state/overall_confidence in place from the
+    live queue and recomputed enrichment (mutates `rows`).
+
+    Both values are *derived*, and the copies persisted at ingest time were
+    produced by whatever rules were in effect then. Serving those stale
+    copies alongside a freshly computed review_summary put contradictory
+    numbers in the same response — the row list said 988 rows needed review
+    while the summary said 800. The queue is the current source of truth.
+    """
+    confidence_by_row = (
+        {r.row_number: r.overall_confidence for r in result.enriched.rows}
+        if result else {}
+    )
+    for row in rows:
+        reviewable = queue.get_row(batch_id, row["row_number"])
+        if reviewable:
+            row["review_state"] = reviewable.state.value
+        fresh_confidence = confidence_by_row.get(row["row_number"])
+        if fresh_confidence is not None:
+            row["overall_confidence"] = fresh_confidence
+
+
 @router.get("/batches/{batch_id}")
 def get_batch(batch_id: str, organization_id: str = Query(default="default")) -> dict[str, Any]:
     """Retrieve a previously ingested batch with full enrichment and review state."""
@@ -504,6 +530,9 @@ def get_batch(batch_id: str, organization_id: str = Query(default="default")) ->
     queue = _get_review_queue(real_id, organization_id)
     if queue:
         batch["review_summary"] = queue.get_batch_summary(real_id)
+        _overlay_live_review_state(
+            batch.get("rows", []), real_id, queue, _batch_results.get(real_id),
+        )
 
     # Attach processing metrics if available
     result = _batch_results.get(real_id)
@@ -529,6 +558,9 @@ def get_batch_row(batch_id: str, row_number: int, organization_id: str = Query(d
                 reviewable = queue.get_row(real_id, row_number)
                 if reviewable:
                     row["review_detail"] = reviewable.to_dict()
+                _overlay_live_review_state(
+                    [row], real_id, queue, _batch_results.get(real_id),
+                )
             return row
     raise HTTPException(status_code=404, detail=f"Row {row_number} not found in batch")
 
