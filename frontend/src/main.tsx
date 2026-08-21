@@ -35,6 +35,10 @@ function findByRole(values: Record<string, string> | undefined, role: string): s
   return undefined;
 }
 
+// Mirrors AUTO_APPROVE_CONFIDENCE in backend/specledger/validation_engine.py —
+// the bar the bulk-approve control advertises and must actually enforce.
+const BULK_APPROVE_CONFIDENCE = 0.8;
+
 const ALL_252_UNILOG_HEADERS: string[] = [
   "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5",
   "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num",
@@ -572,6 +576,16 @@ function App() {
     const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
     const batchId = activeBatch?.batch_id || "latest";
 
+    // Snapshot enough to undo the optimistic update if the server refuses.
+    const previousPending = pendingReviews;
+    const previousRows = liveRows;
+    const revertOptimisticUpdate = () => {
+      reviewedRowIdsRef.current.delete(rowNumber);
+      setReviewedRowIds(new Set(reviewedRowIdsRef.current));
+      setPendingReviews(previousPending);
+      setLiveRows(previousRows);
+    };
+
     reviewedRowIdsRef.current.add(rowNumber);
     setReviewedRowIds(new Set(reviewedRowIdsRef.current));
     setPendingReviews((prev) => prev.filter((item) => item.row_number !== rowNumber));
@@ -584,10 +598,13 @@ function App() {
     );
 
     if (!API_BASE) {
-      setNotice(`Row #${rowNumber} marked as ${action}d locally (no backend configured).`);
+      revertOptimisticUpdate();
+      setNotice(`No backend configured — row #${rowNumber} was NOT ${action}d.`);
       return;
     }
     try {
+      // Deliberately not retried: this records an audit event, so a retry
+      // after a request that actually succeeded would log the decision twice.
       const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
@@ -596,40 +613,76 @@ function App() {
       if (res.ok) {
         setNotice(`Row #${rowNumber} ${action}d successfully by ${currentPersona.shortName}.`);
       } else {
-        setNotice(`Row #${rowNumber} marked as ${action}d locally.`);
+        // The decision was not recorded, so it must not look like it was.
+        revertOptimisticUpdate();
+        setNotice(`Could not ${action} row #${rowNumber} — the API returned HTTP ${res.status}. Nothing was recorded; try again.`);
       }
     } catch {
-      setNotice(`Row #${rowNumber} marked as ${action}d.`);
+      revertOptimisticUpdate();
+      setNotice(`Could not ${action} row #${rowNumber} — the API is unreachable. Nothing was recorded; try again.`);
     }
   };
 
   const handleBulkApprove = async () => {
-    const count = pendingReviews.length;
-    const ids = pendingReviews.map((r) => r.row_number);
-    ids.forEach((id) => reviewedRowIdsRef.current.add(id));
-    setReviewedRowIds(new Set(reviewedRowIdsRef.current));
-    setPendingReviews([]);
-    setLiveRows((prev) =>
-      prev.map((r) => ({ ...r, overall_status: "verified", review_state: "approved" }))
+    // The control is labelled "≥80% confidence", so it must actually apply
+    // that threshold — it previously approved every pending row regardless.
+    const eligible = pendingReviews.filter(
+      (r) => (r.overall_confidence ?? 0) >= BULK_APPROVE_CONFIDENCE,
     );
-    setNotice(`Bulk approved ${count} pending items by ${currentPersona.shortName} (≥80% confidence).`);
+    if (eligible.length === 0) {
+      setNotice(
+        `No rows on this page meet the ${Math.round(BULK_APPROVE_CONFIDENCE * 100)}% confidence bar — nothing approved.`,
+      );
+      return;
+    }
 
     const batchId = activeBatch?.batch_id || "latest";
     const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
-    if (!API_BASE) return; // No backend — approvals recorded locally only
-    try {
-      await Promise.all(
-        ids.map((id) =>
-          fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${id}/review`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
-            body: JSON.stringify({ action: "approve", reviewer: reviewerName, comment: "Bulk approved via workspace" })
-          })
-        )
-      );
-    } catch {
-      // Locally recorded
+    if (!API_BASE) {
+      setNotice(`No backend configured — ${eligible.length} rows were NOT approved.`);
+      return;
     }
+
+    setNotice(`Approving ${eligible.length} rows…`);
+
+    // Report what the server actually accepted, rather than announcing
+    // success up front and swallowing whatever happens next.
+    const results = await Promise.allSettled(
+      eligible.map((r) =>
+        fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${r.row_number}/review`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
+          body: JSON.stringify({ action: "approve", reviewer: reviewerName, comment: "Bulk approved via workspace" })
+        }).then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return r.row_number;
+        })
+      )
+    );
+
+    const approvedIds = results.flatMap((res) =>
+      res.status === "fulfilled" ? [res.value as number] : []
+    );
+    const failedCount = results.length - approvedIds.length;
+
+    // Only rows the server confirmed are cleared from the queue.
+    approvedIds.forEach((id) => reviewedRowIdsRef.current.add(id));
+    setReviewedRowIds(new Set(reviewedRowIdsRef.current));
+    setPendingReviews((prev) => prev.filter((item) => !approvedIds.includes(item.row_number)));
+    setLiveRows((prev) =>
+      prev.map((r) =>
+        approvedIds.includes(r.row_number)
+          ? { ...r, overall_status: "verified", review_state: "approved" }
+          : r
+      )
+    );
+    setTotalPending((prev) => Math.max(prev - approvedIds.length, 0));
+
+    setNotice(
+      failedCount === 0
+        ? `Approved ${approvedIds.length} rows as ${currentPersona.shortName} (≥${Math.round(BULK_APPROVE_CONFIDENCE * 100)}% confidence).`
+        : `Approved ${approvedIds.length} of ${results.length} rows — ${failedCount} failed and were left in the queue.`
+    );
   };
 
   // Actually re-runs the deterministic pipeline on the server, over whichever
@@ -650,7 +703,8 @@ function App() {
     setBenchStep(1);
 
     try {
-      const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/benchmark`, {
+      // Safe to retry: this endpoint only measures, it doesn't mutate state.
+      const res = await fetchWithRetry(`${API_BASE}/catalogue/batches/${batchId}/benchmark`, {
         method: "POST",
         headers: getApiKeyHeaders(),
       });
