@@ -249,6 +249,9 @@ function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [liveFetchEnabled, setLiveFetchEnabled] = useState(false);
+  // Opt-in LLM tier. Off by default: it is billed, and the deterministic
+  // path is complete without it.
+  const [aiAssistEnabled, setAiAssistEnabled] = useState(false);
 
   // Fetch on mount, and again whenever the catalogue page changes.
   useEffect(() => {
@@ -514,14 +517,16 @@ function App() {
       setNotice(
         liveFetchEnabled
           ? `Ingesting ${file.name} with live web fetch — real HTTP requests to manufacturer sites, capped at 50 rows…`
-          : `Ingesting catalogue ${file.name} for AI enrichment…`
+          : aiAssistEnabled
+            ? `Ingesting ${file.name} — deterministic pipeline, then the LLM tier on whatever it can't classify…`
+            : `Ingesting catalogue ${file.name} — deterministic pipeline…`
       );
       const body = new FormData();
       body.append("file", file);
 
       try {
         const response = await apiFetch(
-          `/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}`,
+          `/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}${aiAssistEnabled ? "&ai_assist=true" : ""}`,
           { method: "POST", body }
         );
 
@@ -980,7 +985,22 @@ function App() {
                     <small>{r[1]}</small>
                   </span>
                   <span>{r[2]}</span>
-                  <span className="tag">{r[3]}</span>
+                  <span className="tag">
+                    {r[3]}
+                    {r[6]?.category_source === "ai_inferred" && (
+                      <em
+                        title={`AI-inferred (${Math.round((r[6].category_confidence ?? 0) * 100)}% model confidence). Deterministic rules returned "${r[6].category_deterministic}". Requires human review — this cannot auto-approve.`}
+                        style={{
+                          display: "inline-block", marginLeft: 6, padding: "1px 5px",
+                          borderRadius: 4, background: "rgba(163,113,247,0.15)",
+                          color: "#a371f7", fontSize: 9, fontWeight: 700,
+                          fontStyle: "normal", letterSpacing: "0.02em",
+                        }}
+                      >
+                        AI
+                      </em>
+                    )}
+                  </span>
                   <span>
                     <mark className={r[4] === "Ready" ? "ready" : "review"}>
                       ● {r[4]}
@@ -2502,6 +2522,22 @@ function App() {
                 style={{ cursor: "pointer" }}
               />
               Live web fetch
+            </label>
+            <label
+              title="After the deterministic pipeline runs, send only the rows it could not classify to Gemini. Suggestions are marked AI-inferred, keep the rule-based answer alongside them, and always require human review — they can never auto-approve. Requires GEMINI_API_KEY on the server; without it this is a no-op."
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 10, fontWeight: 600, color: aiAssistEnabled ? "#a371f7" : "#8b949e",
+                cursor: "pointer", padding: "0 8px",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={aiAssistEnabled}
+                onChange={(e) => setAiAssistEnabled(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              AI assist
             </label>
             <button
               className="primary"
