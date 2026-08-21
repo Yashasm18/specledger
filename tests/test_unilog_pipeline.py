@@ -65,7 +65,10 @@ def test_domain_agnostic_web_enricher():
         raw_description="DCB518ASTS06G Diablo 1/2x18 - Sanding Belt 6pc",
     )
     assert res1.manufacturer_clean == "Freud Inc"
-    assert "freudtools.com" in (res1.mfr_url or "")
+    # "Freud Inc" lists freudtools.com and diablotools.com. This row is a
+    # Diablo-branded belt, and the brand named in the description decides:
+    # the product page lives on the brand's own site, not the parent's.
+    assert "diablotools.com" in (res1.mfr_url or "")
     assert res1.dept == "Abrasives & Cutting Tools"
     # Features are derived only from genuinely extracted attributes (no
     # generic filler text), so the count reflects what's actually in the

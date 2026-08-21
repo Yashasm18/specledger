@@ -412,11 +412,18 @@ def build_direct_urls(manufacturer: str, part_number: str) -> list[str]:
 def discover_sources_simulated(
     manufacturer: str,
     part_number: str,
+    domain: str | None = None,
 ) -> SourceDiscoveryResult:
     """Generate unverified source candidates for prototype/testing.
 
     These URLs are candidates only. They are never fetched and must not be
     represented as verified evidence or used to support automatic publication.
+
+    `domain` lets a caller that has already worked out which manufacturer a
+    row belongs to say so. Some registry entries list several domains because
+    the name is a distributor fronting unrelated competitors, and defaulting
+    to the first put Frigidaire URLs on Whirlpool products. A caller that
+    cannot tell should not call this for a product page at all.
     """
     result = SourceDiscoveryResult(
         manufacturer=manufacturer,
@@ -424,12 +431,12 @@ def discover_sources_simulated(
     )
 
     domains = MANUFACTURER_DOMAINS.get(manufacturer, [])
-    if not domains:
+    primary_domain = domain or (domains[0] if domains else None)
+    if not primary_domain:
         result.search_queries = build_search_queries(manufacturer, part_number)
         return result
 
     now = time.time()
-    primary_domain = domains[0]
     clean_pn = part_number.strip().lower().replace(" ", "-")
 
     # Simulate discovering a product page
