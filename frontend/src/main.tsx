@@ -1180,13 +1180,17 @@ function App() {
                   <React.Fragment key={idx}>
                     <div className="tr" style={{ gridTemplateColumns: "1.4fr 2fr 1fr 1fr" }}>
                       <span><strong>{s.manufacturer}</strong></span>
-                      <span style={{ fontFamily: "DM Mono", fontSize: 11, color: "#38bdf8", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", textDecoration: "underline" }}>{s.url}</a>
+                      <span style={{ fontFamily: "DM Mono", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis" }} title={s.evidence_status === "verified_live" ? undefined : "URL pattern-guessed from a domain template, not fetched — may not resolve"}>
+                        {s.evidence_status === "verified_live" ? (
+                          <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", textDecoration: "underline" }}>{s.url}</a>
+                        ) : (
+                          <span style={{ color: "#94a3b8" }}>{s.url}</span>
+                        )}
                       </span>
                       <span>{s.source_type}</span>
                       <span>
-                        <mark className={s.evidence_status === "verified" ? "ready" : "review"}>
-                          ● {s.evidence_status === "verified" ? "Verified source" : "Unverified candidate"}
+                        <mark className={s.evidence_status === "verified_live" ? "ready" : "review"}>
+                          ● {s.evidence_status === "verified_live" ? "Verified source" : "Unverified candidate (untested URL)"}
                         </mark>
                       </span>
                     </div>
@@ -1640,7 +1644,7 @@ function App() {
                       </div>
                       <div className="diff-field-row">
                         <strong>Manufacturer URL (Col 1)</strong>
-                        <span style={{ color: unilog252?.["MFR URL"] ? "#2563eb" : "#94a3b8" }}>{unilog252?.["MFR URL"] || "Not resolved"}</span>
+                        <span style={{ color: unilog252?.["MFR URL"] ? "#2563eb" : "#94a3b8" }} title={unilog252?.["MFR URL"] ? "Pattern-guessed from the manufacturer's domain, not fetched — see the Evidence tab for fetch-verified sources" : undefined}>{unilog252?.["MFR URL"] || "Not resolved"}</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Canonical Taxonomy (Col 23)</strong>
@@ -1666,7 +1670,7 @@ function App() {
                       </div>
                       <div className="diff-field-row">
                         <strong>Specification Sheet</strong>
-                        <span style={{ color: unilog252?.["Specification Sheet"] ? "#2563eb" : "#94a3b8" }}>{unilog252?.["Specification Sheet"] || "Not populated"}</span>
+                        <span style={{ color: unilog252?.["Specification Sheet"] ? "#2563eb" : "#94a3b8" }} title={unilog252?.["Specification Sheet"] ? "Pattern-guessed filename, not a fetched/confirmed document" : undefined}>{unilog252?.["Specification Sheet"] || "Not populated"}</span>
                       </div>
                     </div>
                   </div>
@@ -1868,7 +1872,11 @@ function App() {
                           <div key={idx} style={{ padding: "10px 0", borderBottom: idx < rowSources.length - 1 ? "1px solid #e2e8f0" : "none" }}>
                             <div className="diff-field-row">
                               <strong>{s.source_type}</strong>
-                              <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontFamily: "DM Mono", fontSize: 11 }}>{s.url}</a>
+                              {s.evidence_status === "verified_live" ? (
+                                <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontFamily: "DM Mono", fontSize: 11 }}>{s.url}</a>
+                              ) : (
+                                <span style={{ color: "#94a3b8", fontFamily: "DM Mono", fontSize: 11 }} title="URL pattern-guessed from a domain template, not fetched — may not resolve">{s.url}</span>
+                              )}
                             </div>
                             <div style={{ fontSize: 11, color: s.evidence_status === "verified_live" ? "#16a34a" : "#b45309", marginTop: 2 }}>
                               {s.evidence_status === "verified_live" ? "✓ Verified — part number confirmed on fetched page" : "Unverified candidate — URL pattern-guessed, not fetched"}

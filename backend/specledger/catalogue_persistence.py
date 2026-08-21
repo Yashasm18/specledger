@@ -73,6 +73,9 @@ class InMemoryCatalogueStore(CatalogueStore):
         return None
 
     def list_batches(self, organization_id: str) -> list[dict[str, Any]]:
+        # Postgres orders by ingested_at DESC on write; match that here too
+        # (most-recently-ingested first) — dict insertion order alone would
+        # put the oldest batch first, which is the opposite of "latest".
         return [
             {
                 "batch_id": b["batch_id"],
@@ -80,7 +83,7 @@ class InMemoryCatalogueStore(CatalogueStore):
                 "row_count": b["row_count"],
                 "verified_rate": b["verified_rate"],
             }
-            for (org_id, _), b in self._batches.items()
+            for (org_id, _), b in reversed(list(self._batches.items()))
             if org_id == organization_id
         ]
 
