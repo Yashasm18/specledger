@@ -2,6 +2,7 @@
 
 import csv
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -632,6 +633,158 @@ class CatalogueApiTests(unittest.TestCase):
             untouched = queue.get_row(batch_id, 3)
             expected = "auto_approved" if untouched.validation.can_auto_approve else "pending_review"
             assert untouched.state.value == expected
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_human_decision_survives_rebuild_as_an_audit_event(self) -> None:
+        # A rebuild re-runs the pipeline, which mints a fresh routing event
+        # per row. If the human decision is replayed by assigning state
+        # directly, the row reads "approved" while the audit trail contains
+        # nobody approving it — the compliance artifact contradicts the state
+        # it exists to explain.
+        from backend.specledger import catalogue_api
+
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+            {"Manufacturer": "UnknownMfg998", "Part Number": "V-200"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("audit_rebuild.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            approved = self.client.post(
+                f"/catalogue/batches/{batch_id}/rows/2/review",
+                json={"action": "approve", "reviewer": "Catalog QA Reviewer (Catalog QA)"},
+            )
+            self.assertEqual(approved.status_code, 200)
+
+            catalogue_api._review_queues.pop(batch_id, None)
+            catalogue_api._batch_results.pop(batch_id, None)
+
+            events = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?limit=50"
+            ).json()["events"]
+
+            approve_events = [
+                e for e in events
+                if e["row_number"] == 2 and e["action"] == "approve"
+            ]
+            self.assertEqual(
+                len(approve_events), 1,
+                "the approval vanished from the audit trail on rebuild",
+            )
+            self.assertEqual(
+                approve_events[0]["reviewer"], "Catalog QA Reviewer (Catalog QA)"
+            )
+            self.assertEqual(approve_events[0]["new_state"], "approved")
+
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_rebuilt_audit_event_says_it_was_reconstructed(self) -> None:
+        # The original reviewer comment is not persisted, so the restored
+        # event must not imply it is the verbatim original record.
+        from backend.specledger import catalogue_api
+
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+            {"Manufacturer": "UnknownMfg998", "Part Number": "V-200"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("audit_note.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            self.client.post(
+                f"/catalogue/batches/{batch_id}/rows/2/review",
+                json={"action": "approve", "reviewer": "qa@example.com",
+                      "comment": "checked against the datasheet"},
+            )
+            catalogue_api._review_queues.pop(batch_id, None)
+            catalogue_api._batch_results.pop(batch_id, None)
+
+            events = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?limit=50"
+            ).json()["events"]
+            restored = next(
+                e for e in events if e["row_number"] == 2 and e["action"] == "approve"
+            )
+            self.assertIn("reconstructed", (restored["comment"] or "").lower())
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_restored_event_carries_the_real_decision_time(self) -> None:
+        # The restored event must be dated when the human actually decided,
+        # not when the container happened to restart — otherwise every
+        # approval in the trail appears to have happened at deploy time.
+        from backend.specledger import catalogue_api
+
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+            {"Manufacturer": "UnknownMfg998", "Part Number": "V-200"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("audit_when.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            self.client.post(
+                f"/catalogue/batches/{batch_id}/rows/2/review",
+                json={"action": "approve", "reviewer": "qa@example.com"},
+            )
+            decided_at = time.time()
+
+            catalogue_api._review_queues.pop(batch_id, None)
+            catalogue_api._batch_results.pop(batch_id, None)
+            # Rebuild happens strictly later than the decision.
+            time.sleep(0.05)
+
+            events = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?limit=50"
+            ).json()["events"]
+            restored = next(
+                e for e in events if e["row_number"] == 2 and e["action"] == "approve"
+            )
+            routing = next(
+                e for e in events
+                if e["row_number"] == 2 and e["action"] in {"submit_for_review", "auto_approve"}
+            )
+            # Dated from the decision, and earlier than the rebuild's own event.
+            self.assertLess(abs(restored["timestamp"] - decided_at), 5.0)
+            self.assertLess(restored["timestamp"], routing["timestamp"])
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_rows_without_a_human_decision_get_no_review_event(self) -> None:
+        # Only real decisions may appear as human actions. An auto-routed row
+        # must not acquire an approve/reject event from the rebuild.
+        from backend.specledger import catalogue_api
+
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+            {"Manufacturer": "UnknownMfg998", "Part Number": "V-200"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("audit_clean.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            catalogue_api._review_queues.pop(batch_id, None)
+            catalogue_api._batch_results.pop(batch_id, None)
+
+            events = self.client.get(
+                f"/catalogue/batches/{batch_id}/audit?limit=50"
+            ).json()["events"]
+            human_actions = [
+                e for e in events if e["action"] in {"approve", "reject", "correct"}
+            ]
+            self.assertEqual(human_actions, [])
+            self.assertTrue(all(e["reviewer"] is None for e in events))
         finally:
             csv_path.unlink(missing_ok=True)
 

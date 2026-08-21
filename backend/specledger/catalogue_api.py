@@ -34,7 +34,7 @@ from .uom import normalize_uom, normalize_material
 from .validation_engine import validate_batch
 from .human_review import (
     route_batch_for_review, approve_row, reject_row, correct_row,
-    ReviewQueue, ReviewError, ReviewState,
+    ReviewQueue, ReviewError, ReviewState, restore_persisted_decision,
 )
 from .batch_processor import process_batch, BatchProcessingResult, SourceCache
 from .export import (
@@ -207,12 +207,19 @@ def _rebuild_review_queue(batch_id: str, organization_id: str = "default") -> Re
         # auto-approvable rows in the pending queue).
         if persisted_state not in _HUMAN_DECISION_STATES:
             continue
-        reviewable = queue.get_row(batch_id, r["row_number"])
-        if reviewable and reviewable.state.value != persisted_state:
-            try:
-                reviewable.state = ReviewState(persisted_state)
-            except ValueError:
-                pass
+        # Replay the decision as an audit event, not a bare state
+        # assignment. The rebuild has just minted a fresh routing event for
+        # this row; without this the row would read "approved" with nothing
+        # in the trail showing anyone approving it.
+        restore_persisted_decision(
+            queue,
+            batch_id,
+            r["row_number"],
+            persisted_state,
+            reviewer=r.get("reviewed_by"),
+            decided_at=r.get("reviewed_at"),
+            corrections=r.get("corrections"),
+        )
 
     _batch_results[batch_id] = result
     _review_queues[batch_id] = queue

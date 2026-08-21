@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from uuid import uuid4
 
@@ -286,6 +287,95 @@ def approve_row(
         comment=comment,
     )
     row.state = ReviewState.APPROVED
+    row.audit_trail.append(event)
+    return row
+
+
+# Persisted review_state -> the action that must appear in the audit trail.
+_RESTORED_ACTION_FOR_STATE = {
+    ReviewState.APPROVED.value: "approve",
+    ReviewState.REJECTED.value: "reject",
+    ReviewState.CORRECTED.value: "correct",
+}
+
+
+def _decided_at_epoch(decided_at: str | None) -> float | None:
+    """Parse a persisted review timestamp into epoch seconds.
+
+    Returns None when it can't be read, so the caller can be explicit about
+    having no real decision time rather than silently stamping "now".
+    """
+    if not decided_at:
+        return None
+    try:
+        return datetime.fromisoformat(decided_at).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def restore_persisted_decision(
+    queue: ReviewQueue,
+    batch_id: str,
+    row_number: int,
+    review_state: str,
+    reviewer: str | None = None,
+    decided_at: str | None = None,
+    corrections: dict | None = None,
+) -> ReviewableRow | None:
+    """Replay a human review decision that outlived the in-memory queue.
+
+    The queue is process-local and does not survive a restart; the row's
+    review_state / reviewed_by / reviewed_at do. On rebuild the pipeline
+    re-routes every row from scratch, so a decision a human already made has
+    to be put back — and put back as an audit event, not just a state
+    assignment. Assigning the state alone leaves the row reading "approved"
+    while the trail shows nobody approving it, which is precisely the
+    contradiction an audit trail exists to rule out.
+
+    The event is marked as reconstructed. The reviewer and the decision time
+    come from storage and are real; the reviewer's original free-text comment
+    is not persisted, so the trail must not imply this is that verbatim
+    record.
+    """
+    action = _RESTORED_ACTION_FOR_STATE.get(review_state)
+    if action is None:
+        # Not a human decision — auto_approved/pending_review are outputs of
+        # the routing algorithm and are re-derived, never replayed.
+        return None
+
+    row = queue.get_row(batch_id, row_number)
+    if row is None:
+        return None
+
+    already_recorded = any(
+        e.action == action and e.reviewer == reviewer for e in row.audit_trail
+    )
+    if already_recorded:
+        return row
+
+    epoch = _decided_at_epoch(decided_at)
+    when_note = (
+        "decision time from storage" if epoch is not None
+        else "original decision time not recorded"
+    )
+    previous_state = row.state.value
+
+    event = AuditEvent(
+        event_id=str(uuid4()),
+        row_number=row_number,
+        batch_id=batch_id,
+        timestamp=epoch if epoch is not None else time.time(),
+        action=action,
+        previous_state=previous_state,
+        new_state=review_state,
+        reviewer=reviewer,
+        comment=(
+            f"Reconstructed from persisted review state after a queue rebuild "
+            f"({when_note}); the reviewer's original comment is not retained."
+        ),
+        corrections=corrections or None,
+    )
+    row.state = ReviewState(review_state)
     row.audit_trail.append(event)
     return row
 

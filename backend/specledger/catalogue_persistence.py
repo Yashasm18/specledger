@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -169,6 +170,12 @@ class InMemoryCatalogueStore(CatalogueStore):
             if row.get("row_number") == row_number:
                 row["review_state"] = review_state
                 row["reviewed_by"] = reviewed_by
+                # Postgres stamps reviewed_at = NOW() on this same write.
+                # Recording it here too keeps the two stores interchangeable —
+                # the queue rebuild reads reviewed_at to date the restored
+                # audit event, and would otherwise report the decision time as
+                # unknown everywhere except production.
+                row["reviewed_at"] = datetime.now(timezone.utc).isoformat()
                 if corrections:
                     row["corrections"] = corrections
                 return row
