@@ -997,7 +997,12 @@ def export_batch_endpoint(
 
     ingested = normalize_rows(batch_dict["source_name"], raw_rows)
     enriched = enrich_batch(ingested, _reference_store)
-    queue = _review_queues.get(batch_id)
+    # Look the queue up by the resolved id, not the alias the caller passed —
+    # "latest" is never a key — and via the accessor that rebuilds from
+    # Postgres, since the in-memory cache is empty after any redeploy. Both
+    # bugs silently produced an audit export containing transformations but
+    # no review decisions at all, which is the half that makes it an audit.
+    queue = _get_review_queue(real_id, organization_id)
 
     filename_base = Path(batch_dict["source_name"]).stem
 
@@ -1038,7 +1043,7 @@ def export_batch_endpoint(
             headers={"Content-Disposition": f'attachment; filename="{filename_base}_enriched.json"'},
         )
     elif format == "audit":
-        content = export_audit_json(enriched, review_queue=queue, batch_id=batch_id)
+        content = export_audit_json(enriched, review_queue=queue, batch_id=real_id)
         return Response(
             content=content,
             media_type="application/json",

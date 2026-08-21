@@ -342,6 +342,42 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_audit_export_carries_review_decisions_and_the_real_batch_id(self) -> None:
+        # The audit export is the compliance artifact. Transformations alone
+        # are not an audit — the human decisions are the half that matters.
+        # It previously shipped with neither, because the review queue was
+        # looked up by the caller's alias ("latest" is never a key) and via
+        # the raw cache rather than the accessor that rebuilds from storage.
+        import json as _json
+
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-1",
+             "Description": "2 in Gate Valve Cast Iron"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("audit.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            for identifier in (batch_id, "latest"):
+                body = _json.loads(
+                    self.client.get(
+                        f"/catalogue/batches/{identifier}/export?format=audit"
+                    ).text
+                )
+                # Never the alias — an audit file must name the batch it describes.
+                self.assertEqual(body["batch_id"], batch_id)
+                self.assertNotEqual(body["batch_id"], "latest")
+                reviewed = [r for r in body["rows"] if r.get("review")]
+                self.assertTrue(
+                    reviewed, f"audit export via {identifier!r} carried no review decisions"
+                )
+                self.assertIn("state", reviewed[0]["review"])
+                self.assertIn("audit_trail", reviewed[0]["review"])
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_verify_endpoint_reports_honest_failure_without_inventing_sources(self) -> None:
         # The whole value of live verification is that it can say "nothing
         # found". A fabricated URL here would be worse than no answer.
