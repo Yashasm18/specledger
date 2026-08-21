@@ -897,6 +897,11 @@ function App() {
   // the whole batch. Every "of N" label and the pager must count that set,
   // not the batch total.
   const isSearching = debouncedSearch.length > 0;
+  // The API echoes the term it filtered on. Until the response for the
+  // current term lands, the rows on screen still belong to the previous
+  // query — reporting a match count against them would flash a wrong
+  // number (e.g. "100 of 1,000 match") over stale rows mid-keystroke.
+  const searchApplied = (activeBatch?.search ?? "") === debouncedSearch;
   const matchedRowCount = isSearching
     ? (activeBatch?.matched_rows ?? displayRows.length)
     : batchRowCount;
@@ -960,7 +965,9 @@ function App() {
                 <h3>Enriched Product Catalogue ({batchRowCount.toLocaleString()} SKUs)</h3>
                 {isSearching ? (
                   <small style={{ color: "#64748b" }}>
-                    {matchedRowCount.toLocaleString()} of {batchRowCount.toLocaleString()} SKUs match “{debouncedSearch}” — searched across the whole batch.
+                    {searchApplied
+                      ? `${matchedRowCount.toLocaleString()} of ${batchRowCount.toLocaleString()} SKUs match “${debouncedSearch}” — searched across the whole batch.`
+                      : `Searching all ${batchRowCount.toLocaleString()} SKUs for “${debouncedSearch}”…`}
                   </small>
                 ) : batchRowCount > displayRows.length && (
                   <small style={{ color: "#64748b" }}>
@@ -1050,7 +1057,7 @@ function App() {
                 <div className="empty-review" style={{ margin: 16 }}>
                   {liveRows.length === 0 && !isSearching
                     ? "No batch loaded — import a catalogue to see real product records."
-                    : isSearching && matchedRowCount === 0
+                    : isSearching && searchApplied && matchedRowCount === 0
                       // Say what was actually searched. The old wording read as
                       // "not on this page" while sounding like "not in the batch".
                       ? `No SKU, description, or manufacturer in this batch matches “${debouncedSearch}”. All ${batchRowCount.toLocaleString()} rows were searched.`
