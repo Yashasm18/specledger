@@ -105,3 +105,50 @@ class ProductNameTests(unittest.TestCase):
     def test_empty_category_yields_empty_rather_than_a_guess(self) -> None:
         self.assertEqual(product_name_from_fine(""), "")
         self.assertEqual(product_name_from_fine(None), "")
+
+
+class AttributeTripletTests(unittest.TestCase):
+    """Attribute slots carry specifications, not identifiers.
+
+    Unilog's two gold rows use 15 attribute slots each and neither contains
+    a "Manufacturer" or "Part Number" entry — they hold Series, Voltage
+    Rating, Sound Level, Material and so on. We seeded every row's slots 1
+    and 2 with the manufacturer and part number, which already have
+    dedicated columns (MANUFACTURER_NAME, MANUFACTURER_PART_NUMBER), and
+    whose value was the distributor rather than the manufacturer anyway.
+    """
+
+    def test_identity_fields_are_not_emitted_as_specifications(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher 120V 15A",
+        )
+        labels = [a.label for a in res.attributes]
+        self.assertNotIn("Manufacturer", labels)
+        self.assertNotIn("Part Number", labels)
+
+    def test_real_specs_take_the_first_slots(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher 120V 15A",
+        )
+        self.assertTrue(res.attributes, "expected extracted specifications")
+        # Labels and UOMs match Unilog's own vocabulary exactly.
+        self.assertEqual(res.attributes[0].label, "Voltage Rating")
+        self.assertEqual(res.attributes[0].value, "120")
+        self.assertEqual(res.attributes[0].uom, "V")
+
+    def test_feature_bullets_still_cover_every_extracted_spec(self) -> None:
+        # Bullets used to skip the first two entries because they were the
+        # identity pair. With those gone, nothing may be skipped.
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher 120V 15A",
+        )
+        self.assertEqual(len(res.features), len(res.attributes))
+        self.assertIn("Voltage Rating: 120 V", res.features)
+
+    def test_a_row_with_no_extractable_spec_reports_none(self) -> None:
+        res = enrich_product_web("X-1", "Parker Hannifin", "X-1 Widget")
+        self.assertEqual(res.attributes, [])
+        self.assertEqual(res.features, [])

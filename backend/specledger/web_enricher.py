@@ -400,12 +400,15 @@ def enrich_product_web(
     # Extract dimensions
     dims = _extract_dimensions(desc_clean)
 
-    # Build attribute triplets (Key, Value, UOM): identity pair plus any
-    # spec genuinely present in the raw description text.
-    attributes: list[ExtractedAttribute] = [
-        ExtractedAttribute(label="Manufacturer", value=mfr_clean),
-        ExtractedAttribute(label="Part Number", value=pn_clean),
-    ]
+    # Build attribute triplets (Key, Value, UOM) from specs genuinely present
+    # in the raw description text.
+    #
+    # No identity pair. Unilog's delivery examples use these slots purely for
+    # specifications — Series, Voltage Rating, Sound Level, Material — and
+    # contain no "Manufacturer" or "Part Number" entry. Seeding those here
+    # restated MANUFACTURER_NAME and MANUFACTURER_PART_NUMBER, and the value
+    # was the distributor rather than the manufacturer anyway.
+    attributes: list[ExtractedAttribute] = []
 
     # Look for grit specs (e.g. 220 Grit, P120, P80)
     m_grit = re.search(r'\b(P?\d+)\s*(?:Grit)?\b', desc_clean, re.IGNORECASE)
@@ -425,14 +428,13 @@ def enrich_product_web(
     if m_hp:
         attributes.append(ExtractedAttribute(label="Horsepower", value=m_hp.group(1), uom="HP"))
 
-    # Feature bullets are derived only from the attributes actually
-    # extracted above (skipping the baseline Manufacturer/Part Number
-    # pair, which already have their own columns) — no generic filler
-    # text. Sparse or empty is the honest result when the raw description
-    # doesn't contain an extractable spec.
+    # Feature bullets are derived only from the attributes actually extracted
+    # above — no generic filler text. Sparse or empty is the honest result
+    # when the raw description doesn't contain an extractable spec. Nothing
+    # is skipped now that the identity pair no longer occupies slots 1 and 2.
     features = [
         f"{attr.label}: {attr.value} {attr.uom}".strip() if attr.uom else f"{attr.label}: {attr.value}"
-        for attr in attributes[2:]
+        for attr in attributes
     ]
 
     # Generate image asset names

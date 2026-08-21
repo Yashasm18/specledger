@@ -69,8 +69,11 @@ def test_domain_agnostic_web_enricher():
     assert res1.dept == "Abrasives & Cutting Tools"
     # Features are derived only from genuinely extracted attributes (no
     # generic filler text), so the count reflects what's actually in the
-    # raw description — real, not padded.
-    assert res1.features == [f"{a.label}: {a.value}" for a in res1.attributes[2:]]
+    # raw description — real, not padded. Every attribute is a spec now that
+    # the identity pair no longer occupies the first two slots, so nothing
+    # is skipped.
+    assert res1.features == [f"{a.label}: {a.value}" for a in res1.attributes]
+    assert "Manufacturer" not in [a.label for a in res1.attributes]
     assert res1.marketing_desc == ""
     assert "Industrial grade component" not in res1.long_desc1
 
