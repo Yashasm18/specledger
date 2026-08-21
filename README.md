@@ -317,6 +317,8 @@ Stated plainly, because a reviewer will find these anyway and a pipeline that hi
 | **Marketing description is left empty** | No honest source exists for it without a live fetch of the manufacturer's own page, so the field is blank rather than generated. |
 | **Reviewer identity is not authenticated** | Write endpoints share a single API key and accept any `reviewer` string. Real per-user identity is the main gap between this and a multi-tenant product. |
 | **The review queue is process-local** | It rebuilds from Postgres on restart, so decisions are durable, but concurrent reviewers across replicas would need row-level locking (`SELECT ... FOR UPDATE SKIP LOCKED`). Single-writer today. |
+| **Audit events are partly reconstructed after a restart** | Row state, reviewer, and decision time are persisted, so a rebuild replays each human decision as a real dated audit event. The reviewer's free-text comment and correction payload live only in the process-local queue and are not restored — restored events say so rather than presenting themselves as the verbatim original. Persisting events outright is the fix. |
+| **Catalogue search is an unindexed scan** | `?search=` filters in SQL across the whole batch (`jsonb_each_text`), which is correct at the 1,000-row sample size but is a sequential scan. At 750,000 rows it would need a GIN/trigram index or a dedicated search column. |
 | **`organization_id` is a query parameter** | It namespaces data but is not bound to an authenticated session, so it is not tenant isolation. |
 | **Video and third-party sources are typed but not implemented** | `SourceType` models them; only HTML pages and PDF datasheets are actually read. |
 
@@ -328,7 +330,7 @@ REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any runni
 |---|---|---|
 | `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX, enrich, validate, route for review. `live_fetch=true` does real manufacturer-site HTTP verification instead of templated candidates (50-row cap); `ai_assist=true` runs the LLM tier over rows the deterministic classifier left unresolved |
 | `GET` | `/catalogue/batches` | List ingested batches |
-| `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics. Rows are paginated — `limit` (default 100, max 500), `offset`, and `include_fields=true` for per-field evidence. `row_count` is the batch total; `returned_rows`/`has_more` describe the page |
+| `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics. Rows are paginated — `limit` (default 100, max 500), `offset`, and `include_fields=true` for per-field evidence. `row_count` is the batch total; `returned_rows`/`has_more` describe the page. `search=` filters rows across the **whole batch** (matched on values, whatever the uploaded columns are named) and reports `matched_rows`; paging then walks the matched set |
 | `GET` | `/catalogue/batches/{id}/rows/{num}` | Single row with evidence and review history |
 | `GET` | `/catalogue/batches/{id}/review/pending` | Pending review rows, priority-ordered |
 | `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Approve / reject / correct a row |
