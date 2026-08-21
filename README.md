@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-[![Tests](https://img.shields.io/badge/Tests-297%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-306%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Pylint](https://img.shields.io/badge/Pylint-9.93%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20benchmark-94.37%25-blue.svg)](#benchmark-results)
 [![Throughput](https://img.shields.io/badge/Throughput-~7%2C000%20rows%2Fsec-blue.svg)](#benchmark-results)
@@ -27,7 +27,7 @@
 ---
 
 ## Contents
-[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
+[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [External catalogue test](#tested-against-an-external-manufacturer-catalogue) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
 
 ---
 
@@ -139,6 +139,18 @@ Two findings from that sweep are worth stating, because both were surprises:
 **Search is most of the value.** The same sweep scores **24%** without `SERPER_API_KEY` and **38%** with it. Electrical Supplies goes 1/3 → 3/3 purely because search resolves `Square D Con Prod Dv` — a name absent from the registry — to `Square D`. Most failures are not missing registry entries but **URL-pattern mismatches**: the pipeline guesses `/product/{sku}`, while Unilog's own worked example sits at `/en/p/owner-center/product-support/{sku}`, which no pattern list would guess. Search finds the real URL whatever its shape.
 
 **It caught a bug pointed the wrong way.** One row resolved `3 M Co` → `Jam Industrial Supply LLC` — a real manufacturer collapsing into its distributor, the exact inversion this pipeline exists to correct. The distributor's own domain had been listed as authoritative in the registry, so search accepted their page as evidence. Fixed, with tests pinning the invariant.
+
+### Tested against an external manufacturer catalogue
+
+The official Unilog sample is one dataset. To check the pipeline generalises rather than fitting that file, 23 real products were pulled from **Diablo** and **Watts** via their own published sitemaps — `robots.txt` checked first, and **Leviton skipped entirely because theirs disallows crawling** — then degraded to the sparse six-column shape a distributor sends and uploaded to the live app.
+
+It found two real bugs immediately:
+
+**Every Diablo product classified as an abrasive** — saw blades, hole saws, auger bits, chisels, hammer drill bits. `"freud"` and `"diablo"` were abrasives keywords, and the classifier matched description and manufacturer as a single string, so the brand name decided the category for every row carrying it. Classification is now two-pass: **description alone first, manufacturer only as a fallback** when the description places a product nowhere. A manufacturer name is only usable as a category signal when that manufacturer makes one category — Mirka does, Freud does not.
+
+**A row with part number `SC` and description `SC` auto-approved at 100% confidence.** Confidence measures how sure we are about the values present; it says nothing about whether enough is present to sell from. Descriptions carrying nothing beyond the SKU now block auto-approval. On that catalogue the auto-approve rate went from a meaningless **100% to 60.9%**, with the nine bare-SKU rows correctly routed to a human.
+
+Neither bug is visible on the official dataset — its rows have real descriptions, and its manufacturers happen not to collide with category keywords. That is the argument for testing on data you did not choose.
 
 ### Core modules
 
