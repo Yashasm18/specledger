@@ -7,4 +7,6 @@ psycopg[binary]>=3.2,<4
 psycopg-pool>=3.2,<4
 slowapi>=0.1.9,<1
 requests>=2.31,<3
-
+# XLSX ingestion. A runtime dependency, not a dev one: the API advertises
+# XLSX upload, and the Dockerfile installs only this file.
+openpyxl>=3.1,<4
