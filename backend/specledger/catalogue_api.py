@@ -598,6 +598,15 @@ def get_batch(
     organization_id: str = Query(default="default"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    search: str | None = Query(
+        default=None,
+        max_length=200,
+        description=(
+            "Filter rows whose raw values contain this text, across the whole "
+            "batch rather than the current page. Paging then walks the matched "
+            "set, and `matched_rows` reports its size."
+        ),
+    ),
     include_fields: bool = Query(
         default=False,
         description=(
@@ -621,6 +630,7 @@ def get_batch(
     # slicing after fetching everything defeats the purpose at scale.
     batch = catalogue_store.get_batch(
         organization_id, real_id, row_limit=limit, row_offset=offset,
+        search=search,
     )
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -650,7 +660,16 @@ def get_batch(
     response["returned_rows"] = len(page)
     response["offset"] = offset
     response["limit"] = limit
-    response["has_more"] = offset + len(page) < total_rows
+    # When a search is active, paging walks the matched set — computing
+    # has_more against the batch total would offer a "Next" that returns an
+    # empty page, and any "N of M" label would count the wrong M.
+    if search and search.strip():
+        matched = batch.get("matched_rows", len(page))
+        response["matched_rows"] = matched
+        response["search"] = search
+        response["has_more"] = offset + len(page) < matched
+    else:
+        response["has_more"] = offset + len(page) < total_rows
 
     if queue:
         response["review_summary"] = queue.get_batch_summary(real_id)

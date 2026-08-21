@@ -179,6 +179,10 @@ function App() {
   // rendered as "this batch is empty".
   const [apiError, setApiError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  // The term actually sent to the API. Searching must cover the whole batch,
+  // not the loaded page, so it runs server-side — debounced so typing a part
+  // number doesn't fire a request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
@@ -257,11 +261,24 @@ function App() {
   // path is complete without it.
   const [aiAssistEnabled, setAiAssistEnabled] = useState(false);
 
-  // Fetch on mount, and again whenever the catalogue page changes.
+  // Debounce the search box, and send paging back to the first page whenever
+  // the term changes — searching while on page 4 would otherwise ask for
+  // offset 300 of a 2-row result set and render an empty table.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch((prev) => {
+        if (prev !== searchQuery.trim()) setPageOffset(0);
+        return searchQuery.trim();
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch on mount, and again whenever the catalogue page or search changes.
   useEffect(() => {
     fetchLatestBatch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageOffset]);
+  }, [pageOffset, debouncedSearch]);
 
   // Comprehensive Keyboard shortcut listener (Cmd/Ctrl + 1..7, Alphabet commands O, C, R, I, S, E, A, Escape)
   useEffect(() => {
@@ -345,7 +362,8 @@ function App() {
         if (data.batches && data.batches.length > 0) {
           const latestId = data.batches[0].batch_id;
           const batchRes = await fetchWithRetry(
-            `${API_BASE}/catalogue/batches/${latestId}?limit=${ROWS_PER_PAGE}&offset=${pageOffset}`
+            `${API_BASE}/catalogue/batches/${latestId}?limit=${ROWS_PER_PAGE}&offset=${pageOffset}` +
+              (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "")
           );
           if (batchRes.ok) {
             const batch = await batchRes.json();
@@ -870,6 +888,13 @@ function App() {
   const batchRowCount = activeBatch?.row_count ?? displayRows.length;
   const rowOffset = activeBatch?.offset ?? 0;
   const hasMoreRows = Boolean(activeBatch?.has_more);
+  // When a search is active the server reports how many rows matched across
+  // the whole batch. Every "of N" label and the pager must count that set,
+  // not the batch total.
+  const isSearching = debouncedSearch.length > 0;
+  const matchedRowCount = isSearching
+    ? (activeBatch?.matched_rows ?? displayRows.length)
+    : batchRowCount;
 
   // Prefer the server's batch-wide pending count; fall back to counting the
   // loaded page only when no summary is available.
@@ -885,7 +910,10 @@ function App() {
     if (categoryFilter === "electrical" && !r[3].toLowerCase().includes("electric") && !r[1].toLowerCase().includes("switch")) return false;
     if (categoryFilter === "abrasives" && !r[3].toLowerCase().includes("abrasive") && !r[3].toLowerCase().includes("tool") && !r[1].toLowerCase().includes("blade")) return false;
     if (categoryFilter === "appliances" && !r[3].toLowerCase().includes("appliance") && !r[1].toLowerCase().includes("refrigerator")) return false;
-    if (searchQuery && !r[0].toLowerCase().includes(searchQuery.toLowerCase()) && !r[1].toLowerCase().includes(searchQuery.toLowerCase()) && !r[2].toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    // No search predicate here: the API already filtered the whole batch by
+    // `search`, so re-filtering the page would only be able to remove rows
+    // the server deliberately matched (e.g. on a brand column the table
+    // doesn't render).
     return true;
   });
 
@@ -925,7 +953,11 @@ function App() {
               <div>
                 <p className="eyebrow">COMMERCE CATALOGUE WORKSPACE</p>
                 <h3>Enriched Product Catalogue ({batchRowCount.toLocaleString()} SKUs)</h3>
-                {batchRowCount > displayRows.length && (
+                {isSearching ? (
+                  <small style={{ color: "#64748b" }}>
+                    {matchedRowCount.toLocaleString()} of {batchRowCount.toLocaleString()} SKUs match “{debouncedSearch}” — searched across the whole batch.
+                  </small>
+                ) : batchRowCount > displayRows.length && (
                   <small style={{ color: "#64748b" }}>
                     Showing rows {rowOffset + 1}–{rowOffset + displayRows.length} of {batchRowCount.toLocaleString()}.
                   </small>
@@ -1011,7 +1043,13 @@ function App() {
                 <div className="empty-review" style={{ margin: 16 }}>Loading catalogue…</div>
               ) : filteredRows.length === 0 ? (
                 <div className="empty-review" style={{ margin: 16 }}>
-                  {liveRows.length === 0 ? "No batch loaded — import a catalogue to see real product records." : "No rows match the current filter."}
+                  {liveRows.length === 0 && !isSearching
+                    ? "No batch loaded — import a catalogue to see real product records."
+                    : isSearching && matchedRowCount === 0
+                      // Say what was actually searched. The old wording read as
+                      // "not on this page" while sounding like "not in the batch".
+                      ? `No SKU, description, or manufacturer in this batch matches “${debouncedSearch}”. All ${batchRowCount.toLocaleString()} rows were searched.`
+                      : "No rows match the current filter."}
                 </div>
               ) : filteredRows.map((r: any, i: number) => (
                 <div
@@ -1066,13 +1104,14 @@ function App() {
               ))}
             </div>
 
-            {batchRowCount > ROWS_PER_PAGE && (
+            {matchedRowCount > ROWS_PER_PAGE && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, gap: 12 }}>
                 <span style={{ fontSize: 12, color: "#64748b" }}>
                   Rows {(rowOffset + 1).toLocaleString()}–{(rowOffset + displayRows.length).toLocaleString()} of{" "}
-                  {batchRowCount.toLocaleString()}
+                  {matchedRowCount.toLocaleString()}
+                  {isSearching && <> matching “{debouncedSearch}”</>}
                   {filteredRows.length !== displayRows.length && (
-                    <> · {filteredRows.length} match the current filter on this page</>
+                    <> · {filteredRows.length} shown after the category filter on this page</>
                   )}
                 </span>
                 <div style={{ display: "flex", gap: 8 }}>

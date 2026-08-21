@@ -652,6 +652,86 @@ class CatalogueApiTests(unittest.TestCase):
             csv_path.unlink(missing_ok=True)
 
 
+
+    def test_search_finds_rows_beyond_the_first_page(self) -> None:
+        # The catalogue search box promises "search SKU, description, or
+        # manufacturer" across the batch. Filtering only the loaded page makes
+        # it report a row that exists as absent — a silently wrong answer.
+        rows = [{"Manufacturer": "Parker Hannifin", "Part Number": f"V-{i}"} for i in range(30)]
+        rows.append({"Manufacturer": "Philips Lighting", "Part Number": "576512"})
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("search.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            # "576512" is the last row, well past a 5-row first page.
+            page = self.client.get(
+                f"/catalogue/batches/{batch_id}?limit=5&offset=0&search=576512"
+            ).json()
+
+            self.assertEqual(page["returned_rows"], 1)
+            self.assertEqual(page["matched_rows"], 1)
+            self.assertFalse(page["has_more"])
+            # row_count stays the batch total so the UI can say "1 of 31".
+            self.assertEqual(page["row_count"], 31)
+            self.assertIn("576512", str(page["rows"][0]["raw_values"].values()))
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_search_is_case_insensitive_and_matches_manufacturer(self) -> None:
+        rows = [{"Manufacturer": "Parker Hannifin", "Part Number": f"V-{i}"} for i in range(4)]
+        rows.append({"Manufacturer": "Philips Lighting", "Part Number": "X-9"})
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("srch2.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            page = self.client.get(
+                f"/catalogue/batches/{batch_id}?search=philips"
+            ).json()
+            self.assertEqual(page["matched_rows"], 1)
+
+            # A term that matches nothing must report zero, not fall back to
+            # returning the unfiltered page.
+            empty = self.client.get(
+                f"/catalogue/batches/{batch_id}?search=zzzznotpresent"
+            ).json()
+            self.assertEqual(empty["matched_rows"], 0)
+            self.assertEqual(empty["returned_rows"], 0)
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_search_paginates_within_the_matched_set(self) -> None:
+        # has_more must be computed against the matched total, not the batch
+        # total, or the UI offers a "Next" that returns an empty page.
+        rows = [{"Manufacturer": "Parker Hannifin", "Part Number": f"V-{i}"} for i in range(12)]
+        rows += [{"Manufacturer": "Philips Lighting", "Part Number": f"P-{i}"} for i in range(7)]
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("srch3.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            first = self.client.get(
+                f"/catalogue/batches/{batch_id}?limit=5&offset=0&search=philips"
+            ).json()
+            self.assertEqual(first["matched_rows"], 7)
+            self.assertEqual(first["returned_rows"], 5)
+            self.assertTrue(first["has_more"])
+
+            second = self.client.get(
+                f"/catalogue/batches/{batch_id}?limit=5&offset=5&search=philips"
+            ).json()
+            self.assertEqual(second["returned_rows"], 2)
+            self.assertFalse(second["has_more"])
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     unittest.main()
-
