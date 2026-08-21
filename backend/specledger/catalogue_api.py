@@ -756,11 +756,31 @@ def list_pending_review(
         {r.row_number: r.overall_confidence for r in result.enriched.rows}
         if result else {}
     )
+    stored_batch = catalogue_store.get_batch(organization_id, real_id)
+    stored_rows_by_number = (
+        {row["row_number"]: row for row in stored_batch.get("rows", [])}
+        if stored_batch else {}
+    )
+
+    # Identify each row inline. The queue is priority-ordered across the whole
+    # batch, so its rows are mostly outside whatever page the catalogue view
+    # has loaded — a reviewer looking these up in the page's own rows saw
+    # "Row 743" instead of a part number for every entry, and could not tell
+    # what they were approving.
+    identity_by_row: dict[int, dict[str, Any]] = {}
+    for stored_row in (stored_rows_by_number or {}).values():
+        vals = stored_row.get("raw_values") or {}
+        identity_by_row[stored_row["row_number"]] = {
+            "part_number": vals.get("mfg_part_num") or vals.get("part_number"),
+            "description": vals.get("part_desc") or vals.get("description"),
+            "manufacturer": vals.get("part_manuf") or vals.get("manufacturer"),
+        }
 
     rows_out = []
     for r in pending:
         row_dict = r.to_dict()
         row_dict["overall_confidence"] = confidence_by_row.get(r.row_number)
+        row_dict.update(identity_by_row.get(r.row_number, {}))
         rows_out.append(row_dict)
 
     return {

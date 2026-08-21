@@ -1145,7 +1145,16 @@ function App() {
                 </div>
                 {pendingReviews.map((item: any, idx: number) => {
                   const rowObj: any = liveRows.find((r: any) => r.row_number === item.row_number);
-                  const sku = findByRole(rowObj?.enriched_values || rowObj?.raw_values, "part_number") || `Row ${item.row_number}`;
+                  // The queue is priority-ordered across the whole batch, so
+                  // most of its rows are outside the catalogue page currently
+                  // loaded. Prefer the identity the review API sends with each
+                  // row; falling back to liveRows alone showed "Row 743" for
+                  // every entry once the catalogue became paginated.
+                  const sku = item.part_number
+                    || findByRole(rowObj?.enriched_values || rowObj?.raw_values, "part_number")
+                    || `Row ${item.row_number}`;
+                  const rowDesc = item.description
+                    || findByRole(rowObj?.enriched_values || rowObj?.raw_values, "description");
                   // The real validation findings for this row, as computed by
                   // the pipeline — errors first so the most serious reason is
                   // the one the reviewer sees.
@@ -1160,7 +1169,7 @@ function App() {
                     <div className="tr" key={item.row_number || idx} style={{ gridTemplateColumns: "1.4fr 1.2fr 0.8fr 1fr 1.2fr" }}>
                       <span>
                         <strong>{sku}</strong>
-                        <small>Row #{item.row_number}</small>
+                        <small>{rowDesc ? `${String(rowDesc).slice(0, 46)} · Row #${item.row_number}` : `Row #${item.row_number}`}</small>
                       </span>
                       <span style={{ color: "#d97706", fontSize: 11 }} title={primaryIssue?.suggestion || undefined}>
                         {primaryIssue ? primaryIssue.message : "Requires human verification"}

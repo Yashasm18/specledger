@@ -342,6 +342,32 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_pending_review_rows_identify_themselves(self) -> None:
+        # The queue is priority-ordered across the whole batch, so its rows
+        # are mostly outside whatever catalogue page is loaded. Without the
+        # identity inline, the UI rendered "Row 743" for every entry and a
+        # reviewer could not tell what they were approving.
+        csv_path = self._make_csv([
+            {"Mfg_Part_Num": "V-100", "Part_Desc": "2 in Gate Valve Cast Iron",
+             "Part_Manuf": "UnknownMfg999"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("ident.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            pending = self.client.get(
+                f"/catalogue/batches/{batch_id}/review/pending"
+            ).json()["pending_rows"]
+            self.assertTrue(pending)
+            row = pending[0]
+            self.assertEqual(row["part_number"], "V-100")
+            self.assertEqual(row["description"], "2 in Gate Valve Cast Iron")
+            self.assertEqual(row["manufacturer"], "UnknownMfg999")
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_audit_export_carries_review_decisions_and_the_real_batch_id(self) -> None:
         # The audit export is the compliance artifact. Transformations alone
         # are not an audit — the human decisions are the half that matters.
