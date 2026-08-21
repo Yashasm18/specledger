@@ -13,19 +13,6 @@ import { apiFetch, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiCl
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
 
-const defaultRows = [
-  ["VLV-600-050", "Ball Valve · DN50 Full Port SS316", "Apollo Valves", "Industrial Valves", "Needs review", "94% verified"],
-  ["PMP-CEN-220", "Centrifugal Pump · 3HP 220V 60Hz", "FlowCore Systems", "Pumps & Circulation", "Ready", "98% verified"],
-  ["FIT-SS-025", "Stainless Elbow · 1/4 inch NPT 3000 PSI", "Parker Hannifin", "Fittings & Connectors", "Needs review", "91% verified"],
-  ["VLV-BTR-100", "Butterfly Valve · 4 inch Lug Ductile Iron", "Bray Controls", "Industrial Valves", "Ready", "96% verified"],
-  ["PMP-SUB-075", "Submersible Sump Pump · 3/4 HP Cast Iron", "Zoeller Pump Co", "Pumps & Circulation", "Ready", "99% verified"],
-  ["ABR-BLD-010", "Diablo 10-inch 60T Fine Finish Blade", "Freud Tools", "Abrasives & Tools", "Ready", "97% verified"],
-  ["ELC-SWT-020", "Decora Plus 20A Industrial Rocker Switch", "Leviton", "Electrical & Automation", "Ready", "99% verified"],
-  ["HVC-THM-001", "T6 Pro Smart Programmable Thermostat", "Honeywell Home", "HVAC & Heating", "Ready", "95% verified"],
-  ["APP-RFR-250", "36-inch French Door Refrigerator 25 Cu. Ft.", "Frigidaire Commercial", "Major Appliances", "Needs review", "92% verified"],
-  ["VAL-CHK-075", "Check Valve · 3/4 inch Bronze 200 WOG", "Milwaukee Valve", "Industrial Valves", "Ready", "96% verified"],
-];
-
 // Mirrors backend/specledger/enrichment.py's detect_role() keyword heuristic.
 // The catalogue persistence API returns raw_values/enriched_values keyed by
 // original CSV column name (e.g. "mfg_part_num"), not a role-tagged fields
@@ -207,6 +194,10 @@ function App() {
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [batchList, setBatchList] = useState<any[]>([]);
   const [liveRows, setLiveRows] = useState<any[]>([]);
+  // Distinguishes "still fetching the real batch" from "confirmed no batch
+  // exists" — without this, the two are indistinguishable and the app
+  // can't tell whether it's safe to show an empty state or must wait.
+  const [isLoadingBatch, setIsLoadingBatch] = useState(true);
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
   const [reviewedRowIds, setReviewedRowIds] = useState<Set<number>>(new Set());
   const reviewedRowIdsRef = useRef<Set<number>>(new Set());
@@ -305,7 +296,10 @@ function App() {
   const API_BASE = getApiBaseUrl();
 
   const fetchLatestBatch = async () => {
-    if (!API_BASE) return; // No backend configured — skip silently
+    if (!API_BASE) {
+      setIsLoadingBatch(false); // No backend configured — nothing to wait for
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/catalogue/batches`);
       if (res.ok) {
@@ -339,6 +333,8 @@ function App() {
       }
     } catch (err) {
       console.log("Backend offline or loading:", err);
+    } finally {
+      setIsLoadingBatch(false);
     }
   };
 
@@ -686,7 +682,7 @@ function App() {
         const quality = `${Math.round((r.overall_confidence ?? 0.5) * 100)}% verified`;
         return [skuField, `${descField}`, mfrField, catField, status, quality, r];
       })
-    : defaultRows;
+    : [];
 
   // Filter rows by Category & Search
   const filteredRows = displayRows.filter((r: any) => {
@@ -717,8 +713,8 @@ function App() {
         });
         return total > 0 ? populated / total : 0;
       })()
-    : 0.94;
-  const verifiedRate = activeBatch?.verified_rate ?? 0.95;
+    : 0;
+  const verifiedRate = activeBatch?.verified_rate ?? 0;
   const reviewCount = pendingReviews.length;
   const throughput = activeBatch?.metrics?.throughput_rows_per_sec ?? "~7,200";
 
@@ -809,7 +805,13 @@ function App() {
                 <span>STATUS</span>
                 <span>QUALITY / 252-COL</span>
               </div>
-              {filteredRows.map((r: any, i: number) => (
+              {isLoadingBatch ? (
+                <div className="empty-review" style={{ margin: 16 }}>Loading catalogue…</div>
+              ) : filteredRows.length === 0 ? (
+                <div className="empty-review" style={{ margin: 16 }}>
+                  {liveRows.length === 0 ? "No batch loaded — import a catalogue to see real product records." : "No rows match the current filter."}
+                </div>
+              ) : filteredRows.map((r: any, i: number) => (
                 <div
                   className={`tr ${selected === i ? "selected" : ""}`}
                   onClick={() => {
@@ -875,8 +877,8 @@ function App() {
 
             {pendingReviews.length === 0 ? (
               <div style={{ padding: "48px 20px", textAlign: "center", color: "#64748b" }}>
-                <p style={{ fontSize: 18, fontWeight: 600, color: "#10b981", margin: "0 0 8px 0" }}>✓ All catalogue items have been verified!</p>
-                <small>Auto-approval engine validated 100% of candidate records. No pending conflicts.</small>
+                <p style={{ fontSize: 18, fontWeight: 600, color: "#10b981", margin: "0 0 8px 0" }}>✓ No rows pending human review</p>
+                <small>{activeBatch ? "Every row in the active batch has either auto-approved or already been reviewed." : "No batch loaded yet."}</small>
               </div>
             ) : (
               <div className="table" style={{ marginTop: 16 }}>
@@ -900,7 +902,7 @@ function App() {
                         {item.errors?.[0] || item.reason || "Requires human verification"}
                       </span>
                       <span style={{ fontFamily: "DM Mono", fontSize: 11 }}>
-                        {Math.round((item.overall_confidence || 0.78) * 100)}%
+                        {rowObj?.overall_confidence != null ? `${Math.round(rowObj.overall_confidence * 100)}%` : "—"}
                       </span>
                       <span>
                         <mark className="review">● {item.state || "pending_review"}</mark>
@@ -921,7 +923,7 @@ function App() {
                           Reject
                         </button>
                         <button
-                          onClick={() => openInspector(rowObj || { row_number: item.row_number, 0: sku, 1: "Product Item", 2: "Apollo Valves", 3: "Industrial Valves" })}
+                          onClick={() => openInspector(rowObj || { row_number: item.row_number })}
                           style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)", padding: "4px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10, fontWeight: 600 }}
                           title="Open 252-Column Spec Inspector"
                         >
@@ -1374,23 +1376,23 @@ function App() {
             <section className="metrics">
               <article>
                 <span>PRODUCT RECORDS</span>
-                <strong>{activeBatch?.row_count ?? displayRows.length}</strong>
-                <small className="up">{activeBatch ? "Current enrichment batch" : "1,000 active SKUs"}</small>
+                <strong>{isLoadingBatch ? "…" : (activeBatch?.row_count ?? 0)}</strong>
+                <small className="up">{isLoadingBatch ? "Loading…" : activeBatch ? "Current enrichment batch" : "No batch loaded"}</small>
               </article>
               <article>
                 <span>REVIEW QUEUE</span>
-                <strong className="amber">{reviewCount}</strong>
-                <small>{reviewCount > 0 ? "Requires human verification" : "All records verified"}</small>
+                <strong className="amber">{isLoadingBatch ? "…" : reviewCount}</strong>
+                <small>{isLoadingBatch ? "Loading…" : !activeBatch ? "No batch loaded" : reviewCount > 0 ? "Requires human verification" : "No rows pending review"}</small>
               </article>
               <article>
                 <span>CATALOGUE HEALTH</span>
-                <strong>{Math.round(verifiedRate * 100)}<span className="percent">%</span></strong>
-                <small className="up">Validated fields in active batch</small>
+                <strong>{isLoadingBatch ? "…" : `${Math.round(verifiedRate * 100)}`}<span className="percent">{isLoadingBatch ? "" : "%"}</span></strong>
+                <small className="up">{isLoadingBatch ? "Loading…" : "Validated fields in active batch"}</small>
               </article>
               <article>
                 <span>EVIDENCE COVERAGE</span>
-                <strong>{Math.round(evidenceCoverage * 100)}<span className="percent">%</span></strong>
-                <small>{activeBatch ? `Across ${activeBatch.total_fields ?? liveRows.length} fields · ${throughput} rows/sec` : `No batch loaded yet · ${throughput} rows/sec`}</small>
+                <strong>{isLoadingBatch ? "…" : `${Math.round(evidenceCoverage * 100)}`}<span className="percent">{isLoadingBatch ? "" : "%"}</span></strong>
+                <small>{isLoadingBatch ? "Loading…" : activeBatch ? `Across ${activeBatch.total_fields ?? liveRows.length} fields · ${throughput} rows/sec` : `No batch loaded yet · ${throughput} rows/sec`}</small>
               </article>
             </section>
 
@@ -1437,7 +1439,11 @@ function App() {
                   <span>STATUS</span>
                   <span>QUALITY / 252-COL</span>
                 </div>
-                {displayRows.slice(0, 5).map((r: any, i: number) => (
+                {isLoadingBatch ? (
+                  <div className="empty-review" style={{ margin: 16 }}>Loading catalogue…</div>
+                ) : displayRows.length === 0 ? (
+                  <div className="empty-review" style={{ margin: 16 }}>No batch loaded — import a catalogue to see real product records here.</div>
+                ) : displayRows.slice(0, 5).map((r: any, i: number) => (
                   <div
                     className={`tr ${selected === i ? "selected" : ""}`}
                     onClick={() => {
