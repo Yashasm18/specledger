@@ -3,7 +3,7 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-2ea44f.svg?logo=github&logoColor=white)](https://yashasm18.github.io/specledger/)
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
 [![Pylint](https://img.shields.io/badge/Pylint-9.82%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
-[![Tests](https://img.shields.io/badge/Tests-272%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-282%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20Benchmark-94.37%25-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252--Column%20Compliant-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
@@ -243,7 +243,7 @@ React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review,
 
 | Variable | Where | Required | Purpose |
 |---|---|---|---|
-| `DATABASE_URL` | Backend | No | Postgres connection string. Unset → falls back to local SQLite automatically (see [Running locally](#running-locally)). |
+| `DATABASE_URL` | Backend | **Yes** | Postgres connection string. The service refuses to start without it — see [Running locally](#running-locally). |
 | `SPECLEDGER_API_KEY` | Backend | No | Gates `POST`/`PATCH` `/catalogue/*` endpoints behind an `X-API-Key` header. Unset → the check is a no-op (local dev/CI only; always set in the deployed instance). |
 | `SERPER_API_KEY` | Backend | No | Enables `live_fetch`'s real web-search fallback via [Serper.dev](https://serper.dev). Unset → search fallback is skipped, direct-domain fetching still works. |
 | `GEMINI_API_KEY` | Backend | No | Enables the opt-in LLM tier for rows the deterministic classifier leaves unresolved. Unset → `ai_assist=true` is a no-op and the pipeline is unchanged. |
@@ -258,31 +258,43 @@ React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review,
 
 ## Running locally
 
+**PostgreSQL is required.** SpecLedger stores catalogue batches, review decisions and audit history in Postgres and refuses to start without it — a service that silently falls back to ephemeral storage looks healthy while losing every approval on restart. A `docker-compose.yml` is included so this is one command:
+
 ```bash
 git clone https://github.com/Yashasm18/specledger.git
 cd specledger
 
-# Backend
+# 1. PostgreSQL
+docker compose up -d
+export DATABASE_URL=postgresql://specledger:specledger_dev_only@localhost:5432/specledger
+
+# 2. Backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python scripts/apply_migrations.py          # idempotent; safe to re-run
 uvicorn backend.specledger.http_api:app --reload --port 8000
 
-# Frontend (separate terminal)
+# 3. Frontend (separate terminal)
 cd frontend
 npm install
 npm run dev   # http://localhost:5174
 
-# Tests — requires requirements-dev.txt too (pytest, pylint, and test-only deps)
+# 4. Tests — no database needed (see below)
 pip install -r requirements-dev.txt
-.venv/bin/python -m pytest tests/ -v   # 251 passed, 1 skipped
+python -m pytest tests/ -v   # 282 passed, 1 skipped
 ```
 
-Verified against a clean `git clone` on 2026-08-20: install → boot → test all reproduce exactly as documented, including the SQLite fallback (`{"status":"ok","database":"sqlite"}` on `/health` with no `DATABASE_URL` set).
+Confirm the backend is on Postgres, not something else:
+
+```bash
+curl -s localhost:8000/health/features   # -> "database": "postgres"
+```
+
+**Tests are the one exception.** They run in milliseconds on any machine without provisioning a database, via an ephemeral in-memory store. That exception is opted into *explicitly* (`SPECLEDGER_ALLOW_EPHEMERAL_STORE=1`, set in [`tests/conftest.py`](tests/conftest.py)) rather than being inferred from an absent `DATABASE_URL` — inferring it is precisely the ambiguity the strict check removes. Nothing outside the test suite may use it.
 
 **To run the full pipeline against your own dataset** rather than the bundled Unilog sample: `POST /catalogue/ingest` with your CSV/TSV/XLSX (see [API reference](#api-reference)) — the pipeline makes no assumption about column names beyond the keyword-based role detection in [`enrichment.py`](backend/specledger/enrichment.py)'s `detect_role()`.
 
-Without `DATABASE_URL` set, the backend falls back to local SQLite/in-memory storage automatically — no external services required for local dev.
 
 ---
 

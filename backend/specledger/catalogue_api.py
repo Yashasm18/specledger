@@ -42,6 +42,7 @@ from .export import (
     export_unilog_template, export_schema_org_jsonld,
 )
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
+from .database import resolve_database_url
 from .unilog_exporter import row_to_unilog_dict
 from .web_enricher import classify_category
 from .llm_enricher import enrich_unresolved, is_llm_configured, needs_llm
@@ -53,9 +54,13 @@ router = APIRouter(prefix="/catalogue", tags=["catalogue"])
 _reference_dir = os.getenv("SPECLEDGER_REFERENCE_DIR", "data/reference")
 _reference_store = ReferenceStore(reference_dir=_reference_dir)
 
-# Catalogue persistence store — uses Postgres if DATABASE_URL is set, else in-memory
-DATABASE_URL = os.getenv("DATABASE_URL")
-catalogue_store: CatalogueStore = PostgresCatalogueStore(DATABASE_URL) if DATABASE_URL else InMemoryCatalogueStore()
+# PostgreSQL is the system of record. resolve_database_url() raises rather
+# than returning None unless ephemeral storage was explicitly opted into, so
+# a deployment can never silently end up writing to memory.
+DATABASE_URL = resolve_database_url()
+catalogue_store: CatalogueStore = (
+    PostgresCatalogueStore(DATABASE_URL) if DATABASE_URL else InMemoryCatalogueStore()
+)
 
 # Active review queues & batch processing results cache
 _review_queues: dict[str, ReviewQueue] = {}

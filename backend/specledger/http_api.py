@@ -21,6 +21,7 @@ from slowapi import _rate_limit_exceeded_handler
 
 from .api import SpecLedgerService
 from .auth import require_api_key
+from .database import resolve_database_url
 from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
 from .rate_limit import limiter
@@ -37,17 +38,19 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(
 logger = logging.getLogger("specledger")
 
 DATABASE_PATH = os.getenv("SPECLEDGER_DATABASE", "specledger.db")
-DATABASE_URL = os.getenv("DATABASE_URL")
+# PostgreSQL is the system of record; resolve_database_url() refuses to
+# return None unless ephemeral storage was explicitly opted into (tests).
+DATABASE_URL = resolve_database_url()
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,http://localhost:5174,http://localhost:3000,"
     "http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:3000,"
     "https://specledger-app.vercel.app"
 )
 cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",") if origin.strip()]
-repository = PostgresRepository(DATABASE_URL) if DATABASE_URL else ProductRepository(DATABASE_PATH)
+repository = PostgresRepository(DATABASE_URL) if DATABASE_URL else ProductRepository(DATABASE_PATH)  # noqa: E501 — None only under the explicit test opt-in
 service = SpecLedgerService(repository)
-# Local development uses a separate job database to avoid SQLite's single-file
-# writer lock. Production uses PostgreSQL for both stores.
+# Under the explicit test opt-in only, a separate job database avoids
+# SQLite's single-file writer lock. Any real deployment uses PostgreSQL.
 job_repository = PostgresJobRepository(DATABASE_URL) if DATABASE_URL else BatchJobRepository(f"{DATABASE_PATH}.jobs")
 task_queue = TaskQueue(DATABASE_URL) if DATABASE_URL else None
 artifact_store = build_object_store()
@@ -180,7 +183,7 @@ def health() -> dict[str, str]:
             status["status"] = "degraded"
             status["database"] = "unreachable"
     else:
-        status["database"] = "sqlite"
+        status["database"] = "ephemeral (test opt-in)"
     return status
 
 
@@ -207,7 +210,7 @@ def health_features() -> dict[str, Any]:
         "search_fallback_configured": bool(os.getenv("SERPER_API_KEY", "").strip()),
         "write_endpoints_protected": bool(os.getenv("SPECLEDGER_API_KEY", "").strip()),
         "object_store_configured": bool(os.getenv("SUPABASE_URL", "").strip()),
-        "database": "postgres" if os.getenv("DATABASE_URL", "").strip() else "sqlite",
+        "database": "postgres" if DATABASE_URL else "ephemeral (test opt-in)",
     }
 
 
