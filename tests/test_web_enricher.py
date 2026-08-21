@@ -2,7 +2,7 @@
 
 import unittest
 
-from backend.specledger.web_enricher import classify_category
+from backend.specledger.web_enricher import classify_category, enrich_product_web
 
 
 class TaxonomySignalPriorityTests(unittest.TestCase):
@@ -35,3 +35,42 @@ class TaxonomySignalPriorityTests(unittest.TestCase):
     def test_a_real_freud_abrasive_still_classifies_from_its_description(self) -> None:
         path = classify_category('DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc', "Freud Inc")
         self.assertIn("Abrasives", path)
+
+
+class DescriptionAssemblyTests(unittest.TestCase):
+    """Descriptions must not repeat the part number.
+
+    Supplier Part_Desc values in this dataset almost always start with the
+    part number ("PDSH4816AF Dishwasher SS - Display Only"). Prepending it
+    again produced "... PDSH4816AF PDSH4816AF Dishwasher SS - Display Only",
+    which also burns characters against the 120-char MOBILE_DESC cap.
+    """
+
+    def test_mobile_desc_does_not_repeat_a_leading_part_number(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher SS - Display Only",
+        )
+        self.assertEqual(res.mobile_desc.count("PDSH4816AF"), 1, res.mobile_desc)
+
+    def test_long_desc_does_not_repeat_a_leading_part_number(self) -> None:
+        res = enrich_product_web(
+            "WDTS7024RZ", "Appliance Dealers Cooperative (APPDE)",
+            "WDTS7024RZ Dishwasher SS - Display Only",
+        )
+        self.assertEqual(res.long_desc1.count("WDTS7024RZ"), 1, res.long_desc1)
+
+    def test_part_number_is_still_present_when_the_description_omits_it(self) -> None:
+        # The prepend exists for a reason — descriptions that don't name the
+        # part must still carry it.
+        res = enrich_product_web(
+            "V-100", "Parker Hannifin", "Brass Ball Valve 600 PSI",
+        )
+        self.assertIn("V-100", res.mobile_desc)
+        self.assertIn("V-100", res.long_desc1)
+
+    def test_matching_is_case_insensitive(self) -> None:
+        res = enrich_product_web(
+            "abc-123", "Parker Hannifin", "ABC-123 Brass Ball Valve",
+        )
+        self.assertEqual(res.mobile_desc.lower().count("abc-123"), 1, res.mobile_desc)

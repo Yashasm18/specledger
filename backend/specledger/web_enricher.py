@@ -352,8 +352,17 @@ def enrich_product_web(
     # the actual input or a real fetched source, it doesn't belong here.
     short_desc = desc_clean[:100]
     invoice_desc = desc_clean.upper()[:60]
-    mobile_desc = f"{brand_name} {pn_clean} {desc_clean}"[:120]
-    long_desc1 = f"{brand_name} {pn_clean} - {desc_clean}"
+    # Supplier descriptions in this dataset almost always lead with the part
+    # number ("PDSH4816AF Dishwasher SS - Display Only"), so prepending it
+    # unconditionally produced "PDSH4816AF PDSH4816AF Dishwasher ...". Only
+    # prepend when the description doesn't already open with it — the prepend
+    # still earns its place for rows whose description omits the part number.
+    if desc_clean.lower().startswith(pn_clean.lower()):
+        mobile_desc = f"{brand_name} {desc_clean}"[:120]
+        long_desc1 = f"{brand_name} - {desc_clean}"
+    else:
+        mobile_desc = f"{brand_name} {pn_clean} {desc_clean}"[:120]
+        long_desc1 = f"{brand_name} {pn_clean} - {desc_clean}"
     retail_desc = desc_clean
     # No real marketing-copy source exists without live_fetch pulling the
     # manufacturer's own page — left honestly empty rather than fabricated.
