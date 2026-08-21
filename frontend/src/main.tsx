@@ -2008,7 +2008,7 @@ function App() {
       <aside>
         <div className="logo">
           <img
-            src="/favicon.png"
+            src={`${import.meta.env.BASE_URL}favicon.png`}
             alt="SpecLedger Logo"
             style={{ width: 32, height: 32, borderRadius: 8, objectFit: "contain", display: "block" }}
           />
