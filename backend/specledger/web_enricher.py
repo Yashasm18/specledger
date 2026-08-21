@@ -332,6 +332,98 @@ def classify_category(desc: str | None, manufacturer: str | None) -> str:
     return classpath
 
 
+_BRAND_PLACEHOLDERS = ("-- unbranded --", "-- no unilog brand --", "-- no dib brand --")
+
+
+def _brand_signals(description: str, brands: tuple[str | None, ...]) -> str:
+    """Text that carries the product's own branding, lowercased.
+
+    Deliberately excludes the manufacturer name. That field is exactly what
+    is ambiguous here — "Appliance Dealers Cooperative" is the distributor —
+    so letting it vote would just re-assert the thing we cannot trust.
+    """
+    parts = [description or ""]
+    for brand in brands:
+        if brand and brand.strip().lower() not in _BRAND_PLACEHOLDERS:
+            parts.append(brand)
+    return " ".join(parts).casefold()
+
+
+def _resolve_manufacturer_domain(
+    manufacturer: str,
+    description: str,
+    brands: tuple[str | None, ...],
+) -> str | None:
+    """Pick the manufacturer's domain, or return None when it is unknowable.
+
+    A guessed URL is the same defect as an invented specification, so this
+    refuses rather than guesses in two cases the previous code papered over:
+
+    * An unrecognised manufacturer used to yield "manufacturer.com" — a
+      placeholder that belongs to nobody, published as a product page on 272
+      of the official dataset's 1,000 rows.
+    * Some registry entries are distributors fronting unrelated competitors
+      ("Appliance Dealers Cooperative" -> frigidaire.com, whirlpool.com,
+      geappliances.com). Taking the first put a Frigidaire URL on Whirlpool
+      dishwashers, 84 rows of them.
+
+    With several candidates, two things can still settle it:
+
+    1. The product's own branding. If exactly one candidate's name is named
+       in the description or brand columns, that is the one — a Diablo-branded
+       belt belongs on diablotools.com, not its parent's freudtools.com.
+    2. Failing that, whether every candidate is plainly the same company.
+       "Apollo Valves" lists apollovalves.com and apolloflowcontrols.com;
+       both carry the manufacturer's own name, so either is right and the
+       first will do. "Appliance Dealers Cooperative" does not have that
+       property, which is precisely what makes it a distributor.
+
+    Anything else is genuinely undeterminable from six columns of input, and
+    the row is left without a URL for live verification or a human to settle.
+    """
+    domains = MANUFACTURER_DOMAINS.get(manufacturer) or []
+    if not domains:
+        return None
+    if len(domains) == 1:
+        return domains[0]
+
+    branded = [
+        domain for domain in domains
+        if _names_match(_brand_signals(description, brands), domain)
+    ]
+    if len(branded) == 1:
+        return branded[0]
+
+    # Every candidate carries the manufacturer's own name, so they are the
+    # same company under different domains rather than rival brands.
+    if all(_names_match(manufacturer.casefold(), domain) for domain in domains):
+        return domains[0]
+
+    return None
+
+
+def _names_match(text: str, domain: str) -> bool:
+    """Whether any word in `text` identifies `domain`.
+
+    Matched by prefix rather than equality so "diablo" in a description
+    identifies "diablotools.com", and "apollo" in "Apollo Valves" identifies
+    both "apollovalves.com" and "apolloflowcontrols.com". Short words are
+    ignored so a stray "in" or "co" cannot claim a domain.
+    """
+    words = {w for w in re.split(r'[^a-z0-9]+', text) if len(w) >= 4}
+    return any(
+        label.startswith(word) or word.startswith(label)
+        for label in _domain_name_parts(domain)
+        for word in words
+    )
+
+
+def _domain_name_parts(domain: str) -> tuple[str, ...]:
+    """The meaningful name labels of a domain, minus public suffixes."""
+    ignored = {"com", "net", "org", "co", "de", "jp", "www"}
+    return tuple(p for p in domain.casefold().split(".") if p not in ignored)
+
+
 def enrich_product_web(
     part_number: str,
     raw_manufacturer: str | None,
@@ -345,26 +437,28 @@ def enrich_product_web(
     pn_clean = part_number.strip() if part_number else "UNKNOWN-PN"
     desc_clean = raw_description.strip() if raw_description else f"{mfr_clean} {pn_clean}"
 
-    # Perform source discovery (manufacturer domain matching)
-    discovery: SourceDiscoveryResult = discover_sources_simulated(mfr_clean, pn_clean)
+    # Work out which manufacturer this row actually belongs to before
+    # generating any URL for it. When that cannot be determined the row gets
+    # no candidates at all — a URL naming the wrong company is worse than no
+    # URL, and both were being produced here.
+    resolved_domain = _resolve_manufacturer_domain(
+        mfr_clean, desc_clean, (e1_brand, unilog_brand, dib_brand),
+    )
 
-    # Collect valid (non-blocked) manufacturer URLs
     mfr_url: str | None = None
     ref_urls: list[str] = []
 
-    for src in discovery.sources:
-        if is_blocked_source(src.url):
-            continue
-        if src.source_type == SourceType.PRODUCT_PAGE and not mfr_url:
-            mfr_url = src.url
-        elif len(ref_urls) < 5:
-            ref_urls.append(src.url)
-
-    if not mfr_url:
-        domains = MANUFACTURER_DOMAINS.get(mfr_clean, [])
-        primary_domain = domains[0] if domains else "manufacturer.com"
-        slug = re.sub(r'[^a-z0-9]+', '-', pn_clean.casefold()).strip('-')
-        mfr_url = f"https://www.{primary_domain}/product/{slug}"
+    if resolved_domain:
+        discovery: SourceDiscoveryResult = discover_sources_simulated(
+            mfr_clean, pn_clean, domain=resolved_domain,
+        )
+        for src in discovery.sources:
+            if is_blocked_source(src.url):
+                continue
+            if src.source_type == SourceType.PRODUCT_PAGE and not mfr_url:
+                mfr_url = src.url
+            elif len(ref_urls) < 5:
+                ref_urls.append(src.url)
 
     # Determine brand
     brand_name = mfr_clean

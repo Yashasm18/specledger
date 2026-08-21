@@ -152,3 +152,62 @@ class AttributeTripletTests(unittest.TestCase):
         res = enrich_product_web("X-1", "Parker Hannifin", "X-1 Widget")
         self.assertEqual(res.attributes, [])
         self.assertEqual(res.features, [])
+
+
+class ManufacturerUrlHonestyTests(unittest.TestCase):
+    """MFR URL must name a real manufacturer or nothing at all.
+
+    Two defects on the official 1,000-row dataset:
+
+    * 272 rows were given "https://www.manufacturer.com/product/<sku>" — a
+      placeholder domain that is not anybody's site, emitted as if it were
+      the manufacturer's product page.
+    * 84 rows resolved through "Appliance Dealers Cooperative", a buying
+      co-operative mapped to three unrelated competitors
+      (frigidaire.com, whirlpool.com, geappliances.com). The code took the
+      first, so a Whirlpool dishwasher was published with a Frigidaire URL.
+
+    A guessed URL is the same failure as an invented specification. When the
+    manufacturer cannot be determined from the input, the honest output is
+    no URL.
+    """
+
+    def test_unknown_manufacturer_yields_no_url_not_a_placeholder(self) -> None:
+        res = enrich_product_web(
+            "D519127", "V & V Appliance Parts Inc (VVAPP)", "D519127 Dryer Timer",
+        )
+        self.assertFalse(res.mfr_url, f"expected no URL, got {res.mfr_url!r}")
+        self.assertNotIn("manufacturer.com", res.mfr_url or "")
+
+    def test_distributor_with_unrelated_brands_and_no_signal_yields_no_url(self) -> None:
+        # Appliance Dealers Cooperative fronts Frigidaire, Whirlpool and GE.
+        # This description names none of them, so the manufacturer genuinely
+        # cannot be determined and must not be guessed.
+        res = enrich_product_web(
+            "WDTS7024RZ", "Appliance Dealers Cooperative (APPDE)",
+            "WDTS7024RZ Dishwasher SS - Display Only",
+        )
+        self.assertFalse(res.mfr_url, f"expected no URL, got {res.mfr_url!r}")
+
+    def test_a_brand_in_the_description_picks_the_right_candidate(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Frigidaire Dishwasher SS",
+        )
+        self.assertIn("frigidaire.com", res.mfr_url or "")
+
+    def test_a_brand_column_picks_the_right_candidate(self) -> None:
+        # DIB_Brand carries the real brand on many rows even when the
+        # description does not.
+        res = enrich_product_web(
+            "576512", "Phillips Lighting (5831)", "576512 65W Led BR40 Med 27k",
+            dib_brand="Philips",
+        )
+        self.assertIn("philips", res.mfr_url or "")
+
+    def test_an_unambiguous_manufacturer_still_resolves(self) -> None:
+        res = enrich_product_web(
+            "70-100-01", "Apollo Valves", "1/2 in Bronze Ball Valve 600 PSI",
+        )
+        self.assertTrue(res.mfr_url)
+        self.assertIn("apollo", res.mfr_url)
