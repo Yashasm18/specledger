@@ -1292,43 +1292,45 @@ function App() {
       default:
         return (
           <>
-            {/* Interactive High-Throughput Batch Benchmark Runner Banner */}
+            {/* Batch Benchmark Banner */}
             <div className="benchmark-banner">
               <div className="benchmark-banner-header">
                 <div>
-                  <span className="eyebrow" style={{ color: "#38bdf8" }}>ENTERPRISE HIGH-THROUGHPUT ENGINE · UNILOG CX1 BATCH BENCHMARK</span>
-                  <h3 style={{ margin: "4px 0 0", fontSize: 18, color: "#ffffff" }}>
-                    Sub-Second Industrial Enrichment Pipeline (~7,200 SKUs/sec)
+                  <span className="eyebrow" style={{ color: "#8b949e" }}>BATCH BENCHMARK</span>
+                  <h3 style={{ margin: "6px 0 0", fontSize: 20, fontWeight: 600, color: "#ffffff", letterSpacing: "-0.01em" }}>
+                    Enrichment pipeline
                   </h3>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "#8b949e" }}>
+                    Deterministic path, measured on the full 1,000-row official dataset
+                  </p>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <button
                     onClick={runLiveBenchmarkDemo}
                     disabled={isBenchmarking}
                     style={{
-                      background: isBenchmarking ? "#475569" : "#2872e3",
+                      background: isBenchmarking ? "#30363d" : "#238636",
                       color: "#ffffff",
-                      border: "none",
-                      padding: "9px 18px",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      padding: "8px 16px",
                       borderRadius: 6,
-                      fontWeight: 700,
-                      fontSize: 12,
+                      fontWeight: 500,
+                      fontSize: 13,
                       cursor: isBenchmarking ? "wait" : "pointer",
-                      boxShadow: "0 4px 14px rgba(40, 114, 227, 0.4)",
                       display: "flex",
                       alignItems: "center",
                       gap: 6
                     }}
                   >
-                    {isBenchmarking ? "Processing Batch Feed..." : "Run Batch Benchmark"}
+                    {isBenchmarking ? "Processing…" : "Run benchmark"}
                   </button>
                   <button
                     className="export-btn"
                     onClick={() => handleExport("unilog_template")}
-                    style={{ background: "rgba(255,255,255,0.12)", color: "#ffffff", borderColor: "rgba(255,255,255,0.25)" }}
+                    style={{ background: "transparent", color: "#c9d1d9", borderColor: "rgba(255,255,255,0.15)" }}
                   >
                     <DownloadIcon size={12} />
-                    252-Col CSV
+                    252-col CSV
                   </button>
                 </div>
               </div>
