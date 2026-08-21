@@ -3,7 +3,7 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-2ea44f.svg?logo=github&logoColor=white)](https://yashasm18.github.io/specledger/)
 [![CI & Code Quality](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/pylint.yml)
 [![Pylint](https://img.shields.io/badge/Pylint-9.82%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
-[![Tests](https://img.shields.io/badge/Tests-246%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-251%20Passed%2C%201%20Skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20Benchmark-94.64%25-blue.svg)](https://github.com/Yashasm18/specledger/blob/main/tests/test_evaluator.py)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252--Column%20Compliant-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
@@ -67,11 +67,11 @@ flowchart LR
 
 **Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. On a real 20-row sample from the official challenge dataset, this found genuine verified manufacturer pages for 6 rows via simple URL-pattern guessing alone — a real, imperfect hit rate, not 100%, which is what an honest first pass looks like.
 
-**When a real datasheet PDF is found, its text is actually read — not just linked.** This is the direct answer to the "few parameters given, the rest comes from manuals" scenario Unilog's own team described (e.g. the Samsung spec-sheet example): once `live_fetch` confirms a genuine linked PDF datasheet, [`extract_pdf_attributes()`](backend/specledger/source_discovery.py) opens the real fetched bytes with PyMuPDF, flattens them to text, and pulls out genuine "Label: Value" spec rows (e.g. `Voltage Rating: 120 V`) with a conservative Title-Case pattern — tuned specifically to reject flowing marketing prose (verified against a real third-party manufacturer catalog PDF, which correctly yielded near-zero false positives) rather than a loose match that would turn brochure sentences into fake attributes. A PDF with no clean label/value layout — a photo-heavy brochure, a prose-only manual — honestly yields zero extracted attributes rather than a guess; this is intentionally conservative, not a claim that every manufacturer PDF gets parsed. Surfaced in the dashboard's Evidence Library alongside the source link itself, clearly separated from the synthetic per-SKU spec generator described below.
+**When a real datasheet PDF is found, its text is actually read — not just linked.** This is the direct answer to the "few parameters given, the rest comes from manuals" scenario Unilog's own team described (e.g. the Samsung spec-sheet example): once `live_fetch` confirms a genuine linked PDF datasheet, [`extract_pdf_attributes()`](backend/specledger/source_discovery.py) opens the real fetched bytes with PyMuPDF, flattens them to text, and pulls out genuine "Label: Value" spec rows (e.g. `Voltage Rating: 120 V`) with a conservative Title-Case pattern — tuned specifically to reject flowing marketing prose (verified against a real third-party manufacturer catalog PDF, which correctly yielded near-zero false positives) rather than a loose match that would turn brochure sentences into fake attributes. A PDF with no clean label/value layout — a photo-heavy brochure, a prose-only manual — honestly yields zero extracted attributes rather than a guess; this is intentionally conservative, not a claim that every manufacturer PDF gets parsed. Surfaced in the dashboard's Evidence Library alongside the source link itself.
 
 When domain guessing finds nothing (very common — the raw input's manufacturer field is frequently a distributor, e.g. "Appliance Dealers Cooperative", not the real manufacturer), `live_fetch` falls back to a real web search (via [Serper.dev](https://serper.dev), optional — set `SERPER_API_KEY`) and accepts a manufacturer only when a returned result links to a domain already in the registry, never inventing a name from search text. Tested against Unilog's own real worked example: correctly identified "Frigidaire" as the true manufacturer of part `PDSH4816AF` from a raw "Appliance Dealers Cooperative" input, matching Unilog's real answer — though the manufacturer's own page then failed to load in time (bot protection on their end), so the resolved name is surfaced honestly as search-identified rather than page-verified in that case. A second real example found no match at all, because the manufacturer's page didn't rank in top search results for that query — real search has real limits.
 
-It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. The deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`, used by the dashboard's per-SKU spec inspector) still only synthesizes a plausible profile — its own docstring says so directly — and hasn't been converted to live fetching yet.
+It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. A separate deep-crawl module ([`pdf_and_web_scraper.py`](backend/specledger/pdf_and_web_scraper.py), exposed via `POST /catalogue/scraper/extract`) still only synthesizes a plausible profile — its own docstring says so directly — and hasn't been converted to live fetching yet. It's no longer wired into the dashboard's per-SKU inspector (removed — see [Web dashboard](#web-dashboard)); the inspector now shows the real computed 252-column record for every row instead.
 
 **On source breadth — manuals, videos, and beyond a manufacturer's own domain.** The architecture already models this: `SourceType` in [`source_discovery.py`](backend/specledger/source_discovery.py) classifies `PDF_DATASHEET`, `TECHNICAL_MANUAL`, `VIDEO`, and `SPECIFICATION_SHEET` as distinct source kinds, and nothing in the pipeline assumes the source is a manufacturer's own website specifically — only that it isn't a blocked marketplace (see `BLOCKED_DOMAINS`). What's real today is HTML product pages and PDF datasheets, with the PDF path now reading actual text out of the file (previous paragraph) rather than just linking to it. Video transcription and non-manufacturer third-party sources (review sites, forums, social) are anticipated in the type system but not implemented — stated here directly rather than left ambiguous.
 
@@ -109,7 +109,7 @@ What Unilog actually published for this challenge is three things: a Solution Gu
 
 Reproduce the numbers below yourself:
 ```bash
-.venv/bin/python -m pytest tests/ -v                        # 247 tests, 100% pass
+.venv/bin/python -m pytest tests/ -v                        # 252 tests, 100% pass
 .venv/bin/python -m pytest tests/test_evaluator.py -v        # self-generated 200-row regression benchmark
 .venv/bin/python -m pytest tests/test_unilog_pipeline.py -v  # official 1,000-row dataset, structural checks
 ```
@@ -196,9 +196,11 @@ Write endpoints (`POST`/`PATCH`) require an `X-API-Key` header in production.
 React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review, Imports & Telemetry, Schemas & Taxonomy, Evidence Library, Audit Trail.
 
 - "Live web fetch" toggle on catalogue upload — real manufacturer-site HTTP verification instead of templated candidates (see [How it works](#how-it-works))
-- Interactive 252-column spec inspector per SKU, with a templated spec-synthesis trigger (not yet a live crawl — separate from the upload-time live fetch above)
-- Priority review queue: approve / reject / correct, with one-click bulk-approve at ≥80% confidence
-- Side-by-side evidence modal comparing raw supplier values against normalized output
+- Interactive 252-column spec inspector per SKU, backed by a dedicated endpoint (`GET /catalogue/batches/{id}/rows/{n}/unilog252`) that returns the real computed record — the same one the CSV export writes, not a separate approximation. Sparse real coverage (e.g. "3 of 50 attributes populated") is shown honestly rather than padded to look complete
+- Real per-SKU category classification (`classify_category()`, keyword-based on the description + manufacturer) surfaced in the catalogue table and category filter chips — the raw 6-column input has no category field, so this is the only classification available
+- Priority review queue: approve / reject / correct, with one-click bulk-approve at ≥80% confidence; the queue rebuilds itself from Postgres if the in-memory cache is lost on a redeploy, so it never falsely reports "all verified" when it's actually just empty
+- Real audit trail (`GET /catalogue/batches/{id}/audit`) — every row's routing decision and every human action, not a static example
+- Side-by-side evidence modal comparing raw supplier values against normalized output; unverified (pattern-guessed, never fetched) source URLs render as plain text, not clickable links, so they're never mistaken for verified ones
 - Batch telemetry: throughput, latency percentiles, cost-per-SKU
 - One-click exports: Unilog 252-column CSV, Commerce PIM CSV
 
@@ -236,7 +238,7 @@ npm run dev   # http://localhost:5174
 
 # Tests — requires requirements-dev.txt too (pytest, pylint, and test-only deps)
 pip install -r requirements-dev.txt
-.venv/bin/python -m pytest tests/ -v   # 246 passed, 1 skipped
+.venv/bin/python -m pytest tests/ -v   # 251 passed, 1 skipped
 ```
 
 Verified against a clean `git clone` on 2026-08-20: install → boot → test all reproduce exactly as documented, including the SQLite fallback (`{"status":"ok","database":"sqlite"}` on `/health` with no `DATABASE_URL` set).
@@ -272,7 +274,7 @@ specledger/
 │   └── reference/                 # Reference data overrides
 ├── frontend/                      # React + Vite dashboard
 ├── migrations/                    # Postgres schema migrations
-├── tests/                         # 247 backend tests + 6 frontend tests
+├── tests/                         # 252 backend tests + 6 frontend tests
 ├── Dockerfile                      # Railway deploy config
 └── .github/workflows/             # CI + GitHub Pages deploy
 ```

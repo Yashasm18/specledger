@@ -31,8 +31,8 @@ Run the full verification pass locally; CI runs the same checks and will fail th
 
 ```bash
 # Backend
-.venv/bin/python -m pytest tests/ -v                          # 247 tests
-pylint --rcfile=.pylintrc --fail-under=8.5 backend/            # currently 9.81/10
+.venv/bin/python -m pytest tests/ -v                          # 252 tests
+pylint --rcfile=.pylintrc --fail-under=8.5 backend/            # currently 9.82/10
 
 # Frontend
 cd frontend
