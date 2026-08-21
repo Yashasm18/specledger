@@ -64,7 +64,14 @@ _CONNECTION_TYPE_KEYS = frozenset({
 
 PLACEHOLDER_VALUES = frozenset({
     "n/a", "na", "--", "---", "-", "null", "none", "n\\a", "n.a.", "n.a",
+    "commodity - unbranded",
 })
+
+# Some source systems (e.g. Unilog's own brand columns) encode "no value"
+# as a descriptive dash-wrapped phrase rather than a bare token, e.g.
+# "-- Unbranded --", "-- No Unilog Brand --", "-- No DIB Brand --". These
+# are still nulls, not real data to be matched against reference lists.
+_PLACEHOLDER_WRAPPER_RE = re.compile(r'^--.*--$')
 
 
 # Part number 3-letter prefix -> Canonical Manufacturer name
@@ -372,7 +379,10 @@ def _enrich_field(
 
     # Missing or placeholder values
     is_missing = raw_value is None or not raw_value.strip()
-    is_placeholder = raw_value is not None and raw_value.strip().casefold() in PLACEHOLDER_VALUES
+    is_placeholder = raw_value is not None and (
+        raw_value.strip().casefold() in PLACEHOLDER_VALUES
+        or bool(_PLACEHOLDER_WRAPPER_RE.match(raw_value.strip()))
+    )
 
     if is_missing:
         # Try extracting from part_number if manufacturer
@@ -486,7 +496,11 @@ def enrich_batch(batch: CatalogueBatch, store: ReferenceStore | None = None) -> 
             fields.append(enriched)
 
         statuses = [f.status for f in fields]
-        confidences = [f.confidence for f in fields if f.raw_value is not None or f.canonical_value is not None]
+        # Fields with status "missing" (blank cells or recognized null
+        # placeholders) carry no signal either way and shouldn't drag the
+        # row's confidence down — only fields we actually attempted to
+        # resolve count toward it.
+        confidences = [f.confidence for f in fields if f.status != "missing"]
         overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
         overall_status = _worst_status(statuses)
 

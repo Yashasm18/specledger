@@ -89,6 +89,36 @@ class EnrichmentPipelineTests(unittest.TestCase):
         assert mfg_field.status == "missing"
         assert mfg_field.canonical_value is None
 
+    def test_dash_wrapped_placeholder_detected_as_missing(self) -> None:
+        # Unilog's own brand columns encode "no value" as a descriptive
+        # phrase like "-- Unbranded --" rather than a bare token — this
+        # must be recognized as a placeholder, not treated as unmatched
+        # real data (which used to block auto-approval on nearly every
+        # row in the real 1,000-SKU challenge dataset).
+        batch = self._make_batch([{
+            "Manufacturer": "Parker Hannifin",
+            "Brand": "-- Unbranded --",
+            "SKU": "H",
+        }])
+        enriched = enrich_batch(batch, self.store)
+        brand_field = enriched.rows[0].field_map["brand"]
+        assert brand_field.status == "missing"
+        assert brand_field.canonical_value is None
+
+    def test_placeholder_fields_excluded_from_confidence_average(self) -> None:
+        # A row with a solid manufacturer match and only placeholder/blank
+        # extra fields should have overall_confidence reflect the fields
+        # actually resolved, not be dragged toward 0 by fields that carry
+        # no data by design.
+        batch = self._make_batch([{
+            "Manufacturer": "Parker Hannifin",
+            "Brand": "-- Unbranded --",
+            "SKU": "I",
+        }])
+        enriched = enrich_batch(batch, self.store)
+        row = enriched.rows[0]
+        assert row.overall_confidence == 1.0
+
     def test_brand_enrichment(self) -> None:
         batch = self._make_batch([{"Brand": "Fisher Controls", "Part Number": "B-1"}])
         enriched = enrich_batch(batch, self.store)

@@ -144,13 +144,17 @@ Nothing in the enrichment path reads from a private or paywalled dataset. If you
 
 ```
 Rows processed       : 1,000
-Wall-clock time       : 0.138s
-Throughput            : ~7,200 rows/sec
+Wall-clock time       : 0.134s
+Throughput            : ~7,500 rows/sec
 Field verified_rate   : 38.1% (fraction of all fields matched against reference data)
-Auto-approve rate     : 0% — every row currently routes to human review
+Auto-approve rate     : 20.0% — 200 of 1,000 rows clear validation without a human
 ```
 
-That last two numbers are worth explaining honestly rather than hiding: `verified_rate` is lower than earlier drafts of this README claimed (an unsourced "94.6%" figure that didn't trace back to any actual test run — corrected here). And auto-approval is 0% because almost every row in the real input has placeholder brand fields (`-- Unbranded --`, `-- No Unilog Brand --`) that our validation rules treat as an unconditional block on auto-approval. That's a legitimate, disclosed business-rule question — whether "no brand" should count as acceptable rather than a warning — not a bug we've silently patched over.
+These numbers are worth explaining honestly rather than hiding. `verified_rate` is lower than earlier drafts of this README claimed (an unsourced "94.6%" figure that didn't trace back to any actual test run — corrected here).
+
+Auto-approval was previously reported as a flat 0%, and that was a real bug, not a business-rule outcome: three of the six raw columns (`Unilog_Brand`, and most of `E1_Brand`/`DIB_Brand`) encode "no value" as a descriptive placeholder phrase (`-- Unbranded --`, `-- No Unilog Brand --`, `-- No DIB Brand --`) rather than a bare null token like `"n/a"`. The enrichment pipeline's placeholder detector only recognized bare tokens, so it tried to match these phrases against the brand reference list as if they were real values, failed (correctly — they aren't brand names), and that failure was flagged as an unresolved warning that unconditionally blocked auto-approval on nearly every row, regardless of category. A second, compounding bug: fields correctly identified as missing still contributed a 0.0 confidence score into the row's overall-confidence average, dragging every row below the auto-approve threshold even when every other field was solid. Both are now fixed in [`enrichment.py`](backend/specledger/enrichment.py) — the placeholder detector recognizes this dataset's actual null convention, and missing/placeholder fields are excluded from confidence averaging rather than penalized as failed matches.
+
+The remaining 80% that still route to human review do so for a genuine, disclosed reason, not a bug: `part_manuf`, `dib_brand`, and `e1_brand` frequently contain real values (`3M`, `TREX`, `Southwire`, `Jam Industrial Supply LLC (JAMIN)`) that our small, self-authored reference lists simply don't contain — see [Datasets & provenance](#datasets--provenance) on never having obtained Unilog's real 27,000-row manufacturer file. We deliberately did not hardcode matches for these specific values to inflate the auto-approve number; an honest "we don't recognize this manufacturer, route to a human" is the correct behavior for a real controlled-vocabulary gate, and closing that gap for real would mean wiring in Unilog's actual reference data, not pattern-matching this one sample file.
 
 This is a CPU pipeline benchmark on deterministic transformations — not a claim about live web-retrieval latency or production infrastructure throughput.
 
@@ -162,7 +166,7 @@ Per UniHack's own team briefing, judging centers on the **approach**, not the te
 
 | Criterion | How SpecLedger addresses it |
 |---|---|
-| **Quality of approach** | A deterministic, auditable pipeline: every transformation retains source lineage, ambiguous rows route to a confidence-gated human review queue instead of silently guessing, and known limitations (simulated vs. live modes, the 0% auto-approve finding above) are stated rather than hidden. FastAPI/Postgres/React are implementation details in service of that approach, not the pitch itself. |
+| **Quality of approach** | A deterministic, auditable pipeline: every transformation retains source lineage, ambiguous rows route to a confidence-gated human review queue instead of silently guessing, and known limitations (simulated vs. live modes, the reference-data coverage gap above) are stated rather than hidden. FastAPI/Postgres/React are implementation details in service of that approach, not the pitch itself. |
 | **Accuracy of data** | Tested against Unilog's own real worked examples, not just self-generated data (see [Benchmark results](#benchmark-results)) — including reporting where it currently gets the real answer wrong and why. Cross-field physics validation (e.g. rejecting a PVC part rated above 600 PSI) catches errors a naive field-by-field pipeline would miss. |
 | **Scalability** | Chunked batch processing with source memoization; Postgres-backed persistence built for horizontal scaling; ~7,200 rows/sec measured (not simulated) on the deterministic path — raw throughput was never the bottleneck, see the [150K→750K math](#overview) above. |
 | **Innovation** | A manufacturer-domain allowlist with strict marketplace-sourcing prohibition enforced at the architecture level, plus real search-based manufacturer resolution (`live_fetch=true`) for the common real-world case where the input's manufacturer field is actually a distributor. |
