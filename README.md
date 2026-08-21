@@ -107,7 +107,7 @@ flowchart LR
     G --> I["6. Export\n252-col Unilog CSV\nschema.org JSON-LD\nCommerce PIM CSV"]
 ```
 
-**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. See [Measured hit rate](#measured-hit-rate-on-real-rows) below for what it actually achieves.
+**Stage 2 has two modes, and the difference matters.** By default, source discovery constructs plausible manufacturer URLs from a domain allowlist without fetching them — fast, deterministic, safe for tests. It constructs one only when it can say *which* manufacturer the row belongs to: an unrecognised manufacturer yields no URL rather than a placeholder domain, and a registry entry that is really a distributor fronting unrelated competitors ("Appliance Dealers Cooperative" → Frigidaire, Whirlpool, GE) is resolved from the product's own branding or left empty. On the official 1,000-row input that means 641 rows carry a manufacturer URL and 359 honestly carry none; before this rule, all 1,000 did, and 356 of them named the wrong company or a domain belonging to nobody. Passing `live_fetch=true` to `POST /catalogue/ingest` switches to real HTTP requests: it fetches the candidate URL, confirms the part number actually appears on the fetched page before marking anything "verified" (a raw substring match on a search-results page that merely echoes your query back is explicitly rejected — only a direct product-page hit counts), and follows a genuine linked PDF datasheet when the page has one. Rows where nothing real is found come back honestly empty rather than a fabricated guess. See [Measured hit rate](#measured-hit-rate-on-real-rows) below for what it actually achieves.
 
 **When a real datasheet PDF is found, its text is actually read — not just linked.** This is the direct answer to the "few parameters given, the rest comes from manuals" scenario Unilog's own team described (e.g. the Samsung spec-sheet example): once `live_fetch` confirms a genuine linked PDF datasheet, [`extract_pdf_attributes()`](backend/specledger/source_discovery.py) opens the real fetched bytes with PyMuPDF, flattens them to text, and pulls out genuine "Label: Value" spec rows (e.g. `Voltage Rating: 120 V`) with a conservative Title-Case pattern — tuned specifically to reject flowing marketing prose (verified against a real third-party manufacturer catalog PDF, which correctly yielded near-zero false positives) rather than a loose match that would turn brochure sentences into fake attributes. A PDF with no clean label/value layout — a photo-heavy brochure, a prose-only manual — honestly yields zero extracted attributes rather than a guess; this is intentionally conservative, not a claim that every manufacturer PDF gets parsed. Surfaced in the dashboard's Evidence Library alongside the source link itself.
 
@@ -161,7 +161,7 @@ Neither bug is visible on the official dataset — its rows have real descriptio
 | Enrichment | [`web_enricher.py`](backend/specledger/web_enricher.py), [`reference_data.py`](backend/specledger/reference_data.py) | Material/UOM normalization, description synthesis, attribute triplets |
 | Validation | [`validation_engine.py`](backend/specledger/validation_engine.py) | 6 rule categories: required fields, LOV membership, cross-field physics, completeness, duplicates, character limits |
 | AI tier (opt-in) | [`llm_enricher.py`](backend/specledger/llm_enricher.py) | Batched, schema-constrained Gemini classification of the deterministic residue only. Marked `ai_inferred`; cannot auto-approve |
-| Human review | [`human_review.py`](backend/specledger/human_review.py) | Confidence-gated routing, state machine, immutable audit trail |
+| Human review | [`human_review.py`](backend/specledger/human_review.py) | Confidence-gated routing, state machine, append-only audit trail (partly reconstructed after a restart — see [Known limits](#known-limits)) |
 | Persistence | [`catalogue_persistence.py`](backend/specledger/catalogue_persistence.py), [`database.py`](backend/specledger/database.py) | PostgreSQL system of record, pooled connections, paginated reads. Refuses to start without a database |
 | Export | [`export.py`](backend/specledger/export.py), [`unilog_exporter.py`](backend/specledger/unilog_exporter.py) | 252-column Unilog CSV, schema.org JSON-LD, Commerce CSV, audit JSON |
 
@@ -207,9 +207,29 @@ Nothing in the enrichment path reads from a private or paywalled dataset. If you
 
 ## Benchmark results
 
-**Against Unilog's own 2 real worked examples** (the only official ground truth available — see table above): SpecLedger correctly extracts the part number for both, but gets manufacturer/brand wrong for both in its default mode, because the raw input's manufacturer field is actually the *distributor* ("Appliance Dealers Cooperative"), not the manufacturer — the real answer ("Frigidaire", "Whirlpool Corporation") isn't derivable from the 6 input columns alone. With real web search enabled (`live_fetch=true`, see [How it works](#how-it-works)), the pipeline correctly identified "Frigidaire" from a genuine Google search hit; it did not find "Whirlpool" because whirlpool.com's own product page didn't rank in the top search results for that query. This is reported as-is, not smoothed over — 2 examples is a very small sample, and this is the honest result on it.
+### Against Unilog's own 2 worked examples
 
-**Self-generated 200-row synthetic benchmark** (fictional data, not Unilog's — see caveat above; useful only for catching regressions in our own normalization logic):
+These two rows are the only genuine Unilog-labelled ground truth available, so the export is diffed against them field by field rather than judged on our own metrics.
+
+**What matches exactly:**
+
+| Check | Result |
+|---|---|
+| 252 delivery headers, names and order | identical, byte for byte |
+| `Dept` / `Class` / `Fine` | exact match on both rows |
+| Attribute label vocabulary, where we extract the same spec | exact — `Voltage Rating` [V], `Amperage Rating` [A] |
+
+**How much of the sheet gets filled.** Their worked rows populate **79 of 252** columns, not 252 — they leave `Model`, `Plug Type` and `Colour` blank while still emitting the labels. So "populate all the headers" is a structural requirement, and ~79 is the practical bar. We populate **43**.
+
+Most of that gap is one thing: both their rows use the *same 15 attribute labels in the same order*, which is a per-category attribute template rather than free-form extraction. Ours are extracted per row, so they are sparse where a description states no spec.
+
+**What we still get wrong.** `MANUFACTURER_NAME` and `BRAND_NAME` are the distributor, not the manufacturer, on both rows. The raw input's manufacturer field is "Appliance Dealers Cooperative" — a buying co-operative — and the real answer ("Frigidaire", "Whirlpool Corporation") is not derivable from the 6 input columns. With `live_fetch=true` the pipeline identified "Frigidaire" from a genuine search hit; it did not find "Whirlpool", because whirlpool.com's own product page did not rank for that query. Closing this properly needs Unilog's real 27,000-row manufacturer list.
+
+Two examples is a very small sample and this is the honest result on it — but the diff was worth running: it found four delivery-format defects (a padded `Classpath` separator, `Product Name` restating the part number, a duplicated part number in `MOBILE_DESC`, and identity fields occupying attribute slots that their format reserves for specifications) that no internal metric would ever have surfaced.
+
+### Self-generated synthetic benchmark
+
+**200 rows of fictional data, not Unilog's** — see caveat above; useful only for catching regressions in our own normalization logic:
 
 | Metric | Score |
 |---|---|
@@ -356,7 +376,7 @@ Write endpoints (`POST`/`PATCH`) require an `X-API-Key` header in production.
 React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review, Imports & Telemetry, Schemas & Taxonomy, Evidence Library, Audit Trail.
 
 - "Live web fetch" toggle on catalogue upload — real manufacturer-site HTTP verification instead of templated candidates (see [How it works](#how-it-works))
-- Interactive 252-column spec inspector per SKU, backed by a dedicated endpoint (`GET /catalogue/batches/{id}/rows/{n}/unilog252`) that returns the real computed record — the same one the CSV export writes, not a separate approximation. Sparse real coverage (e.g. "3 of 50 attributes populated") is shown honestly rather than padded to look complete
+- Interactive 252-column spec inspector per SKU, backed by a dedicated endpoint (`GET /catalogue/batches/{id}/rows/{n}/unilog252`) that returns the real computed record — the same one the CSV export writes, not a separate approximation. Sparse real coverage (e.g. "1 of 50 attributes populated", and 0 where the description states no extractable spec) is shown honestly rather than padded to look complete
 - Real per-SKU category classification (`classify_category()`, keyword-based on the description + manufacturer) surfaced in the catalogue table and category filter chips — the raw 6-column input has no category field, so this is the only classification available
 - Priority review queue: approve / reject / correct, with one-click bulk-approve at ≥80% confidence; the queue rebuilds itself from Postgres if the in-memory cache is lost on a redeploy, so it never falsely reports "all verified" when it's actually just empty
 - Real audit trail (`GET /catalogue/batches/{id}/audit`) — every row's routing decision and every human action, not a static example
