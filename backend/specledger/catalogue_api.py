@@ -669,12 +669,14 @@ def list_audit_events(
     real_id = _resolve_batch_id(batch_id, organization_id)
     queue = _get_review_queue(real_id, organization_id)
     if not queue:
-        return {"batch_id": real_id, "events": [], "count": 0}
+        return {"batch_id": real_id, "events": [], "count": 0, "total_events": 0, "limit": limit}
 
     events = queue.get_audit_events(real_id, limit=limit)
     return {
         "batch_id": real_id,
         "count": len(events),
+        "total_events": queue.count_audit_events(real_id),
+        "limit": limit,
         "events": [e.to_dict() for e in events],
     }
 

@@ -127,15 +127,26 @@ class ReviewQueue:
         return pending[:limit]
 
     def get_audit_events(self, batch_id: str, limit: int = 50) -> list[AuditEvent]:
-        """Get every real audit event recorded for a batch, most recent first."""
-        events = [
+        """Get a batch's audit events, most recent first, capped at `limit`.
+
+        Use count_audit_events() for the real total — len() of this list is
+        the page size, not how many events exist.
+        """
+        events = self._all_audit_events(batch_id)
+        events.sort(key=lambda e: e.timestamp, reverse=True)
+        return events[:limit]
+
+    def count_audit_events(self, batch_id: str) -> int:
+        """Total number of audit events recorded for a batch, unpaginated."""
+        return len(self._all_audit_events(batch_id))
+
+    def _all_audit_events(self, batch_id: str) -> list[AuditEvent]:
+        return [
             event
             for row in self._rows.values()
             if row.batch_id == batch_id
             for event in row.audit_trail
         ]
-        events.sort(key=lambda e: e.timestamp, reverse=True)
-        return events[:limit]
 
     def get_batch_summary(self, batch_id: str) -> dict:
         """Get review status summary for a batch."""

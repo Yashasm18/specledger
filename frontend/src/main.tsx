@@ -161,6 +161,8 @@ function App() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [auditFilter, setAuditFilter] = useState<"all" | "human" | "auto" | "security">("all");
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
+  // Total events recorded for the batch, independent of the page size.
+  const [totalAuditEvents, setTotalAuditEvents] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
@@ -332,6 +334,7 @@ function App() {
           if (auditRes.ok) {
             const auditData = await auditRes.json();
             setAuditEvents(auditData.events || []);
+            setTotalAuditEvents(auditData.total_events ?? (auditData.events || []).length);
           }
         }
       }
@@ -1304,7 +1307,9 @@ function App() {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}>
-                  {auditEvents.length} real events
+                  {totalAuditEvents > auditEvents.length
+                    ? `${auditEvents.length} of ${totalAuditEvents.toLocaleString()} real events`
+                    : `${auditEvents.length} real events`}
                 </span>
                 <button
                   className="export-btn amber-accent"
