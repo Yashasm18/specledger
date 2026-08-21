@@ -6,8 +6,8 @@
 [![Deploy](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-[![Tests](https://img.shields.io/badge/Tests-306%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
-[![Pylint](https://img.shields.io/badge/Pylint-9.93%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
+[![Tests](https://img.shields.io/badge/Tests-307%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Pylint](https://img.shields.io/badge/Pylint-9.94%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20benchmark-94.37%25-blue.svg)](#benchmark-results)
 [![Throughput](https://img.shields.io/badge/Throughput-~7%2C000%20rows%2Fsec-blue.svg)](#benchmark-results)
 [![Unilog CX1](https://img.shields.io/badge/Unilog%20CX1-252%20columns%2C%20exact%20match-009688.svg)](https://github.com/Yashasm18/specledger/blob/main/backend/specledger/unilog_exporter.py)
@@ -47,7 +47,7 @@ Here is where that actually stands on the official 1,000-row dataset, measured r
 |---|---|
 | Rows auto-approved with no human touch | **20.0%** (200/1,000) |
 | Rows routed to human review | **80.0%** (800/1,000) |
-| Category resolved deterministically | **77.6%** (776/1,000) |
+| Category resolved deterministically | **75.1%** (751/1,000) |
 | Field-level verified rate | **38.1%** |
 
 **80% still needing review is not a win yet, and the dashboard says so too.** The honest reading is that this dataset is sparse — nearly every row carries `-- Unbranded --`, `-- No Unilog Brand --` and `-- No DIB Brand --` placeholders, and the dominant validation finding is a brand that matches no controlled-vocabulary entry. Auto-approval is gated on exactly that kind of unresolved reference match, which is the correct conservative default when the alternative is publishing unverified data to a customer catalogue.
@@ -61,16 +61,16 @@ What would move it: Unilog's real 27,000-row manufacturer/brand list and 161,000
 
 **Domain-agnostic by design.** Unilog's own catalogue skews HVAC, plumbing, and electrical (and so does the sample dataset this challenge provides), but nothing in the pipeline is hardcoded to that vertical. Column-to-role detection (`detect_role()` in [`enrichment.py`](backend/specledger/enrichment.py)) is keyword-based, not a fixed schema; the validation framework's 6 rule categories (required fields, LOV membership, cross-field consistency, completeness, duplicates, character limits) apply to any category, and the one example cross-field rule shown in this README (PVC vs. 600 PSI) is a single illustrative rule within that generic framework, not evidence the framework only works for valves. Point it at a different catalogue — electronics, apparel, food service equipment — and the same pipeline runs; only the reference data (`reference_data.py`'s manufacturer/brand/material tables) would need extending with that vertical's own vocabulary.
 
-**On cost — the expensive part is deliberately not where the AI is.** The default path is 100% deterministic, rule-based normalization: **zero LLM calls**, for every row, at any stage. That covers the **77.6%** of the official dataset the keyword classifier resolves outright, at exactly $0.
+**On cost — the expensive part is deliberately not where the AI is.** The default path is 100% deterministic, rule-based normalization: **zero LLM calls**, for every row, at any stage. That covers the **75.1%** of the official dataset the keyword classifier resolves outright, at exactly $0.
 
-The remaining **22.4%** is where deterministic matching genuinely fails — sparse, ambiguous descriptions no keyword list resolves. Those rows, and only those, can be sent to an **opt-in LLM tier** (`ai_assist=true`, or the "AI assist" toggle in the dashboard). It is off by default, and a no-op without `GEMINI_API_KEY`.
+The remaining **24.9%** is where deterministic matching genuinely fails — sparse, ambiguous descriptions no keyword list resolves. Those rows, and only those, can be sent to an **opt-in LLM tier** (`ai_assist=true`, or the "AI assist" toggle in the dashboard). It is off by default, and a no-op without `GEMINI_API_KEY`.
 
 That tier is bounded by construction rather than by promise:
 
 | Property | How |
 |---|---|
 | Only sees the residue | Deterministic classification runs first and keeps everything it resolved. |
-| Batched | 25 products per request — the 224 unresolved rows cost ~9 calls, not 224. |
+| Batched | 25 products per request — the 249 unresolved rows cost ~10 calls, not 249. |
 | Constrained | Output is restricted to the existing taxonomy via a response schema; anything outside the controlled vocabulary is discarded. `temperature=0` keeps re-runs stable. |
 | Never authoritative | Every suggestion is marked `ai_inferred`, carries the model and prompt version, keeps the deterministic answer alongside it, and **cannot auto-approve** — it always routes to human review. |
 | Never load-bearing | No key, an HTTP error, a timeout or a malformed response all degrade to "no suggestion". A failing LLM never fails an ingest. |
@@ -96,8 +96,8 @@ flowchart LR
     A["1. Ingest\nCSV/TSV/XLSX/PDF\nSHA-256 fingerprinting"] --> B["2. Source discovery\nManufacturer-domain allowlist\nMarketplace blocker"]
     B --> C["3. Enrichment\nLOV normalization\n6 description tiers\n50 attribute triplets"]
     C --> D{"Category resolved?"}
-    D -- "yes (77.6%)" --> E["4. Validation\nCross-field physics\nCompleteness scoring"]
-    D -- "no (22.4%)" --> L["3b. LLM tier — opt-in\nBatched, schema-constrained\nMarked ai_inferred"]
+    D -- "yes (75.1%)" --> E["4. Validation\nCross-field physics\nCompleteness scoring"]
+    D -- "no (24.9%)" --> L["3b. LLM tier — opt-in\nBatched, schema-constrained\nMarked ai_inferred"]
     L --> E
     E --> F{"5. Confidence ≥ 80%\nand 0 errors?"}
     F -- yes --> G["Auto-approved"]
@@ -326,16 +326,24 @@ REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any runni
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/catalogue/ingest?live_fetch=true` | Upload CSV/TSV/XLSX, enrich, validate, route for review. `live_fetch=true` does real manufacturer-site HTTP verification instead of templated candidates (50-row cap) |
-| `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics |
+| `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX, enrich, validate, route for review. `live_fetch=true` does real manufacturer-site HTTP verification instead of templated candidates (50-row cap); `ai_assist=true` runs the LLM tier over rows the deterministic classifier left unresolved |
+| `GET` | `/catalogue/batches` | List ingested batches |
+| `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics. Rows are paginated — `limit` (default 100, max 500), `offset`, and `include_fields=true` for per-field evidence. `row_count` is the batch total; `returned_rows`/`has_more` describe the page |
 | `GET` | `/catalogue/batches/{id}/rows/{num}` | Single row with evidence and review history |
 | `GET` | `/catalogue/batches/{id}/review/pending` | Pending review rows, priority-ordered |
 | `POST` | `/catalogue/batches/{id}/rows/{num}/review` | Approve / reject / correct a row |
+| `GET` | `/catalogue/batches/{id}/rows/{num}/unilog252` | One row's full 252-column Unilog record, from the same code path as the CSV export |
 | `GET` | `/catalogue/batches/{id}/sources` | Discovered manufacturer sources |
+| `GET` | `/catalogue/batches/{id}/audit` | Real audit events for the batch, most recent first. `total_events` is the true total; `count` is the page |
 | `GET` | `/catalogue/batches/{id}/export?format=...` | Export as `unilog_template`, `schema_org`, `jsonld`, `csv`, `commerce_csv`, `json`, `audit` |
 | `POST` | `/catalogue/batches/{id}/rows/{num}/verify` | Fetch this row's manufacturer sources live and return the URL, the page snippet containing the part number, and any specs read from a linked datasheet |
+| `POST` | `/catalogue/batches/{id}/benchmark` | Re-run the deterministic pipeline over this batch and return timings measured during the request, per stage |
 | `POST` | `/catalogue/batches/{id}/evaluate` | Ground-truth evaluation against a reference CSV |
-| `GET` | `/catalogue/reference/manufacturers`, `/brands` | Canonical reference data |
+| `GET` | `/catalogue/evaluation/synthetic` | Score the bundled 200-row synthetic benchmark on request. Explicitly flags that this is self-generated data, not Unilog ground truth |
+| `GET` | `/catalogue/reference/manufacturers` · `/brands` · `/categories` | Canonical reference vocabularies |
+| `POST` | `/catalogue/reference/match/manufacturer` · `/match/brand` | Resolve a raw value to its canonical entry, with confidence and match type |
+| `POST` | `/catalogue/reference/normalize/uom` · `/normalize/material` | Normalize a unit or material to its canonical form |
+| `GET` | `/health`, `/health/features` | Liveness, and which optional integrations this process can actually see (booleans only — never a key) |
 
 Write endpoints (`POST`/`PATCH`) require an `X-API-Key` header in production.
 
