@@ -493,6 +493,10 @@ _PDF_LINK_RE = re.compile(
 )
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
+# Fraction of an interactive budget spent guessing URL patterns before
+# falling back to search. See discover_sources_live for why this is capped.
+_DIRECT_GUESS_BUDGET_SHARE = 0.5
+
 
 def _strip_tags(html: str) -> str:
     return re.sub(r"<[^>]+>", " ", html)
@@ -600,6 +604,12 @@ def extract_pdf_attributes(pdf_bytes: bytes, max_attributes: int = 20) -> tuple[
 
 
 _SERPER_SEARCH_URL = "https://google.serper.dev/search"
+
+
+def search_is_configured() -> bool:
+    """Whether the search fallback can actually run (SERPER_API_KEY present)."""
+    import os
+    return bool(os.getenv("SERPER_API_KEY", "").strip())
 
 
 def search_manufacturer(part_number: str, description: str = "", timeout: float = 8.0) -> tuple[str, str] | None:
@@ -798,7 +808,28 @@ def discover_sources_live(
     """
     result = SourceDiscoveryResult(manufacturer=manufacturer, part_number=part_number, discovery_mode="live")
     result.search_queries = build_search_queries(manufacturer, part_number)
+
+    # Two strategies compete for the same budget, and they are not equally
+    # likely to pay off. Guessing /product/{sku} style URLs is free but only
+    # works when a manufacturer happens to use one of those shapes — Unilog's
+    # own worked example sits at /en/p/owner-center/product-support/{sku},
+    # which no pattern list would guess. Search finds the real URL whatever
+    # its shape.
+    #
+    # A manufacturer registered with three domains produces twelve guesses,
+    # which is enough to consume the whole budget and starve the fallback
+    # that was more likely to succeed. So direct guessing gets a share, not
+    # the lot.
+    #
+    # Reserving that share only makes sense when search can actually run.
+    # With no SERPER_API_KEY the fallback is inert, so capping direct
+    # guessing would surrender budget to a path that will do nothing —
+    # measured at 24% -> 19% on real rows before this condition was added.
     deadline = time.monotonic() + budget_seconds if budget_seconds else None
+    if budget_seconds and search_is_configured():
+        direct_deadline = time.monotonic() + budget_seconds * _DIRECT_GUESS_BUDGET_SHARE
+    else:
+        direct_deadline = deadline
 
     headers = {"User-Agent": _LIVE_FETCH_USER_AGENT}
     clean_pn = part_number.strip()
@@ -813,7 +844,8 @@ def discover_sources_live(
     if domains:
         candidates = prioritise_candidates(build_direct_urls(manufacturer, part_number))
         verified = _fetch_and_verify(
-            candidates, manufacturer, part_number, pn_variants, headers, timeout, result, deadline,
+            candidates, manufacturer, part_number, pn_variants, headers, timeout, result,
+            direct_deadline,
         )
         if verified:
             return result
