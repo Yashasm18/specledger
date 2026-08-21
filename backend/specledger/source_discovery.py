@@ -113,7 +113,14 @@ MANUFACTURER_DOMAINS: dict[str, list[str]] = {
     "Freud Inc": ["freudtools.com", "diablotools.com"],
     "3M": ["3m.com"],
     "3 M Co": ["3m.com"],
-    "Jam Industrial Supply LLC": ["3m.com", "jamindustrialsupply.com"],
+    # A distributor, not a manufacturer. Mapping the name to 3M is what makes
+    # "Jam Industrial Supply LLC (JAMIN)" on a 3M part resolvable at all — but
+    # their own domain must not be listed as authoritative. Search only accepts
+    # a hit whose domain appears here, so including it let a real manufacturer
+    # resolve *down* to its distributor: a live sweep produced
+    # "3 M Co -> Jam Industrial Supply LLC", the exact inversion this pipeline
+    # exists to correct. Matches how Appliance Dealers Cooperative is handled.
+    "Jam Industrial Supply LLC": ["3m.com"],
     "Mirka Abrasives Inc": ["mirka.com"],
     "Milwaukee Accessory": ["milwaukeetool.com"],
     "Milwaukee": ["milwaukeetool.com"],

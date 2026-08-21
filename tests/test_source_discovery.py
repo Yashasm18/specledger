@@ -321,3 +321,41 @@ class CandidatePrioritisationTests(unittest.TestCase):
             "https://a.com/product/x1",
         ])
         self.assertEqual(ordered[0], "https://a.com/product/x1")
+
+
+class RegistryAuthorityTests(unittest.TestCase):
+    """The registry decides what counts as an authoritative source.
+
+    A distributor's own domain must never appear as a value: search only
+    accepts hits whose domain is registered, so listing one lets a real
+    manufacturer resolve *down* to its reseller — the inversion this whole
+    pipeline exists to correct. Distributor *names* are still valid keys,
+    mapping to the manufacturers they actually carry.
+    """
+
+    KNOWN_DISTRIBUTOR_DOMAINS = {
+        "jamindustrialsupply.com",
+        "appliancedealerscooperative.com",
+    }
+
+    def test_no_distributor_domain_is_treated_as_authoritative(self) -> None:
+        for name, domains in MANUFACTURER_DOMAINS.items():
+            for domain in domains:
+                self.assertNotIn(
+                    domain, self.KNOWN_DISTRIBUTOR_DOMAINS,
+                    f"{name!r} lists distributor domain {domain!r} as authoritative",
+                )
+
+    def test_no_blocked_marketplace_leaks_into_the_registry(self) -> None:
+        for name, domains in MANUFACTURER_DOMAINS.items():
+            for domain in domains:
+                self.assertFalse(
+                    is_blocked_source(f"https://{domain}/product/x"),
+                    f"{name!r} maps to blocked domain {domain!r}",
+                )
+
+    def test_distributor_names_still_map_to_real_manufacturers(self) -> None:
+        # The useful half of the mapping must survive: these names appear in
+        # the raw input and have to lead somewhere authoritative.
+        self.assertIn("3m.com", MANUFACTURER_DOMAINS["Jam Industrial Supply LLC"])
+        self.assertIn("frigidaire.com", MANUFACTURER_DOMAINS["Appliance Dealers Cooperative"])
