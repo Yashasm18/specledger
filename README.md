@@ -247,7 +247,7 @@ React + TypeScript + Vite, 7 workspace views: Overview, Catalogue, Human Review,
 | `SPECLEDGER_API_KEY` | Backend | No | Gates `POST`/`PATCH` `/catalogue/*` endpoints behind an `X-API-Key` header. Unset → the check is a no-op (local dev/CI only; always set in the deployed instance). |
 | `SERPER_API_KEY` | Backend | No | Enables `live_fetch`'s real web-search fallback via [Serper.dev](https://serper.dev). Unset → search fallback is skipped, direct-domain fetching still works. |
 | `GEMINI_API_KEY` | Backend | No | Enables the opt-in LLM tier for rows the deterministic classifier leaves unresolved. Unset → `ai_assist=true` is a no-op and the pipeline is unchanged. |
-| `SPECLEDGER_LLM_MODEL` | Backend | No | Model for the LLM tier (default `gemini-2.0-flash`). |
+| `SPECLEDGER_LLM_MODEL` | Backend | No | Model for the LLM tier (default `gemini-3.6-flash`). |
 | `SPECLEDGER_LLM_BATCH_SIZE` | Backend | No | Products per LLM request (default 25). Higher = fewer calls. |
 | `SPECLEDGER_LLM_INPUT_RATE`, `SPECLEDGER_LLM_OUTPUT_RATE` | Backend | No | Per-million-token rates used to derive reported cost. Configuration, not measurement — token counts come from the API. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` | Backend | No | Object storage for extraction artifacts. Unset → falls back to local disk storage. |

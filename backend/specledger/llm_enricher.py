@@ -73,13 +73,16 @@ PROMPT_VERSION = "cls-v1"
 
 _ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 DEFAULT_BATCH_SIZE = 25
 DEFAULT_TIMEOUT_SECONDS = 30
 
-# Published per-million-token rates for the default model. These are
-# CONFIGURATION, not measurements — token counts are measured, the rate is
-# whatever the operator sets. Override when prices or models change.
+# Per-million-token rates used to derive reported cost. These are
+# CONFIGURATION, not measurements — token counts come from the API, the rate
+# is whatever the operator sets. Set them to your model's actual published
+# prices; the defaults are a placeholder order-of-magnitude for a flash-tier
+# model and are surfaced as "configured" rather than "measured" everywhere
+# they appear.
 DEFAULT_INPUT_RATE_PER_MTOK = 0.10
 DEFAULT_OUTPUT_RATE_PER_MTOK = 0.40
 
