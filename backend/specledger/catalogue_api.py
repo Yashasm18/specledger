@@ -587,30 +587,69 @@ def _overlay_live_review_state(
 
 
 @router.get("/batches/{batch_id}")
-def get_batch(batch_id: str, organization_id: str = Query(default="default")) -> dict[str, Any]:
-    """Retrieve a previously ingested batch with full enrichment and review state."""
+def get_batch(
+    batch_id: str,
+    organization_id: str = Query(default="default"),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    include_fields: bool = Query(
+        default=False,
+        description=(
+            "Include each row's per-field enrichment evidence. Off by default "
+            "because it is the bulk of the payload and list views don't read "
+            "it — per-field detail belongs to the single-row endpoint."
+        ),
+    ),
+) -> dict[str, Any]:
+    """Retrieve a batch's metadata and one page of its enriched rows.
+
+    Rows are paginated. Returning a whole batch inline does not survive real
+    catalogue sizes — the 1,000-row sample alone was a 767 KB, 11-second
+    response, and the target workload is 750,000 SKUs/month. `row_count` is
+    always the batch total; `returned_rows`/`offset`/`limit`/`has_more`
+    describe this page. Anything reporting a batch-wide figure must use
+    `row_count` or `review_summary`, never the length of `rows`.
+    """
     real_id = _resolve_batch_id(batch_id, organization_id)
     batch = catalogue_store.get_batch(organization_id, real_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    _attach_categories(batch.get("rows", []))
+    all_rows = batch.get("rows", [])
+    total_rows = len(all_rows)
+    # Copy the page: _attach_categories and the review-state overlay both
+    # mutate, and the in-memory store hands back its rows by reference.
+    page = [dict(row) for row in all_rows[offset:offset + limit]]
 
-    # Attach live review queue state if available
+    _attach_categories(page)
+
     queue = _get_review_queue(real_id, organization_id)
     if queue:
-        batch["review_summary"] = queue.get_batch_summary(real_id)
-        _overlay_live_review_state(
-            batch.get("rows", []), real_id, queue, _batch_results.get(real_id),
-        )
+        _overlay_live_review_state(page, real_id, queue, _batch_results.get(real_id))
 
-    # Attach processing metrics if available
+    # Drop the per-field evidence after categories are attached — the
+    # fallback path in _attach_categories reads it when raw_values is absent.
+    if not include_fields:
+        for row in page:
+            row.pop("fields", None)
+
+    response = {k: v for k, v in batch.items() if k != "rows"}
+    response["rows"] = page
+    response["row_count"] = batch.get("row_count", total_rows)
+    response["returned_rows"] = len(page)
+    response["offset"] = offset
+    response["limit"] = limit
+    response["has_more"] = offset + len(page) < total_rows
+
+    if queue:
+        response["review_summary"] = queue.get_batch_summary(real_id)
+
     result = _batch_results.get(real_id)
     if result:
-        batch["metrics"] = result.metrics.summary()
-        batch["cost"] = result.cost.summary()
+        response["metrics"] = result.metrics.summary()
+        response["cost"] = result.cost.summary()
 
-    return batch
+    return response
 
 
 @router.get("/batches/{batch_id}/rows/{row_number}")

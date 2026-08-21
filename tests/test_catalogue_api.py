@@ -91,8 +91,11 @@ class CatalogueApiTests(unittest.TestCase):
             assert "batch_id" in data
             assert data["verified_rate"] > 0.5
 
-            # Retrieve the batch
-            batch_response = self.client.get(f"/catalogue/batches/{data['batch_id']}")
+            # Retrieve the batch. Per-field evidence is opt-in — list
+            # responses omit it by default — and this asserts on it.
+            batch_response = self.client.get(
+                f"/catalogue/batches/{data['batch_id']}?include_fields=true"
+            )
             assert batch_response.status_code == 200
             batch = batch_response.json()
             assert len(batch["rows"]) == 2
@@ -336,6 +339,64 @@ class CatalogueApiTests(unittest.TestCase):
             assert res.status_code == 200
             data = res.json()
             assert data["review_state"] == "approved"
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_batch_rows_are_paginated_and_cover_every_row_once(self) -> None:
+        rows = [{"Manufacturer": "Parker Hannifin", "Part Number": f"V-{i}"} for i in range(12)]
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("paged.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            first = self.client.get(f"/catalogue/batches/{batch_id}?limit=5").json()
+            # row_count is the batch total; returned_rows is this page.
+            self.assertEqual(first["row_count"], 12)
+            self.assertEqual(first["returned_rows"], 5)
+            self.assertEqual(len(first["rows"]), 5)
+            self.assertTrue(first["has_more"])
+
+            seen: list[int] = []
+            offset = 0
+            while True:
+                page = self.client.get(
+                    f"/catalogue/batches/{batch_id}?limit=5&offset={offset}"
+                ).json()
+                seen.extend(r["row_number"] for r in page["rows"])
+                if not page["has_more"]:
+                    break
+                offset += 5
+
+            self.assertEqual(len(seen), 12)
+            self.assertEqual(len(set(seen)), 12, "pagination duplicated or skipped rows")
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_list_rows_omit_field_evidence_but_single_row_keeps_it(self) -> None:
+        # Per-field evidence is the bulk of the payload and list views don't
+        # read it, so it must not ride along on every row by default.
+        csv_path = self._make_csv([{"Manufacturer": "Parker Hannifin", "Part Number": "V-1"}])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("fields.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            listed = self.client.get(f"/catalogue/batches/{batch_id}").json()["rows"][0]
+            self.assertNotIn("fields", listed)
+            # The list view reads these instead, so they must survive.
+            self.assertIn("raw_values", listed)
+            self.assertIn("category", listed)
+
+            opted_in = self.client.get(
+                f"/catalogue/batches/{batch_id}?include_fields=true"
+            ).json()["rows"][0]
+            self.assertIn("fields", opted_in)
+
+            single = self.client.get(f"/catalogue/batches/{batch_id}/rows/2").json()
+            self.assertIn("fields", single)
         finally:
             csv_path.unlink(missing_ok=True)
 

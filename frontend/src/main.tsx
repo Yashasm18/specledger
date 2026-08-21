@@ -39,6 +39,10 @@ function findByRole(values: Record<string, string> | undefined, role: string): s
 // the bar the bulk-approve control advertises and must actually enforce.
 const BULK_APPROVE_CONFIDENCE = 0.8;
 
+// Rows fetched per page. The batch endpoint paginates because whole
+// catalogues do not fit in one response; totals come from row_count.
+const ROWS_PER_PAGE = 100;
+
 const ALL_252_UNILOG_HEADERS: string[] = [
   "MFR URL", "Ref URL 1", "Ref URL 2", "Ref URL 3", "Ref URL 4", "Ref URL 5",
   "PART_NUMBER", "Dept", "Class", "Fine", "SKU - MY_PART_NUMBER", "Mfg_Part_Num",
@@ -206,6 +210,8 @@ function App() {
   const [activeBatch, setActiveBatch] = useState<any>(null);
   const [batchList, setBatchList] = useState<any[]>([]);
   const [liveRows, setLiveRows] = useState<any[]>([]);
+  // Offset of the catalogue page currently loaded.
+  const [pageOffset, setPageOffset] = useState(0);
   // Distinguishes "still fetching the real batch" from "confirmed no batch
   // exists" — without this, the two are indistinguishable and the app
   // can't tell whether it's safe to show an empty state or must wait.
@@ -244,10 +250,11 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [liveFetchEnabled, setLiveFetchEnabled] = useState(false);
 
-  // Fetch active catalogue batches on mount
+  // Fetch on mount, and again whenever the catalogue page changes.
   useEffect(() => {
     fetchLatestBatch();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageOffset]);
 
   // Comprehensive Keyboard shortcut listener (Cmd/Ctrl + 1..7, Alphabet commands O, C, R, I, S, E, A, Escape)
   useEffect(() => {
@@ -330,7 +337,9 @@ function App() {
         setBatchList(data.batches || []);
         if (data.batches && data.batches.length > 0) {
           const latestId = data.batches[0].batch_id;
-          const batchRes = await fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}`);
+          const batchRes = await fetchWithRetry(
+            `${API_BASE}/catalogue/batches/${latestId}?limit=${ROWS_PER_PAGE}&offset=${pageOffset}`
+          );
           if (batchRes.ok) {
             const batch = await batchRes.json();
             setActiveBatch(batch);
@@ -807,10 +816,17 @@ function App() {
       })
     : [];
 
-  // How many of the rows actually rendered in this list carry the "Needs
-  // review" status — this labels the list's own filter chip, so it must count
-  // the same collection the filter applies to, not the review-queue page.
-  const needsReviewInList = displayRows.filter((r: any) => r[4] === "Needs review").length;
+  // Batch-wide totals. `rows` is one page, so anything describing the whole
+  // batch must come from row_count / review_summary — never rows.length.
+  const batchRowCount = activeBatch?.row_count ?? displayRows.length;
+  const rowOffset = activeBatch?.offset ?? 0;
+  const hasMoreRows = Boolean(activeBatch?.has_more);
+
+  // Prefer the server's batch-wide pending count; fall back to counting the
+  // loaded page only when no summary is available.
+  const needsReviewInList =
+    activeBatch?.review_summary?.pending_review
+    ?? displayRows.filter((r: any) => r[4] === "Needs review").length;
 
   // Filter rows by Category & Search
   const filteredRows = displayRows.filter((r: any) => {
@@ -859,7 +875,12 @@ function App() {
             <div className="table-head">
               <div>
                 <p className="eyebrow">COMMERCE CATALOGUE WORKSPACE</p>
-                <h3>Enriched Product Catalogue ({displayRows.length} SKUs)</h3>
+                <h3>Enriched Product Catalogue ({batchRowCount.toLocaleString()} SKUs)</h3>
+                {batchRowCount > displayRows.length && (
+                  <small style={{ color: "#64748b" }}>
+                    Showing rows {rowOffset + 1}–{rowOffset + displayRows.length} of {batchRowCount.toLocaleString()}.
+                  </small>
+                )}
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <button
@@ -892,7 +913,7 @@ function App() {
             {/* Category Filter Chips Bar */}
             <div className="category-filter-bar">
               <button className={`category-chip ${categoryFilter === "all" ? "active" : ""}`} onClick={() => setCategoryFilter("all")}>
-                All Categories ({displayRows.length})
+                All Categories ({batchRowCount.toLocaleString()})
               </button>
               <button className={`category-chip ${categoryFilter === "valves" ? "active" : ""}`} onClick={() => setCategoryFilter("valves")}>
                 Plumbing & Valves
@@ -913,7 +934,7 @@ function App() {
 
             <div className="filters" style={{ marginTop: 8 }}>
               <button className={`filter ${filterMode === "all" ? "active" : ""}`} onClick={() => setFilterMode("all")}>
-                All records <b>{displayRows.length}</b>
+                All records <b>{batchRowCount.toLocaleString()}</b>
               </button>
               <button className={`filter ${filterMode === "review" ? "active" : ""}`} onClick={() => setFilterMode("review")}>
                 Needs review <b>{needsReviewInList}</b>
@@ -980,6 +1001,46 @@ function App() {
                 </div>
               ))}
             </div>
+
+            {batchRowCount > ROWS_PER_PAGE && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, gap: 12 }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>
+                  Rows {(rowOffset + 1).toLocaleString()}–{(rowOffset + displayRows.length).toLocaleString()} of{" "}
+                  {batchRowCount.toLocaleString()}
+                  {filteredRows.length !== displayRows.length && (
+                    <> · {filteredRows.length} match the current filter on this page</>
+                  )}
+                </span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setPageOffset(Math.max(rowOffset - ROWS_PER_PAGE, 0))}
+                    disabled={rowOffset === 0 || isLoadingBatch}
+                    style={{
+                      background: rowOffset === 0 ? "#f1f5f9" : "#ffffff",
+                      color: rowOffset === 0 ? "#94a3b8" : "#0f172a",
+                      border: "1px solid #e2e8f0", borderRadius: 6,
+                      padding: "6px 14px", fontSize: 12, fontWeight: 600,
+                      cursor: rowOffset === 0 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    ← Previous
+                  </button>
+                  <button
+                    onClick={() => setPageOffset(rowOffset + ROWS_PER_PAGE)}
+                    disabled={!hasMoreRows || isLoadingBatch}
+                    style={{
+                      background: !hasMoreRows ? "#f1f5f9" : "#ffffff",
+                      color: !hasMoreRows ? "#94a3b8" : "#0f172a",
+                      border: "1px solid #e2e8f0", borderRadius: 6,
+                      padding: "6px 14px", fontSize: 12, fontWeight: 600,
+                      cursor: !hasMoreRows ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
         );
 
@@ -1283,7 +1344,7 @@ function App() {
             </div>
 
             <p style={{ fontSize: 12, color: "#64748b", marginTop: 14 }}>
-              Category breakdown of the active batch ({displayRows.length} SKUs), computed from the real deterministic classifier — not a fixed example set.
+              Category breakdown of the loaded page ({displayRows.length} of {batchRowCount.toLocaleString()} SKUs), computed from the real deterministic classifier — not a fixed example set.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 10 }}>
               {categoryBreakdown.length > 0 ? categoryBreakdown.map(([dept, info]) => (
@@ -2203,7 +2264,7 @@ function App() {
             onClick={() => setActiveTab("catalogue")}
             style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
           >
-            <span>Catalogue ({displayRows.length})</span>
+            <span>Catalogue ({batchRowCount.toLocaleString()})</span>
             <kbd>⌘ C</kbd>
           </a>
           <a
