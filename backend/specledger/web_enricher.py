@@ -124,15 +124,18 @@ def _extract_dimensions(desc: str) -> dict[str, str]:
     return dims
 
 
-def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
+def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, str, str, str]:
     """Infer (Dept, Class, Fine, Classpath) based on product description and manufacturer.
 
     Keyword matching runs against description + manufacturer combined —
     manufacturer-name keywords (e.g. "leviton", "mirka") are real, useful
     signal, but almost never appear inside the description text itself.
+
+    Either field may be absent in real catalogue data, so both are coerced
+    here rather than relying on every caller to guard them.
     """
-    desc_l = desc.lower()
-    mfr_l = manufacturer.lower()
+    desc_l = (desc or "").lower()
+    mfr_l = (manufacturer or "").lower()
     text = f"{desc_l} {mfr_l}"
 
     # 1. HVAC & Refrigeration
@@ -251,7 +254,7 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
     return "Industrial Supplies", "General Hardware", "Maintenance Products", "Industrial Supplies > Maintenance"
 
 
-def classify_category(desc: str, manufacturer: str) -> str:
+def classify_category(desc: str | None, manufacturer: str | None) -> str:
     """Public entry point for real, deterministic keyword-based taxonomy
     classification — same logic enrich_product_web() uses for the real CSV
     export, exposed here so other call sites (e.g. the catalogue list view)

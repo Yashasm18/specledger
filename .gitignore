@@ -47,3 +47,4 @@ PROJECT_STATUS_*
 *.avi
 *.mkv
 *.gif
+.claude/
