@@ -2,7 +2,9 @@
 
 import unittest
 
-from backend.specledger.web_enricher import classify_category, enrich_product_web
+from backend.specledger.web_enricher import (
+    classify_category, enrich_product_web, product_name_from_fine,
+)
 
 
 class TaxonomySignalPriorityTests(unittest.TestCase):
@@ -74,3 +76,32 @@ class DescriptionAssemblyTests(unittest.TestCase):
             "abc-123", "Parker Hannifin", "ABC-123 Brass Ball Valve",
         )
         self.assertEqual(res.mobile_desc.lower().count("abc-123"), 1, res.mobile_desc)
+
+
+class ProductNameTests(unittest.TestCase):
+    """Product Name is the product noun, not an identifier restatement.
+
+    Unilog's gold rows put "Dishwasher" here. We put
+    "Appliance Dealers Cooperative PDSH4816AF" — the manufacturer and the
+    part number, both of which already have their own columns, and neither
+    of which says what the thing is.
+    """
+
+    def test_singularises_a_simple_plural_category(self) -> None:
+        self.assertEqual(product_name_from_fine("Dishwashers"), "Dishwasher")
+        self.assertEqual(product_name_from_fine("Ball Valves"), "Ball Valve")
+
+    def test_handles_es_and_ies_plurals(self) -> None:
+        self.assertEqual(product_name_from_fine("Industrial Switches"), "Industrial Switch")
+        self.assertEqual(product_name_from_fine("Supplies"), "Supply")
+
+    def test_takes_the_first_alternative_of_a_compound_category(self) -> None:
+        # "Sanding Belts & Discs" names two things; the product is one of them.
+        self.assertEqual(product_name_from_fine("Sanding Belts & Discs"), "Sanding Belt")
+
+    def test_leaves_a_mass_noun_alone(self) -> None:
+        self.assertEqual(product_name_from_fine("Commercial Lighting"), "Commercial Lighting")
+
+    def test_empty_category_yields_empty_rather_than_a_guess(self) -> None:
+        self.assertEqual(product_name_from_fine(""), "")
+        self.assertEqual(product_name_from_fine(None), "")

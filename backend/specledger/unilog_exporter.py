@@ -21,7 +21,9 @@ from typing import Any, Mapping
 
 from .catalogue_ingestion import CatalogueBatch, clean_manufacturer_name
 from .enrichment import EnrichedBatch
-from .web_enricher import enrich_product_web, WebEnrichmentResult
+from .web_enricher import (
+    enrich_product_web, product_name_from_fine, WebEnrichmentResult,
+)
 
 
 UNILOG_252_HEADERS: list[str] = [
@@ -111,7 +113,10 @@ def row_to_unilog_dict(
     row['BRAND_NAME'] = brand
     row['TRADE_NAME'] = web_res.trade_name or f"{brand}®"
     row['MANUFACTURER_PART_NUMBER'] = pn
-    row['Product Name'] = f"{brand} {pn}"
+    # The product itself, not a restatement of two columns that already
+    # exist. Falls back to the old brand+part form only when the taxonomy
+    # could not name the product at all.
+    row['Product Name'] = product_name_from_fine(web_res.fine) or f"{brand} {pn}"
 
     # Classification
     row['Dept'] = web_res.dept or ""

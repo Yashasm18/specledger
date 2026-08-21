@@ -291,6 +291,35 @@ def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, st
     )
 
 
+def product_name_from_fine(fine: str | None) -> str:
+    """Derive the product noun from the finest taxonomy level.
+
+    Unilog's delivery format puts the product itself in "Product Name"
+    ("Dishwasher"). We were writing brand + part number there, which restates
+    two columns that already exist and never says what the item is. The
+    taxonomy leaf already names the product category, so singularise it.
+
+    Returns "" for an unknown category rather than inventing a noun.
+    """
+    if not fine:
+        return ""
+    # A compound leaf like "Sanding Belts & Discs" names two things; an
+    # individual product is one of them, so take the first.
+    head = fine.split("&")[0].strip()
+    if not head:
+        return ""
+    words = head.split()
+    last = words[-1]
+    if last.endswith("ies") and len(last) > 4:
+        last = last[:-3] + "y"
+    elif last.endswith("ses") or last.endswith("xes") or last.endswith("ches") \
+            or last.endswith("shes"):
+        last = last[:-2]
+    elif last.endswith("s") and not last.endswith("ss"):
+        last = last[:-1]
+    return " ".join(words[:-1] + [last])
+
+
 def classify_category(desc: str | None, manufacturer: str | None) -> str:
     """Public entry point for real, deterministic keyword-based taxonomy
     classification — same logic enrich_product_web() uses for the real CSV
