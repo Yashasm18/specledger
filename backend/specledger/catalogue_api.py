@@ -44,6 +44,7 @@ from .export import (
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
 from .unilog_exporter import row_to_unilog_dict
 from .web_enricher import classify_category
+from .llm_enricher import enrich_unresolved, is_llm_configured, needs_llm
 
 
 router = APIRouter(prefix="/catalogue", tags=["catalogue"])
@@ -337,6 +338,14 @@ async def ingest_catalogue(
         default=False,
         description="Discover sources via real HTTP fetches to manufacturer sites instead of templated candidates. Capped at 50 rows per request.",
     ),
+    ai_assist: bool = Query(
+        default=False,
+        description=(
+            "Run the LLM tier over rows the deterministic classifier left in "
+            "the generic bucket. Requires GEMINI_API_KEY; a no-op without it. "
+            "Suggestions are marked ai_inferred and always require human review."
+        ),
+    ),
 ) -> dict[str, Any]:
     """Upload a CSV/TSV/XLSX catalogue file, ingest, enrich, validate, and route."""
     filename = file.filename or "uploaded.csv"
@@ -395,6 +404,10 @@ async def ingest_catalogue(
         queue = route_batch_for_review(batch_id, enriched, validation)
         _review_queues[batch_id] = queue
 
+    # Optional LLM tier — runs after deterministic enrichment, only on its
+    # residue, and only when explicitly requested and configured.
+    llm_suggestions, llm_usage = _run_llm_tier(batch) if ai_assist else ({}, None)
+
     # Construct batch record
     batch_dict = {
         "batch_id": batch_id,
@@ -439,6 +452,17 @@ async def ingest_catalogue(
         ],
     }
 
+    # Attach AI suggestions to the rows they belong to. Stored alongside the
+    # deterministic result rather than replacing it, so both remain visible
+    # and the row still carries its rule-based classification.
+    if llm_suggestions:
+        for row_dict in batch_dict["rows"]:
+            suggestion = llm_suggestions.get(row_dict["row_number"])
+            if suggestion:
+                row_dict["llm_suggestion"] = suggestion.to_dict()
+    if llm_usage:
+        batch_dict["llm_usage"] = llm_usage
+
     # Save to persistence store
     catalogue_store.save_batch(batch_dict)
 
@@ -456,6 +480,40 @@ async def ingest_catalogue(
             "total_issues": validation.total_issues,
         },
     }
+
+
+def _run_llm_tier(
+    batch: CatalogueBatch,
+) -> tuple[dict[int, Any], dict[str, Any] | None]:
+    """Run the optional LLM tier over rows deterministic rules left generic.
+
+    Returns (suggestions_by_row_number, usage_summary). The deterministic
+    classifier runs first and keeps whatever it resolved; only its residue is
+    sent, so the LLM never overwrites a rule-based answer and never sees rows
+    the free path already handled.
+    """
+    if not is_llm_configured():
+        return {}, None
+
+    unresolved: list[dict[str, Any]] = []
+    for row in batch.rows:
+        vals = row.values
+        desc = vals.get("part_desc") or vals.get("description") or ""
+        mfr = vals.get("part_manuf") or vals.get("manufacturer") or ""
+        if not needs_llm(classify_category(desc, mfr)):
+            continue
+        unresolved.append({
+            "id": row.row_number,
+            "part_number": vals.get("mfg_part_num") or vals.get("part_number") or "",
+            "manufacturer": mfr,
+            "description": desc,
+        })
+
+    if not unresolved:
+        return {}, None
+
+    result = enrich_unresolved(unresolved)
+    return result.suggestions, result.usage.to_dict()
 
 
 def _unilog_args_from_raw(
@@ -487,7 +545,19 @@ def _attach_categories(rows: list[dict[str, Any]]) -> None:
         vals = row.get("raw_values") or {f["column"]: f["raw_value"] for f in row.get("fields", [])}
         desc = vals.get("part_desc") or vals.get("description") or ""
         mfr = vals.get("part_manuf") or vals.get("manufacturer") or ""
-        row["category"] = classify_category(desc, mfr)
+        deterministic = classify_category(desc, mfr)
+        row["category"] = deterministic
+        row["category_source"] = "deterministic"
+
+        # Where the rules produced only the generic bucket, surface the LLM's
+        # suggestion instead — flagged as AI-derived, never silently merged,
+        # and with the deterministic answer still available beside it.
+        suggestion = row.get("llm_suggestion")
+        if suggestion and needs_llm(deterministic):
+            row["category"] = suggestion["classpath"]
+            row["category_source"] = "ai_inferred"
+            row["category_deterministic"] = deterministic
+            row["category_confidence"] = suggestion.get("confidence")
 
 
 def _overlay_live_review_state(

@@ -339,6 +339,33 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_ingest_never_calls_the_llm_unless_explicitly_asked(self) -> None:
+        # The LLM tier is opt-in and billed. An ordinary ingest must not
+        # reach it, and asking for it without a key must stay a no-op rather
+        # than failing the upload.
+        from unittest.mock import patch
+
+        csv_path = self._make_csv([{"Manufacturer": "Generic", "Part Number": "X-1"}])
+        try:
+            with patch("backend.specledger.llm_enricher.requests.post") as post:
+                with csv_path.open("rb") as f:
+                    default_res = self.client.post(
+                        "/catalogue/ingest", files={"file": ("no_ai.csv", f, "text/csv")}
+                    )
+                self.assertEqual(default_res.status_code, 200)
+                self.assertEqual(post.call_count, 0)
+
+                with patch.dict("os.environ", {"GEMINI_API_KEY": ""}, clear=False):
+                    with csv_path.open("rb") as f:
+                        opted_in_res = self.client.post(
+                            "/catalogue/ingest?ai_assist=true",
+                            files={"file": ("ai_no_key.csv", f, "text/csv")},
+                        )
+                self.assertEqual(opted_in_res.status_code, 200)
+                self.assertEqual(post.call_count, 0)
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_row_review_state_agrees_with_review_summary(self) -> None:
         # review_state and review_summary are both derived from the routing
         # decision, so they must agree within a single response. They used to
