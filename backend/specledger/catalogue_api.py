@@ -882,11 +882,20 @@ def verify_row_live(
     if not part_number:
         raise HTTPException(status_code=422, detail="Row has no part number to verify")
 
+    # The raw field carries a distributor code, e.g.
+    # "Jam Industrial Supply LLC (JAMIN)". Compare against the cleaned name so
+    # stripping that code is not mistaken for resolving a different company.
+    cleaned_manufacturer = clean_manufacturer_name(raw_manufacturer) or raw_manufacturer
+
     started = time.perf_counter()
     discovery = discover_sources_live(
-        manufacturer=clean_manufacturer_name(raw_manufacturer) or raw_manufacturer,
+        manufacturer=cleaned_manufacturer,
         part_number=part_number,
         description=description,
+        # Interactive: report what was found within a bounded wait rather than
+        # trying every candidate at full timeout.
+        budget_seconds=20.0,
+        timeout=5.0,
     )
     elapsed = time.perf_counter() - started
 
@@ -910,8 +919,10 @@ def verify_row_live(
         "part_number": part_number,
         "input_manufacturer": raw_manufacturer,
         "resolved_manufacturer": resolved,
-        "manufacturer_was_corrected": bool(resolved and resolved.strip().casefold()
-                                           != raw_manufacturer.strip().casefold()),
+        "cleaned_manufacturer": cleaned_manufacturer,
+        "manufacturer_was_corrected": bool(
+            resolved and resolved.strip().casefold() != cleaned_manufacturer.strip().casefold()
+        ),
         "verified": bool(verified),
         "verified_source_count": len(verified),
         "sources": sources,

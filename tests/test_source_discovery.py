@@ -4,6 +4,7 @@ import unittest
 
 from backend.specledger.source_discovery import (
     is_blocked_source, extract_domain, is_manufacturer_domain, extract_match_snippet,
+    prioritise_candidates,
     classify_source_type, build_search_queries, build_direct_urls,
     discover_sources_simulated, discover_sources_batch,
     extract_pdf_attributes,
@@ -286,3 +287,37 @@ class MatchSnippetTests(unittest.TestCase):
         html = "<p>D1050 family. The exact model is D1050X here.</p>"
         snippet = extract_match_snippet(html, {"d1050", "d1050x"}, window=10)
         self.assertIn("D1050X", snippet)
+
+
+class CandidatePrioritisationTests(unittest.TestCase):
+    """Search endpoints can never verify, so they must not spend the budget."""
+
+    def test_search_urls_are_ordered_last(self) -> None:
+        candidates = [
+            "https://a.com/search?q=X1",
+            "https://a.com/product/x1",
+            "https://b.com/search?q=X1",
+            "https://b.com/products/x1",
+        ]
+        ordered = prioritise_candidates(candidates)
+        self.assertEqual(ordered[:2], ["https://a.com/product/x1", "https://b.com/products/x1"])
+        self.assertTrue(all("search" in u for u in ordered[2:]))
+
+    def test_every_candidate_is_kept(self) -> None:
+        candidates = build_direct_urls("Freud Inc", "D1050X")
+        self.assertCountEqual(prioritise_candidates(candidates), candidates)
+
+    def test_a_product_page_on_the_second_domain_outranks_a_search_url_on_the_first(self) -> None:
+        # This is the case that regressed: the real page lived on the second
+        # registered domain, behind two search URLs that could never verify.
+        ordered = prioritise_candidates(build_direct_urls("Freud Inc", "D1050X"))
+        first_search = next(i for i, u in enumerate(ordered) if "search" in u)
+        diablo_product = next(i for i, u in enumerate(ordered) if "diablotools" in u and "search" not in u)
+        self.assertLess(diablo_product, first_search)
+
+    def test_recognises_query_style_search_urls(self) -> None:
+        ordered = prioritise_candidates([
+            "https://a.com/find?query=X1",
+            "https://a.com/product/x1",
+        ])
+        self.assertEqual(ordered[0], "https://a.com/product/x1")

@@ -653,6 +653,23 @@ def search_manufacturer(part_number: str, description: str = "", timeout: float 
     return None
 
 
+def prioritise_candidates(candidates: list[str]) -> list[str]:
+    """Order candidate URLs so the ones that can actually verify come first.
+
+    A search-endpoint URL can never yield a VERIFIED source: the fetch logic
+    deliberately rejects pages that merely echo the query back, since that
+    proves the search box works rather than that the product exists. Trying
+    them ahead of product-page patterns spends the time budget on candidates
+    that are guaranteed to fail, which is how a part with a real product page
+    on the second registered domain ends up unverified.
+    """
+    def is_search(url: str) -> bool:
+        lowered = url.lower()
+        return "/search" in lowered or "q=" in lowered or "query=" in lowered
+
+    return [u for u in candidates if not is_search(u)] + [u for u in candidates if is_search(u)]
+
+
 def _fetch_and_verify(
     candidates: list[str],
     manufacturer: str,
@@ -661,13 +678,24 @@ def _fetch_and_verify(
     headers: dict[str, str],
     timeout: float,
     result: SourceDiscoveryResult,
+    deadline: float | None = None,
 ) -> bool:
     """Fetch each candidate URL, append real DiscoveredSource records to
     `result`, and return True as soon as one is genuinely VERIFIED (part
-    number found on a real, non-search page)."""
+    number found on a real, non-search page).
+
+    `deadline` is an absolute time.monotonic() budget. Without one, a
+    manufacturer with two registered domains produces eight candidates, and
+    eight unresponsive hosts at the full timeout each is over a minute of
+    waiting — unusable for anything interactive. Stopping at the budget
+    reports what was actually found by then rather than blocking the caller.
+    """
     import requests
 
     for url in candidates:
+        if deadline is not None and time.monotonic() >= deadline:
+            logger.info("Live fetch budget exhausted before trying %s", url)
+            break
         if is_blocked_source(url):
             result.blocked_urls.append(url)
             continue
@@ -759,6 +787,7 @@ def discover_sources_live(
     part_number: str,
     description: str = "",
     timeout: float = 6.0,
+    budget_seconds: float | None = None,
 ) -> SourceDiscoveryResult:
     """Discover sources via real HTTP requests to the manufacturer's own domain(s).
 
@@ -769,6 +798,7 @@ def discover_sources_live(
     """
     result = SourceDiscoveryResult(manufacturer=manufacturer, part_number=part_number, discovery_mode="live")
     result.search_queries = build_search_queries(manufacturer, part_number)
+    deadline = time.monotonic() + budget_seconds if budget_seconds else None
 
     headers = {"User-Agent": _LIVE_FETCH_USER_AGENT}
     clean_pn = part_number.strip()
@@ -781,10 +811,15 @@ def discover_sources_live(
 
     domains = MANUFACTURER_DOMAINS.get(manufacturer, [])
     if domains:
-        candidates = build_direct_urls(manufacturer, part_number)
-        verified = _fetch_and_verify(candidates, manufacturer, part_number, pn_variants, headers, timeout, result)
+        candidates = prioritise_candidates(build_direct_urls(manufacturer, part_number))
+        verified = _fetch_and_verify(
+            candidates, manufacturer, part_number, pn_variants, headers, timeout, result, deadline,
+        )
         if verified:
             return result
+
+    if deadline is not None and time.monotonic() >= deadline:
+        return result
 
     # Either the raw manufacturer/distributor field had no known domain, or
     # guessing standard URL patterns against it didn't turn up a verified
@@ -797,8 +832,10 @@ def discover_sources_live(
         return result
     resolved_name, search_hit_url = found
     result.resolved_manufacturer = resolved_name
-    search_candidates = [search_hit_url] + build_direct_urls(resolved_name, part_number)
-    _fetch_and_verify(search_candidates, manufacturer, part_number, pn_variants, headers, timeout, result)
+    search_candidates = [search_hit_url] + prioritise_candidates(build_direct_urls(resolved_name, part_number))
+    _fetch_and_verify(
+        search_candidates, manufacturer, part_number, pn_variants, headers, timeout, result, deadline,
+    )
     return result
 
 
