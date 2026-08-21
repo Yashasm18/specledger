@@ -140,6 +140,12 @@ Nothing in the enrichment path reads from a private or paywalled dataset. If you
 | Part number extraction | 100.0% (200/200) |
 | Material normalization | 94.50% (189/200) |
 
+**These numbers are reproducible on demand, not transcribed.** `POST /catalogue/batches/{batch_id}/benchmark` re-runs enrichment, validation, and 252-column synthesis over a batch's persisted raw values and returns the timings measured during that request, broken down per stage. The dashboard's "Run benchmark" button calls exactly that endpoint against whichever batch is loaded — including one you uploaded yourself — and displays nothing until a real run returns. Run it twice and the figures move, because they're measured rather than replayed:
+
+```bash
+curl -X POST https://specledger-production.up.railway.app/catalogue/batches/latest/benchmark
+```
+
 **Official 1,000-SKU challenge input**, deterministic pipeline, freshly measured (not a stale/hand-written figure):
 
 ```
