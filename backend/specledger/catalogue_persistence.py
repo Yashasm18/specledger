@@ -57,6 +57,18 @@ class InMemoryCatalogueStore(CatalogueStore):
     def save_batch(self, batch_data: dict[str, Any]) -> str:
         org_id = batch_data.get("organization_id", "default")
         batch_id = batch_data["batch_id"]
+        # PostgresCatalogueStore derives raw_values/enriched_values from the
+        # row's "fields" array on write and returns them on read. Readers
+        # (e.g. the review-queue rebuild) rely on that shape, so derive them
+        # here too rather than storing the input dict verbatim — otherwise
+        # the same code path works against Postgres and KeyErrors locally.
+        for row in batch_data.get("rows", []):
+            fields = row.get("fields", [])
+            row.setdefault("raw_values", {f["column"]: f["raw_value"] for f in fields})
+            row.setdefault(
+                "enriched_values", {f["column"]: f["canonical_value"] for f in fields}
+            )
+            row.setdefault("review_state", None)
         self._batches[(org_id, batch_id)] = batch_data
         return batch_id
 

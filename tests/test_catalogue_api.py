@@ -339,6 +339,50 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_rebuild_preserves_human_decisions_but_not_auto_routing(self) -> None:
+        # A queue rebuild (which happens whenever the process-local cache is
+        # lost, e.g. after a redeploy) must re-derive auto-routing from the
+        # current validation rules rather than replaying the state persisted
+        # at ingest time — otherwise a row that newer rules can auto-approve
+        # stays stranded in the pending queue forever. Real human decisions
+        # must still survive that rebuild.
+        from backend.specledger import catalogue_api
+
+        csv_path = self._make_csv([
+            {"Manufacturer": "UnknownMfg999", "Part Number": "V-100"},
+            {"Manufacturer": "UnknownMfg998", "Part Number": "V-200"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_res = self.client.post(
+                    "/catalogue/ingest", files={"file": ("rebuild_test.csv", f, "text/csv")}
+                )
+            batch_id = ingest_res.json()["batch_id"]
+
+            approve_res = self.client.post(
+                f"/catalogue/batches/{batch_id}/rows/2/review",
+                json={"action": "approve", "reviewer": "user@example.com"},
+            )
+            assert approve_res.status_code == 200
+
+            # Drop the process-local caches to force a rebuild from storage.
+            catalogue_api._review_queues.pop(batch_id, None)
+            catalogue_api._batch_results.pop(batch_id, None)
+
+            queue = catalogue_api._get_review_queue(batch_id)
+            assert queue is not None
+
+            # The human approval survived the rebuild.
+            assert queue.get_row(batch_id, 2).state.value == "approved"
+
+            # The untouched row was re-derived by the current rules, not
+            # restored from its persisted auto-routed state.
+            untouched = queue.get_row(batch_id, 3)
+            expected = "auto_approved" if untouched.validation.can_auto_approve else "pending_review"
+            assert untouched.state.value == expected
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},

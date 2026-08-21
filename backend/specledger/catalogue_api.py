@@ -147,6 +147,16 @@ def _resolve_batch_id(batch_id: str, organization_id: str = "default") -> str:
     return batch_id
 
 
+# Review states that record an actual human action, as opposed to the
+# states the routing algorithm assigns on its own. Only these survive a
+# queue rebuild — see _rebuild_review_queue().
+_HUMAN_DECISION_STATES = frozenset({
+    ReviewState.APPROVED.value,
+    ReviewState.REJECTED.value,
+    ReviewState.CORRECTED.value,
+})
+
+
 def _rebuild_review_queue(batch_id: str, organization_id: str = "default") -> ReviewQueue | None:
     """Rebuild the in-memory review queue for a batch from persisted Postgres
     state. `_review_queues`/`_batch_results` are process-local caches that
@@ -180,7 +190,14 @@ def _rebuild_review_queue(batch_id: str, organization_id: str = "default") -> Re
 
     for r in stored["rows"]:
         persisted_state = r.get("review_state")
-        if not persisted_state:
+        # Only a real human decision may override the freshly recomputed
+        # routing. "pending_review"/"auto_approved" are outputs of the
+        # routing algorithm, not decisions — replaying a persisted copy of
+        # them would freeze whatever validation logic was in effect at
+        # ingest time, so an improvement to the rules could never reach
+        # rows that were already stored (which is exactly what stranded
+        # auto-approvable rows in the pending queue).
+        if persisted_state not in _HUMAN_DECISION_STATES:
             continue
         reviewable = queue.get_row(batch_id, r["row_number"])
         if reviewable and reviewable.state.value != persisted_state:
