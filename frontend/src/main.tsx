@@ -1588,7 +1588,7 @@ function App() {
               <article>
                 <span>CATALOGUE HEALTH</span>
                 <strong>{isLoadingBatch ? "…" : `${Math.round(verifiedRate * 100)}`}<span className="percent">{isLoadingBatch ? "" : "%"}</span></strong>
-                <small className="up">{isLoadingBatch ? "Loading…" : "Validated fields in active batch"}</small>
+                <small className="up">{isLoadingBatch ? "Loading…" : activeBatch ? "Validated fields in active batch" : "No batch loaded"}</small>
               </article>
               <article>
                 <span>EVIDENCE COVERAGE</span>
