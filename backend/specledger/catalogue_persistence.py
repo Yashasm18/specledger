@@ -30,7 +30,17 @@ class CatalogueStore:
     def save_batch(self, batch_data: dict[str, Any]) -> str:
         raise NotImplementedError
 
-    def get_batch(self, organization_id: str, batch_id: str) -> dict[str, Any] | None:
+    def get_batch(
+        self, organization_id: str, batch_id: str,
+        row_limit: int | None = None, row_offset: int = 0,
+    ) -> dict[str, Any] | None:
+        """Fetch a batch. `row_limit=None` returns every row.
+
+        Callers that only render a page must pass row_limit so the rows are
+        never materialised in full — at catalogue scale, loading every row to
+        then slice it in Python is the actual bottleneck, not the response
+        size. "row_count" stays the true batch total either way.
+        """
         raise NotImplementedError
 
     def get_batch_row(self, organization_id: str, batch_id: str, row_number: int) -> dict[str, Any] | None:
@@ -72,8 +82,17 @@ class InMemoryCatalogueStore(CatalogueStore):
         self._batches[(org_id, batch_id)] = batch_data
         return batch_id
 
-    def get_batch(self, organization_id: str, batch_id: str) -> dict[str, Any] | None:
-        return self._batches.get((organization_id, batch_id))
+    def get_batch(
+        self, organization_id: str, batch_id: str,
+        row_limit: int | None = None, row_offset: int = 0,
+    ) -> dict[str, Any] | None:
+        batch = self._batches.get((organization_id, batch_id))
+        if batch is None or row_limit is None:
+            return batch
+        # Shallow-copy so slicing the page never mutates the stored batch.
+        paged = dict(batch)
+        paged["rows"] = batch.get("rows", [])[row_offset:row_offset + row_limit]
+        return paged
 
     def get_batch_row(self, organization_id: str, batch_id: str, row_number: int) -> dict[str, Any] | None:
         batch = self.get_batch(organization_id, batch_id)
@@ -192,7 +211,10 @@ class PostgresCatalogueStore(CatalogueStore):
         finally:
             conn.close()
 
-    def get_batch(self, organization_id: str, batch_id: str) -> dict[str, Any] | None:
+    def get_batch(
+        self, organization_id: str, batch_id: str,
+        row_limit: int | None = None, row_offset: int = 0,
+    ) -> dict[str, Any] | None:
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
@@ -208,15 +230,20 @@ class PostgresCatalogueStore(CatalogueStore):
                 if not batch_row:
                     return None
 
-                cur.execute(
-                    """
+                # Page in SQL rather than fetching every row and slicing in
+                # Python — the point of pagination is not transferring less,
+                # it is not loading the whole catalogue per request.
+                row_sql = """
                     SELECT row_number, source_fingerprint, raw_values, enriched_values, overall_status, overall_confidence, review_state, reviewed_by, reviewed_at
                     FROM catalogue_rows
                     WHERE organization_id = %s AND batch_id = %s
                     ORDER BY row_number
-                    """,
-                    (organization_id, batch_id),
-                )
+                """
+                params: list[Any] = [organization_id, batch_id]
+                if row_limit is not None:
+                    row_sql += " LIMIT %s OFFSET %s"
+                    params.extend([row_limit, row_offset])
+                cur.execute(row_sql, tuple(params))
                 rows = cur.fetchall()
 
                 return {

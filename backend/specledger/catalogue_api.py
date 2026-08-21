@@ -611,15 +611,20 @@ def get_batch(
     `row_count` or `review_summary`, never the length of `rows`.
     """
     real_id = _resolve_batch_id(batch_id, organization_id)
-    batch = catalogue_store.get_batch(organization_id, real_id)
+    # Push the page down to the store so only these rows are ever loaded —
+    # slicing after fetching everything defeats the purpose at scale.
+    batch = catalogue_store.get_batch(
+        organization_id, real_id, row_limit=limit, row_offset=offset,
+    )
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    all_rows = batch.get("rows", [])
-    total_rows = len(all_rows)
+    # row_count comes from the batch record, so it stays the true total even
+    # though only one page of rows was fetched.
+    total_rows = batch.get("row_count", 0)
     # Copy the page: _attach_categories and the review-state overlay both
     # mutate, and the in-memory store hands back its rows by reference.
-    page = [dict(row) for row in all_rows[offset:offset + limit]]
+    page = [dict(row) for row in batch.get("rows", [])]
 
     _attach_categories(page)
 
