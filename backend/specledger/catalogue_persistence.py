@@ -183,11 +183,12 @@ class PostgresCatalogueStore(CatalogueStore):
                     cur.execute(
                         """
                         INSERT INTO catalogue_batches
-                            (organization_id, batch_id, source_name, source_fingerprint, column_list, row_count, verified_rate)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            (organization_id, batch_id, source_name, source_fingerprint, column_list, row_count, verified_rate, llm_usage)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (organization_id, batch_id) DO UPDATE SET
                             verified_rate = EXCLUDED.verified_rate,
-                            row_count = EXCLUDED.row_count
+                            row_count = EXCLUDED.row_count,
+                            llm_usage = EXCLUDED.llm_usage
                         """,
                         (
                             org_id,
@@ -197,6 +198,7 @@ class PostgresCatalogueStore(CatalogueStore):
                             json.dumps(batch_data.get("columns", [])),
                             batch_data["row_count"],
                             batch_data.get("verified_rate", 0.0),
+                            json.dumps(batch_data["llm_usage"]) if batch_data.get("llm_usage") else None,
                         ),
                     )
 
@@ -207,13 +209,14 @@ class PostgresCatalogueStore(CatalogueStore):
                         cur.execute(
                             """
                             INSERT INTO catalogue_rows
-                                (organization_id, batch_id, row_number, source_fingerprint, raw_values, enriched_values, overall_status, overall_confidence, review_state)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                (organization_id, batch_id, row_number, source_fingerprint, raw_values, enriched_values, overall_status, overall_confidence, review_state, llm_suggestion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (organization_id, batch_id, row_number) DO UPDATE SET
                                 enriched_values = EXCLUDED.enriched_values,
                                 overall_status = EXCLUDED.overall_status,
                                 overall_confidence = EXCLUDED.overall_confidence,
-                                review_state = EXCLUDED.review_state
+                                review_state = EXCLUDED.review_state,
+                                llm_suggestion = EXCLUDED.llm_suggestion
                             """,
                             (
                                 org_id,
@@ -225,6 +228,7 @@ class PostgresCatalogueStore(CatalogueStore):
                                 row.get("overall_status", "review_required"),
                                 row.get("overall_confidence", 0.0),
                                 row.get("review_state", "pending_review"),
+                                json.dumps(row["llm_suggestion"]) if row.get("llm_suggestion") else None,
                             ),
                         )
             return batch_id
@@ -240,7 +244,7 @@ class PostgresCatalogueStore(CatalogueStore):
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT batch_id, source_name, column_list, row_count, verified_rate, ingested_at
+                    SELECT batch_id, source_name, column_list, row_count, verified_rate, ingested_at, llm_usage
                     FROM catalogue_batches
                     WHERE organization_id = %s AND batch_id = %s
                     """,
@@ -254,7 +258,7 @@ class PostgresCatalogueStore(CatalogueStore):
                 # Python — the point of pagination is not transferring less,
                 # it is not loading the whole catalogue per request.
                 row_sql = """
-                    SELECT row_number, source_fingerprint, raw_values, enriched_values, overall_status, overall_confidence, review_state, reviewed_by, reviewed_at
+                    SELECT row_number, source_fingerprint, raw_values, enriched_values, overall_status, overall_confidence, review_state, reviewed_by, reviewed_at, llm_suggestion
                     FROM catalogue_rows
                     WHERE organization_id = %s AND batch_id = %s
                     ORDER BY row_number
@@ -266,7 +270,14 @@ class PostgresCatalogueStore(CatalogueStore):
                 cur.execute(row_sql, tuple(params))
                 rows = cur.fetchall()
 
-                return {
+                def _json(value: Any) -> Any:
+                    """psycopg returns JSONB already decoded on some paths and
+                    as text on others; accept either, and pass None through."""
+                    if value is None or isinstance(value, (dict, list)):
+                        return value
+                    return json.loads(value)
+
+                result: dict[str, Any] = {
                     "batch_id": batch_row[0],
                     "organization_id": organization_id,
                     "source_name": batch_row[1],
@@ -278,17 +289,22 @@ class PostgresCatalogueStore(CatalogueStore):
                         {
                             "row_number": r[0],
                             "source_fingerprint": r[1],
-                            "raw_values": r[2] if isinstance(r[2], dict) else json.loads(r[2]),
-                            "enriched_values": r[3] if isinstance(r[3], dict) else json.loads(r[3]),
+                            "raw_values": _json(r[2]) or {},
+                            "enriched_values": _json(r[3]) or {},
                             "overall_status": r[4],
                             "overall_confidence": r[5],
                             "review_state": r[6],
                             "reviewed_by": r[7],
                             "reviewed_at": str(r[8]) if r[8] else None,
+                            **({"llm_suggestion": _json(r[9])} if r[9] is not None else {}),
                         }
                         for r in rows
                     ],
                 }
+                batch_llm_usage = _json(batch_row[6])
+                if batch_llm_usage is not None:
+                    result["llm_usage"] = batch_llm_usage
+                return result
         finally:
             self._release(conn)
 
