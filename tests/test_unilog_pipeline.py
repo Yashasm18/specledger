@@ -6,7 +6,7 @@ import pytest
 
 from backend.specledger.catalogue_ingestion import read_catalogue, clean_manufacturer_name
 from backend.specledger.source_discovery import is_blocked_source, discover_sources_simulated
-from backend.specledger.web_enricher import enrich_product_web, WebEnrichmentResult
+from backend.specledger.web_enricher import enrich_product_web, WebEnrichmentResult, classify_category
 from backend.specledger.unilog_exporter import export_unilog_csv, UNILOG_252_HEADERS
 from backend.specledger.enrichment import enrich_batch
 
@@ -102,3 +102,14 @@ def test_unilog_252_exporter():
     assert reader[0][0] == "MFR URL"
     assert reader[0][6] == "PART_NUMBER"
     assert reader[0][251] == "Actual Image (Yes/No)"
+
+
+def test_classify_category_is_real_not_uncategorized():
+    # The raw 6-column input never has a category column, so this is the
+    # only real classification available for the catalogue list view.
+    assert classify_category("1/2 in Ball Valve 600 PSI", "Apollo Valves") == \
+        "Plumbing & Industrial Piping > Industrial Valves & Fittings > Ball Valves"
+    assert classify_category("20A Industrial Rocker Switch", "Leviton") == \
+        "Electrical Supplies > Wiring Devices & Distribution > Industrial Switches & Receptacles"
+    # Unknown/unmatched descriptions get a real (if generic) bucket, not a crash.
+    assert classify_category("", "") == "Industrial Supplies > Maintenance"

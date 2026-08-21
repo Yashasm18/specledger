@@ -677,7 +677,11 @@ function App() {
         const skuField = findByRole(values, "part_number") || `ROW-${r.row_number}`;
         const descField = findByRole(values, "description") || "Uncategorized product";
         const mfrField = findByRole(values, "manufacturer") || findByRole(values, "brand") || "Unknown manufacturer";
-        const catField = findByRole(values, "category") || "Uncategorized";
+        // The raw 6-column input never has a category column, so role
+        // detection alone always resolves to "Uncategorized" — the backend
+        // computes a real classpath from the description (r.category) and
+        // this falls back to it before giving up.
+        const catField = findByRole(values, "category") || r.category || "Uncategorized";
         const status = r.overall_status === "verified" || r.overall_status === "approved" || r.review_state === "approved" ? "Ready" : "Needs review";
         const quality = `${Math.round((r.overall_confidence ?? 0.5) * 100)}% verified`;
         return [skuField, `${descField}`, mfrField, catField, status, quality, r];
@@ -1049,7 +1053,23 @@ function App() {
           </section>
         );
 
-      case "schemas":
+      case "schemas": {
+        // Real per-category breakdown of the active batch — grouped by the
+        // same classify_category() classpath shown in the catalogue table,
+        // not a fixed set of example categories shown regardless of what's
+        // actually in the batch.
+        const categoryBreakdown = (() => {
+          const counts = new Map<string, { count: number; sample: Set<string> }>();
+          for (const r of displayRows as any[]) {
+            const dept = (r[3] || "Uncategorized").split(" > ")[0];
+            if (!counts.has(dept)) counts.set(dept, { count: 0, sample: new Set() });
+            const entry = counts.get(dept)!;
+            entry.count += 1;
+            if (entry.sample.size < 3 && r[2]) entry.sample.add(r[2]);
+          }
+          return [...counts.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+        })();
+
         return (
           <section className="section-card" style={{ marginTop: 0 }}>
             <div className="table-head">
@@ -1076,80 +1096,47 @@ function App() {
               </div>
             </div>
 
-            {/* Standards Compliance Badges */}
+            {/* Standards actually implemented and exportable — dropped
+                UNSPSC/GTIN and ISO 8000 badges: those columns exist in the
+                252-column template but are never populated by this
+                pipeline, so claiming "ready"/"compliant" would be false. */}
             <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               <span style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, border: "1px solid rgba(56, 189, 248, 0.3)" }}>
-                ✓ schema.org / Product & PropertyValue Compliant
+                ✓ schema.org / Product & PropertyValue export
               </span>
               <span style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399", padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-                ✓ Unilog CX1 252-Column PIM Specification
-              </span>
-              <span style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, border: "1px solid rgba(245, 158, 11, 0.3)" }}>
-                ✓ UNSPSC & GS1/GTIN Identifier Ready
-              </span>
-              <span style={{ background: "rgba(168, 85, 247, 0.15)", color: "#c084fc", padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 700, border: "1px solid rgba(168, 85, 247, 0.3)" }}>
-                ✓ ISO 8000 Data Lineage Standard
+                ✓ Unilog CX1 252-column PIM specification
               </span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 20 }}>
-              <div style={{ background: "rgba(255,255,255,0.03)", padding: 18, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
-                <h4 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Industrial Valves & Actuators</h4>
-                <p style={{ fontSize: 11, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
-                  Attributes: Size (DN/NPT), Pressure Rating (Class/PSI), Body Material, Connection Type, Flow Direction, UOM.
-                </p>
-                <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>✓ LOV Material mapping active (Apollo, Parker, Victaulic)</small>
-                <button
-                  className="export-btn"
-                  style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
-                  onClick={() => downloadJson({ schema: "Industrial Valves", version: "1.0", standard: "schema.org/Product", fields: ["Size", "Pressure_Rating", "Material", "Connection", "UOM"] }, "Valve_Schema.json")}
-                >
-                  <DownloadIcon size={11} />
-                  Download Schema JSON
-                </button>
-              </div>
-
-              <div style={{ background: "rgba(255,255,255,0.03)", padding: 18, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
-                <h4 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Abrasives & Sanding Media</h4>
-                <p style={{ fontSize: 11, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
-                  Attributes: Grit Size (P-Grade), Diameter, Hole Pattern, Backing Material (Film/Paper/Cloth), Grain Type (Ceramic/Alumina).
-                </p>
-                <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>✓ Multi-brand schema active (Freud, Mirka, 3M)</small>
-                <button
-                  className="export-btn"
-                  style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
-                  onClick={() => downloadJson({ schema: "Abrasives & Sanding Media", version: "1.0", standard: "schema.org/Product", fields: ["Grit_Size", "Diameter", "Backing_Material", "Grain_Type", "Hole_Pattern"] }, "Abrasives_Schema.json")}
-                >
-                  <DownloadIcon size={11} />
-                  Download Schema JSON
-                </button>
-              </div>
-
-              <div style={{ background: "rgba(255,255,255,0.03)", padding: 18, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
-                <h4 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Power Tools & Machinery</h4>
-                <p style={{ fontSize: 11, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
-                  Attributes: Voltage (18V/20V/120V), Amp-Hours (Ah), Motor Type (Brushless), Chuck Size, Max RPM, Weight.
-                </p>
-                <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>✓ Tool telemetry active (Milwaukee, DeWalt, Makita)</small>
-                <button
-                  className="export-btn"
-                  style={{ marginTop: 12, width: "100%", justifyContent: "center" }}
-                  onClick={() => downloadJson({ schema: "Power Tools & Machinery", version: "1.0", standard: "schema.org/Product", fields: ["Voltage", "Amp_Hours", "Motor_Type", "Chuck_Size", "Max_RPM", "Weight"] }, "PowerTools_Schema.json")}
-                >
-                  <DownloadIcon size={11} />
-                  Download Schema JSON
-                </button>
-              </div>
+            <p style={{ fontSize: 12, color: "#64748b", marginTop: 14 }}>
+              Category breakdown of the active batch ({displayRows.length} SKUs), computed from the real deterministic classifier — not a fixed example set.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 10 }}>
+              {categoryBreakdown.length > 0 ? categoryBreakdown.map(([dept, info]) => (
+                <div key={dept} style={{ background: "rgba(255,255,255,0.03)", padding: 18, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <h4 style={{ margin: "0 0 8px 0", fontSize: 14 }}>{dept}</h4>
+                  <p style={{ fontSize: 11, color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
+                    {info.count} SKU{info.count !== 1 ? "s" : ""} in this batch
+                  </p>
+                  <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>
+                    {info.sample.size > 0 ? `Manufacturers: ${[...info.sample].join(", ")}` : "No manufacturer data"}
+                  </small>
+                </div>
+              )) : (
+                <div className="empty-review" style={{ gridColumn: "1 / -1" }}>No batch loaded — ingest a catalogue to see its real category breakdown.</div>
+              )}
             </div>
 
             <div style={{ marginTop: 24, padding: 18, background: "#1e293b", color: "#f8fafc", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}>
-              <h4 style={{ margin: "0 0 8px 0", fontSize: 13, color: "#38bdf8" }}>Dual Schema Governance: Unilog 252-Column PIM Specification + schema.org / Product JSON-LD</h4>
+              <h4 style={{ margin: "0 0 8px 0", fontSize: 13, color: "#38bdf8" }}>Dual schema governance: Unilog 252-column PIM specification + schema.org / Product JSON-LD</h4>
               <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6, margin: 0 }}>
-                SpecLedger bridges enterprise PIM delivery standards (Unilog CX1 252-column template with 6 description tiers, 20 feature bullets, and 50 attribute triplets) and open-web e-commerce structured data standards (schema.org/Product, Brand, Organization, and PropertyValue with ISO UOM codes) ensuring 100% interoperability.
+                SpecLedger exports to both the enterprise PIM delivery template (Unilog CX1 252-column format) and the open-web schema.org/Product structured-data standard from the same underlying enriched record — see <a href="https://schema.org/Product" target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>schema.org/Product</a> for the target vocabulary.
               </p>
             </div>
           </section>
         );
+      }
 
       case "evidence":
         return (
@@ -1498,7 +1485,7 @@ function App() {
   const inspectedSku = findByRole(inspectorValues, "part_number") || inspectorProduct?.[0] || "VLV-600-050";
   const inspectedDesc = findByRole(inspectorValues, "description") || inspectorProduct?.[1] || "Ball Valve · DN50 Full Port Stainless Steel";
   const inspectedMfr = findByRole(inspectorValues, "manufacturer") || findByRole(inspectorValues, "brand") || inspectorProduct?.[2] || "Apollo Valves";
-  const inspectedCat = findByRole(inspectorValues, "category") || inspectorProduct?.[3] || "Industrial Valves";
+  const inspectedCat = unilog252?.Classpath || findByRole(inspectorValues, "category") || inspectorProduct?.category || inspectorProduct?.[3] || "Uncategorized";
   const inspectedTriplets = getProductTriplets(unilog252);
   const filteredTriplets = inspectedTriplets.filter(t => 
     !tripletSearch || t.label.toLowerCase().includes(tripletSearch.toLowerCase()) || t.value.toLowerCase().includes(tripletSearch.toLowerCase())

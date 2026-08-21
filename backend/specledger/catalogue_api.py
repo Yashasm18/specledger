@@ -42,6 +42,7 @@ from .export import (
 )
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
 from .unilog_exporter import row_to_unilog_dict
+from .web_enricher import classify_category
 
 
 router = APIRouter(prefix="/catalogue", tags=["catalogue"])
@@ -439,6 +440,20 @@ async def ingest_catalogue(
     }
 
 
+def _attach_categories(rows: list[dict[str, Any]]) -> None:
+    """Inject a real, deterministic classpath into each row (mutates in
+    place) — the raw 6-column input never has a category column, so
+    findByRole-style role detection alone always resolves to "Uncategorized".
+    classify_category() is the same keyword-based logic used for the real
+    252-column export, just applied here without needing that full record.
+    """
+    for row in rows:
+        vals = row.get("raw_values") or {f["column"]: f["raw_value"] for f in row.get("fields", [])}
+        desc = vals.get("part_desc") or vals.get("description") or ""
+        mfr = vals.get("part_manuf") or vals.get("manufacturer") or ""
+        row["category"] = classify_category(desc, mfr)
+
+
 @router.get("/batches/{batch_id}")
 def get_batch(batch_id: str, organization_id: str = Query(default="default")) -> dict[str, Any]:
     """Retrieve a previously ingested batch with full enrichment and review state."""
@@ -446,6 +461,8 @@ def get_batch(batch_id: str, organization_id: str = Query(default="default")) ->
     batch = catalogue_store.get_batch(organization_id, real_id)
     if batch is None:
         raise HTTPException(status_code=404, detail="Batch not found")
+
+    _attach_categories(batch.get("rows", []))
 
     # Attach live review queue state if available
     queue = _get_review_queue(real_id, organization_id)
@@ -470,6 +487,7 @@ def get_batch_row(batch_id: str, row_number: int, organization_id: str = Query(d
         raise HTTPException(status_code=404, detail="Batch not found")
     for row in batch["rows"]:
         if row["row_number"] == row_number:
+            _attach_categories([row])
             queue = _get_review_queue(real_id, organization_id)
             if queue:
                 reviewable = queue.get_row(real_id, row_number)

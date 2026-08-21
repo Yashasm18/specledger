@@ -125,12 +125,18 @@ def _extract_dimensions(desc: str) -> dict[str, str]:
 
 
 def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
-    """Infer (Dept, Class, Fine, Classpath) based on product description and manufacturer."""
+    """Infer (Dept, Class, Fine, Classpath) based on product description and manufacturer.
+
+    Keyword matching runs against description + manufacturer combined —
+    manufacturer-name keywords (e.g. "leviton", "mirka") are real, useful
+    signal, but almost never appear inside the description text itself.
+    """
     desc_l = desc.lower()
     mfr_l = manufacturer.lower()
+    text = f"{desc_l} {mfr_l}"
 
     # 1. HVAC & Refrigeration
-    if any(kw in desc_l for kw in ("water heater", "heat pump", "furnace", "boiler", "compressor", "refrigerant", "hvac", "thermostat", "air conditioner", "condenser", "rheem", "carrier", "trane", "lennox")):
+    if any(kw in text for kw in ("water heater", "heat pump", "furnace", "boiler", "compressor", "refrigerant", "hvac", "thermostat", "air conditioner", "condenser", "rheem", "carrier", "trane", "lennox")):
         dept = "HVAC & Commercial Heating"
         cls = "Water Heaters & HVAC"
         fine = "Commercial Water Heating" if "water heater" in desc_l else "Heating & Cooling Systems"
@@ -138,39 +144,41 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
         return dept, cls, fine, path
 
     # 2. Plumbing & Flow Control
-    if any(kw in desc_l for kw in ("valve", "ball valve", "check valve", "butterfly valve", "gate valve", "pipe fitting", "faucet", "coupling", "flange", "drain", "trap", "backflow")):
+    if any(kw in text for kw in ("valve", "ball valve", "check valve", "butterfly valve", "gate valve", "pipe fitting", "faucet", "coupling", "flange", "drain", "trap", "backflow")):
         dept = "Plumbing & Flow Control"
         cls = "Industrial Valves & Fittings"
         fine = "Ball Valves" if "ball" in desc_l else ("Check Valves" if "check" in desc_l else "Valves & Actuators")
         path = f"Plumbing & Industrial Piping > {cls} > {fine}"
         return dept, cls, fine, path
 
-    # 3. Electrical & Power Distribution
-    if any(kw in desc_l for kw in ("breaker", "panelboard", "switch", "receptacle", "enclosure", "transformer", "conduit", "relay", "starter", "leviton", "eaton", "schneider", "square d")):
-        dept = "Electrical & Automation"
-        cls = "Wiring Devices & Distribution"
-        fine = "Industrial Switches & Receptacles" if any(k in desc_l for k in ("switch", "receptacle")) else "Circuit Protection"
-        path = f"Electrical Supplies > {cls} > {fine}"
-        return dept, cls, fine, path
-
-    # 4. Major Appliances & Residential Equipment
-    if any(kw in desc_l for kw in ("dishwasher", "dryer", "washer", "laundry", "refrigerator", "oven", "range", "heater kit", "frigidaire", "whirlpool", "maytag")):
-        dept = "Appliances"
-        cls = "Large Appliances"
-        fine = "Dishwashers" if "dishwasher" in desc_l else ("Dryers & Washers" if any(k in desc_l for k in ("dryer", "washer")) else "Major Appliances")
-        path = f"Appliances & Consumer Electronics > Kitchen Appliances > {fine}"
-        return dept, cls, fine, path
-
-    # 5. Abrasives & Sanding Media
-    if any(kw in desc_l for kw in ("sanding belt", "cut-off disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "sandpaper", "freud", "mirka", "3m")):
+    # 3. Abrasives & Sanding Media (checked ahead of Electrical/Tools since
+    # e.g. Milwaukee-brand cut-off discs are abrasive accessories, not the
+    # power tools branch a bare manufacturer-name match would suggest)
+    if any(kw in text for kw in ("sanding belt", "cut-off disc", "cut off disc", "cutoff disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "abrasives", "sandpaper", "stikit", "cubitron", "hiolit", "freud", "mirka", "diablo")):
         dept = "Abrasives & Cutting Tools"
         cls = "Abrasives"
         fine = "Sanding Belts & Discs" if "belt" in desc_l or "disc" in desc_l else "Coated Abrasives"
         path = f"Industrial Supplies > Abrasives > {fine}"
         return dept, cls, fine, path
 
+    # 4. Electrical & Power Distribution
+    if any(kw in text for kw in ("breaker", "panelboard", "switch", "receptacle", "enclosure", "transformer", "conduit", "relay", "starter", "leviton", "eaton", "schneider", "square d")):
+        dept = "Electrical & Automation"
+        cls = "Wiring Devices & Distribution"
+        fine = "Industrial Switches & Receptacles" if any(k in desc_l for k in ("switch", "receptacle")) else "Circuit Protection"
+        path = f"Electrical Supplies > {cls} > {fine}"
+        return dept, cls, fine, path
+
+    # 5. Major Appliances & Residential Equipment
+    if any(kw in text for kw in ("dishwasher", "dryer", "washer", "laundry", "refrigerator", "oven", "range", "heater kit", "frigidaire", "whirlpool", "maytag")):
+        dept = "Appliances"
+        cls = "Large Appliances"
+        fine = "Dishwashers" if "dishwasher" in desc_l else ("Dryers & Washers" if any(k in desc_l for k in ("dryer", "washer")) else "Major Appliances")
+        path = f"Appliances & Consumer Electronics > Kitchen Appliances > {fine}"
+        return dept, cls, fine, path
+
     # 6. Woodworking & Power Tools
-    if any(kw in desc_l for kw in ("planer", "jointer", "shaper", "miter sled", "fence", "stock feeder", "sanders", "router", "drill", "impact driver", "saw", "milwaukee", "dewalt", "makita")):
+    if any(kw in text for kw in ("planer", "jointer", "shaper", "miter sled", "fence", "stock feeder", "sanders", "router", "drill", "impact driver", "saw", "milwaukee", "dewalt", "makita")):
         dept = "Power Tools & Machinery"
         cls = "Woodworking & Construction Tools"
         fine = "Planers & Jointers" if "planer" in desc_l or "jointer" in desc_l else "Power Tools"
@@ -178,7 +186,7 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
         return dept, cls, fine, path
 
     # 7. Lighting & Fixtures
-    if any(kw in desc_l for kw in ("lighting", "lamp", "led", "fixture", "bulb", "chandelier", "sconce", "kichler")):
+    if any(kw in text for kw in ("lighting", "lamp", "led", "fixture", "bulb", "chandelier", "sconce", "kichler")):
         dept = "Electrical & Lighting"
         cls = "Lighting Fixtures"
         fine = "Commercial Lighting"
@@ -186,7 +194,7 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
         return dept, cls, fine, path
 
     # 8. Building Supplies & Adhesives
-    if any(kw in desc_l for kw in ("tape", "mortar", "sealant", "joint", "lumber", "plywood", "boise cascade")):
+    if any(kw in text for kw in ("tape", "mortar", "sealant", "joint", "lumber", "plywood", "boise cascade")):
         dept = "Building Materials"
         cls = "Adhesives & Tapes"
         fine = "Specialty Tapes" if "tape" in desc_l else "Masonry & Mortar"
@@ -194,6 +202,18 @@ def _infer_taxonomy(desc: str, manufacturer: str) -> tuple[str, str, str, str]:
         return dept, cls, fine, path
 
     return "Industrial Supplies", "General Hardware", "Maintenance Products", "Industrial Supplies > Maintenance"
+
+
+def classify_category(desc: str, manufacturer: str) -> str:
+    """Public entry point for real, deterministic keyword-based taxonomy
+    classification — same logic enrich_product_web() uses for the real CSV
+    export, exposed here so other call sites (e.g. the catalogue list view)
+    can get a real category without needing the full 252-column record.
+    Returns the classpath (e.g. "Plumbing & Industrial Piping > Industrial
+    Valves & Fittings > Ball Valves").
+    """
+    _, _, _, classpath = _infer_taxonomy(desc, manufacturer)
+    return classpath
 
 
 def enrich_product_web(

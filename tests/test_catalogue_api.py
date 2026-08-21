@@ -161,6 +161,25 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_batch_rows_have_real_category(self) -> None:
+        csv_path = self._make_csv([
+            {"Mfg_Part_Num": "70-100-01", "Part_Desc": "1/2 in Ball Valve 600 PSI",
+             "Part_Manuf": "Apollo Valves"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_response = self.client.post(
+                    "/catalogue/ingest",
+                    files={"file": ("test.csv", f, "text/csv")},
+                )
+            batch_id = ingest_response.json()["batch_id"]
+            response = self.client.get(f"/catalogue/batches/{batch_id}")
+            assert response.status_code == 200
+            row = response.json()["rows"][0]
+            assert row["category"] == "Plumbing & Industrial Piping > Industrial Valves & Fittings > Ball Valves"
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_get_batch_row_unilog252(self) -> None:
         csv_path = self._make_csv([
             {"Mfg_Part_Num": "70-100-01", "Part_Desc": "1/2 in Ball Valve 600 PSI Stainless Steel",
