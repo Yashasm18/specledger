@@ -161,6 +161,44 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_get_batch_row_unilog252(self) -> None:
+        csv_path = self._make_csv([
+            {"Mfg_Part_Num": "70-100-01", "Part_Desc": "1/2 in Ball Valve 600 PSI Stainless Steel",
+             "Part_Manuf": "Apollo Valves"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_response = self.client.post(
+                    "/catalogue/ingest",
+                    files={"file": ("test.csv", f, "text/csv")},
+                )
+            batch_id = ingest_response.json()["batch_id"]
+            response = self.client.get(f"/catalogue/batches/{batch_id}/rows/2/unilog252")
+            assert response.status_code == 200
+            row = response.json()
+            assert row["PART_NUMBER"] == "70-100-01"
+            assert row["MANUFACTURER_NAME"] == "Apollo Valves"
+            assert "Ball Valve" in row["Part_Desc"]
+            assert row["ATTRIBUTE_LABEL 1"] == "Manufacturer"
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_get_batch_row_unilog252_not_found(self) -> None:
+        csv_path = self._make_csv([
+            {"Mfg_Part_Num": "X-1", "Part_Desc": "Test", "Part_Manuf": "Test Co"},
+        ])
+        try:
+            with csv_path.open("rb") as f:
+                ingest_response = self.client.post(
+                    "/catalogue/ingest",
+                    files={"file": ("test.csv", f, "text/csv")},
+                )
+            batch_id = ingest_response.json()["batch_id"]
+            response = self.client.get(f"/catalogue/batches/{batch_id}/rows/999/unilog252")
+            assert response.status_code == 404
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_export_csv_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},

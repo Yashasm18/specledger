@@ -41,6 +41,7 @@ from .export import (
     export_unilog_template, export_schema_org_jsonld,
 )
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
+from .unilog_exporter import row_to_unilog_dict
 
 
 router = APIRouter(prefix="/catalogue", tags=["catalogue"])
@@ -475,6 +476,34 @@ def get_batch_row(batch_id: str, row_number: int, organization_id: str = Query(d
                 if reviewable:
                     row["review_detail"] = reviewable.to_dict()
             return row
+    raise HTTPException(status_code=404, detail=f"Row {row_number} not found in batch")
+
+
+@router.get("/batches/{batch_id}/rows/{row_number}/unilog252")
+def get_batch_row_unilog252(batch_id: str, row_number: int, organization_id: str = Query(default="default")) -> dict[str, Any]:
+    """Retrieve one row's full real 252-column Unilog record.
+
+    Reuses the same row_to_unilog_dict() that generates the actual CSV
+    export, so this is the genuine computed record for this row — not a
+    separate, client-rendered approximation of it.
+    """
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    batch = catalogue_store.get_batch(organization_id, real_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    for row in batch["rows"]:
+        if row["row_number"] == row_number:
+            # Postgres flattens fields -> raw_values at write time; the
+            # in-memory dev store doesn't, so fall back to building it from
+            # the fields array directly for parity between both backends.
+            vals = row.get("raw_values") or {f["column"]: f["raw_value"] for f in row.get("fields", [])}
+            part_number = vals.get("mfg_part_num") or vals.get("part_number") or ""
+            raw_mfr = vals.get("part_manuf") or vals.get("manufacturer")
+            raw_desc = vals.get("part_desc") or vals.get("description")
+            e1_brand = vals.get("e1_brand")
+            unilog_brand = vals.get("unilog_brand")
+            dib_brand = vals.get("dib_brand")
+            return row_to_unilog_dict(part_number, raw_mfr, raw_desc, e1_brand, unilog_brand, dib_brand)
     raise HTTPException(status_code=404, detail=f"Row {row_number} not found in batch")
 
 

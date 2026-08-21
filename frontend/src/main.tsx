@@ -216,15 +216,11 @@ function App() {
   const [inspectorTab, setInspectorTab] = useState<"diff" | "triplets" | "descriptions" | "features" | "evidence" | "all252">("diff");
   const [tripletSearch, setTripletSearch] = useState("");
   const [colSearch, setColSearch] = useState("");
-  const [modalScrapeResult, setModalScrapeResult] = useState<any>(null);
-  const [isModalScraping, setIsModalScraping] = useState(false);
-
-  // Synthetic profile demonstration state
-  const [scraperPn, setScraperPn] = useState("70-100-01");
-  const [scraperMfr, setScraperMfr] = useState("Apollo Valves");
-  const [scraperCat, setScraperCat] = useState("Industrial Valves");
-  const [scraperResult, setScraperResult] = useState<any>(null);
-  const [isScraping, setIsScraping] = useState(false);
+  // Real 252-column record for the inspected row, fetched from the backend
+  // (same row_to_unilog_dict() that generates the actual CSV export) — not
+  // client-side generated. null while loading or unavailable.
+  const [unilog252, setUnilog252] = useState<Record<string, string> | null>(null);
+  const [isLoadingUnilog252, setIsLoadingUnilog252] = useState(false);
 
   // Live Benchmark Runner State. These figures are our last actual measured
   // run on the full 1,000-row official dataset (deterministic path, no live
@@ -598,64 +594,6 @@ function App() {
     }
   };
 
-  // Synthetic manufacturer profile demonstration. The backend labels the result
-  // explicitly so it cannot be confused with fetched source evidence.
-  const handleLiveScrape = async (pnOverride?: string, mfrOverride?: string, catOverride?: string) => {
-    const pn = pnOverride || scraperPn;
-    const mfr = mfrOverride || scraperMfr;
-    const cat = catOverride || scraperCat;
-    if (pnOverride) setScraperPn(pnOverride);
-    if (mfrOverride) setScraperMfr(mfrOverride);
-    if (catOverride) setScraperCat(catOverride);
-
-    setIsScraping(true);
-    try {
-      const res = await apiFetch(`/catalogue/scraper/extract`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          part_number: pn,
-          manufacturer: mfr,
-          category: cat,
-          raw_description: `${mfr} ${pn} ${cat}`
-        })
-      });
-      if (!res.ok) throw new Error(await readApiError(res, "Profile generation failed"));
-      const data = await res.json();
-      setScraperResult(data);
-      setNotice(`Generated an unverified demonstration profile for ${mfr} ${pn}`);
-    } catch (error) {
-      setNotice(`Profile generation failed · ${error instanceof Error ? error.message : "Backend unavailable"}`);
-    } finally {
-      setIsScraping(false);
-    }
-  };
-
-  // Live Modal Web & PDF Scraper Action for Any Inspected SKU
-  const handleModalScrape = async (pn: string, mfr: string, cat?: string) => {
-    setIsModalScraping(true);
-    try {
-      const res = await apiFetch(`/catalogue/scraper/extract`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          part_number: pn,
-          manufacturer: mfr,
-          category: cat || "Industrial Component",
-          raw_description: `${mfr} ${pn}`
-        })
-      });
-      if (!res.ok) throw new Error(await readApiError(res, "Profile generation failed"));
-      const data = await res.json();
-      setModalScrapeResult(data);
-      setNotice(`Generated an unverified demonstration profile for ${mfr} ${pn}`);
-    } catch (error) {
-      setNotice(`Profile generation failed · ${error instanceof Error ? error.message : "Backend unavailable"}`);
-    } finally {
-      setIsModalScraping(false);
-    }
-  };
-
   // Replays our last actual measured benchmark run (deterministic pipeline,
   // full 1,000-row official dataset — see README "Benchmark results") with a
   // short animated readout. This does not re-run the pipeline live per
@@ -680,54 +618,42 @@ function App() {
     }, 1000);
   };
 
-  // Open 252-Column Deep-Dive Inspector Modal
+  // Open 252-Column Deep-Dive Inspector Modal. Fetches the real per-row
+  // 252-column record (same computation used for the actual CSV export)
+  // rather than approximating it client-side.
   const openInspector = (row: any) => {
     setInspectorProduct(row);
     setInspectorTab("diff");
-    setModalScrapeResult(null);
+    setUnilog252(null);
+
+    const rowNumber = row?.row_number;
+    const batchId = activeBatch?.batch_id;
+    if (!rowNumber || !batchId || !API_BASE) return;
+
+    setIsLoadingUnilog252(true);
+    fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/unilog252`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setUnilog252(data))
+      .catch(() => setUnilog252(null))
+      .finally(() => setIsLoadingUnilog252(false));
   };
 
-  // Generate 50 placeholder triplets for the inspector UI demonstration.
-  // These are illustrative examples only — not fetched from manufacturer sources.
-  // When a backend-enriched batch is loaded, real attribute data replaces these.
-  const getProductTriplets = (prod: any) => {
-    if (!prod) return [];
-    const values = prod.enriched_values || prod.raw_values;
-    const desc = findByRole(values, "description") || prod[1] || "";
-
-    const baseSpecs = [
-      { label: "Body Material (example)", value: desc.includes("Brass") ? "Bronze / Brass" : "Stainless Steel 316", uom: "" },
-      { label: "Pressure Rating (example)", value: desc.includes("3000") ? "3000" : "600", uom: "PSI" },
-      { label: "Nominal Pipe Size (example)", value: desc.includes("1/4") ? "0.25" : desc.includes("3/4") ? "0.75" : desc.includes("10-inch") ? "10" : "2.0", uom: "IN" },
-      { label: "Connection Style (example)", value: "NPT Threaded (Female)", uom: "" },
-      { label: "Port Type (example)", value: "Full Port Flow", uom: "" },
-      { label: "Stem Packing Material (example)", value: "PTFE / Teflon", uom: "" },
-      { label: "Operating Temp Range (example)", value: "-20 to 450", uom: "°F" },
-      { label: "Flow Direction (example)", value: "Bi-Directional", uom: "" },
-      { label: "Handle Style (example)", value: "Zinc-Plated Steel Lever", uom: "" },
-      { label: "Approvals & Certifications (example)", value: "ASME B16.34, MSS SP-110, CSA", uom: "" },
-      { label: "Ball Material (example)", value: "316 Stainless Steel Ball", uom: "" },
-      { label: "Seat Material (example)", value: "RPTFE Reinforced Teflon", uom: "" },
-      { label: "Body Style (example)", value: "2-Piece Threaded Body", uom: "" },
-      { label: "Testing Standard (example)", value: "API 598 Hydrostatic", uom: "" },
-      { label: "Grit Rating (example)", value: desc.includes("Blade") ? "60T Carbide" : "80", uom: desc.includes("Blade") ? "Teeth" : "Grit" },
-      { label: "Motor Spec (example)", value: "High-Efficiency Brushless", uom: "" },
-      { label: "Voltage (example)", value: "120 / 240", uom: "VAC" },
-      { label: "Warranty Period (example)", value: "5-Year Limited Industrial", uom: "" },
-      { label: "Country of Origin (example)", value: "United States", uom: "" },
-      { label: "Discontinued (example)", value: "No", uom: "" }
-    ];
-
-    // Pad up to 50 slots for full 252-column completeness
-    const all50 = [...baseSpecs];
-    for (let i = baseSpecs.length + 1; i <= 50; i++) {
-      all50.push({
-        label: `Attribute Slot ${i} (placeholder)`,
-        value: "—",
-        uom: ""
-      });
+  // Real attribute triplets for the inspected row, read from the fetched
+  // unilog252 record (same row_to_unilog_dict() as the CSV export). Only
+  // non-empty slots are returned — typically a handful, not 50, since
+  // most attribute values require real sourced/extracted data this
+  // deterministic pass doesn't have. No padding with fake placeholders.
+  const getProductTriplets = (u252: Record<string, string> | null) => {
+    if (!u252) return [];
+    const triplets: { label: string; value: string; uom: string }[] = [];
+    for (let i = 1; i <= 50; i++) {
+      const label = u252[`ATTRIBUTE_LABEL ${i}`];
+      const value = u252[`ATTRIBUTE_VALUE ${i}`];
+      if (label && value) {
+        triplets.push({ label, value, uom: u252[`ATTRIBUTE_UOM ${i}`] || "" });
+      }
     }
-    return all50;
+    return triplets;
   };
 
   // Format table rows. liveRows come from GET /catalogue/batches/{id}, which
@@ -736,7 +662,12 @@ function App() {
   // via detectRole/findByRole.
   const displayRows = liveRows.length > 0
     ? liveRows.map((r: any) => {
-        const values = r.enriched_values || r.raw_values || {};
+        // In-memory dev store (no DATABASE_URL) keeps the older fields-array
+        // shape instead of flattening to raw_values/enriched_values the way
+        // Postgres does on write — fall back to building it directly so
+        // local dev and production behave the same way.
+        const values = r.enriched_values || r.raw_values
+          || (r.fields ? Object.fromEntries(r.fields.map((f: any) => [f.column, f.canonical_value ?? f.raw_value])) : {});
         const skuField = findByRole(values, "part_number") || `ROW-${r.row_number}`;
         const descField = findByRole(values, "description") || "Uncategorized product";
         const mfrField = findByRole(values, "manufacturer") || findByRole(values, "brand") || "Unknown manufacturer";
@@ -1289,160 +1220,6 @@ function App() {
               )}
             </div>
 
-            {/* Live Web & PDF Scraper Interactive Sandbox */}
-            <div style={{ background: "#172232", borderRadius: 10, padding: 20, color: "#ffffff", marginTop: 24, border: "1px solid #2c374b" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div>
-                  <span className="eyebrow" style={{ color: "#38bdf8" }}>MANUFACTURER PROFILE DEMONSTRATION</span>
-                  <h4 style={{ margin: "4px 0 0", fontSize: 16, color: "#ffffff" }}>
-                    Synthetic Technical Profile Generator
-                  </h4>
-                  <small style={{ color: "#94a3b8", display: "block", marginTop: 4 }}>
-                    Generates clearly labelled test profiles from category rules. URLs and specifications remain unverified until a real retrieval pipeline supplies source evidence.
-                  </small>
-                </div>
-                <span style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)", padding: "4px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700 }}>
-                  DEMO MODE · NO LIVE CRAWL
-                </span>
-              </div>
-
-              {/* Quick Preset Chips */}
-              <div style={{ marginBottom: 14 }}>
-                <small style={{ color: "#64748b", fontWeight: 700, display: "block", marginBottom: 6 }}>QUICK DEMONSTRATION PRESETS:</small>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {[
-                    { mfr: "Apollo Valves", pn: "70-100-01", cat: "Industrial Valves" },
-                    { mfr: "Schneider Electric", pn: "LC1D25B7", cat: "Electrical & Automation" },
-                    { mfr: "Honeywell", pn: "T6-PRO-TH6220", cat: "HVAC & Heating" },
-                    { mfr: "Leviton", pn: "1221-2W", cat: "Electrical Switches" },
-                    { mfr: "Freud", pn: "D1050X", cat: "Abrasives & Blades" },
-                    { mfr: "3M", pn: "Cubitron-II-984F", cat: "Industrial Abrasives" }
-                  ].map((preset, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleLiveScrape(preset.pn, preset.mfr, preset.cat)}
-                      style={{
-                        background: "rgba(255, 255, 255, 0.06)",
-                        border: "1px solid rgba(255, 255, 255, 0.15)",
-                        color: "#e2e8f0",
-                        padding: "4px 10px",
-                        borderRadius: 6,
-                        fontSize: 11,
-                        cursor: "pointer",
-                        fontWeight: 600
-                      }}
-                    >
-                      {preset.mfr} ({preset.pn})
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Input Form */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 10, alignItems: "center", marginBottom: 16 }}>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4, fontWeight: 700 }}>MANUFACTURER</label>
-                  <input
-                    type="text"
-                    value={scraperMfr}
-                    onChange={(e) => setScraperMfr(e.target.value)}
-                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#ffffff", padding: "7px 10px", borderRadius: 6, fontSize: 11 }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4, fontWeight: 700 }}>PART NUMBER / SKU</label>
-                  <input
-                    type="text"
-                    value={scraperPn}
-                    onChange={(e) => setScraperPn(e.target.value)}
-                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#ffffff", padding: "7px 10px", borderRadius: 6, fontSize: 11 }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 4, fontWeight: 700 }}>CATEGORY DOMAIN</label>
-                  <input
-                    type="text"
-                    value={scraperCat}
-                    onChange={(e) => setScraperCat(e.target.value)}
-                    style={{ width: "100%", background: "#0f172a", border: "1px solid #334155", color: "#ffffff", padding: "7px 10px", borderRadius: 6, fontSize: 11 }}
-                  />
-                </div>
-                <div style={{ alignSelf: "flex-end" }}>
-                  <button
-                    onClick={() => handleLiveScrape()}
-                    disabled={isScraping}
-                    style={{
-                      background: isScraping ? "#475569" : "#2872e3",
-                      color: "#ffffff",
-                      border: "none",
-                      padding: "8px 16px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: isScraping ? "wait" : "pointer",
-                      height: 33,
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    {isScraping ? "Generating Profile..." : "Generate Demo Profile"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Extraction Output Card */}
-              {scraperResult && (
-                <div style={{ background: "#0f172a", border: "1px solid #2872e3", borderRadius: 8, padding: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 10 }}>
-                    <div>
-                      <span style={{ fontSize: 10, color: "#34d399", fontWeight: 700, background: "rgba(16,185,129,0.15)", padding: "2px 6px", borderRadius: 4 }}>
-                        ⚠ Unverified synthetic profile ({scraperResult.canonical_domain})
-                      </span>
-                      <strong style={{ marginLeft: 8, fontSize: 13, color: "#ffffff" }}>
-                        {scraperResult.manufacturer} · {scraperResult.part_number}
-                      </strong>
-                    </div>
-                    <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "DM Mono" }}>
-                      SHA-256: {scraperResult.content_sha256.slice(0, 16)}...
-                    </span>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 12 }}>
-                    <div>
-                      <small style={{ color: "#94a3b8", fontWeight: 700, fontSize: 10, display: "block", marginBottom: 4 }}>GENERATED SOURCE CANDIDATES — NOT FETCHED:</small>
-                      <div style={{ fontSize: 11, color: "#38bdf8", fontFamily: "DM Mono", lineHeight: 1.6 }}>
-                        <div>MFR Product: <a href={scraperResult.product_url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>{scraperResult.product_url}</a></div>
-                        {scraperResult.datasheet_urls?.map((u: string, i: number) => (
-                          <div key={i}>Datasheet PDF: <a href={u} target="_blank" rel="noreferrer" style={{ color: "#34d399" }}>{u}</a></div>
-                        ))}
-                        {scraperResult.sds_urls?.map((u: string, i: number) => (
-                          <div key={i}>Safety SDS: <a href={u} target="_blank" rel="noreferrer" style={{ color: "#fbbf24" }}>{u}</a></div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <small style={{ color: "#94a3b8", fontWeight: 700, fontSize: 10, display: "block", marginBottom: 4 }}>ANTI-MARKETPLACE FIREWALL STATUS:</small>
-                      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
-                        <div style={{ color: "#ef4444" }}>✕ Blocked Amazon / eBay / Walmart attempts: 3 rejected</div>
-                        <div style={{ color: "#10b981" }}>✓ Policy Enforced: Zero retail marketplace contamination</div>
-                        <div style={{ color: "#94a3b8" }}>Regulatory: {scraperResult.standards?.join(", ") || "ASME, ANSI, CSA"}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <small style={{ color: "#94a3b8", fontWeight: 700, fontSize: 10, display: "block", marginBottom: 6 }}>EXTRACTED SPECIFICATION TRIPLETS ({scraperResult.attributes_count} ATTRIBUTES):</small>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {scraperResult.attributes?.map((attr: any, i: number) => (
-                        <span key={i} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, padding: "3px 8px", fontSize: 10, color: "#e2e8f0" }}>
-                          <strong style={{ color: "#94a3b8" }}>{attr.label}:</strong> {attr.value} {attr.uom ? `(${attr.uom})` : ""}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </section>
         );
 
@@ -1720,135 +1497,53 @@ function App() {
   // API row (raw_values/enriched_values dicts), a defaultRows mock array, or
   // the row_number-only fallback object — so roles are derived via findByRole
   // the same way displayRows does, with array/object indexing as fallback.
-  const inspectorValues = inspectorProduct?.enriched_values || inspectorProduct?.raw_values;
+  const inspectorValues = inspectorProduct?.enriched_values || inspectorProduct?.raw_values
+    || (inspectorProduct?.fields ? Object.fromEntries(inspectorProduct.fields.map((f: any) => [f.column, f.canonical_value ?? f.raw_value])) : undefined);
   const inspectedSku = findByRole(inspectorValues, "part_number") || inspectorProduct?.[0] || "VLV-600-050";
   const inspectedDesc = findByRole(inspectorValues, "description") || inspectorProduct?.[1] || "Ball Valve · DN50 Full Port Stainless Steel";
   const inspectedMfr = findByRole(inspectorValues, "manufacturer") || findByRole(inspectorValues, "brand") || inspectorProduct?.[2] || "Apollo Valves";
   const inspectedCat = findByRole(inspectorValues, "category") || inspectorProduct?.[3] || "Industrial Valves";
-  const inspectedTriplets = getProductTriplets(inspectorProduct);
+  const inspectedTriplets = getProductTriplets(unilog252);
   const filteredTriplets = inspectedTriplets.filter(t => 
     !tripletSearch || t.label.toLowerCase().includes(tripletSearch.toLowerCase()) || t.value.toLowerCase().includes(tripletSearch.toLowerCase())
   );
 
-  const getAll252Columns = (sku: string, desc: string, mfr: string, cat: string, triplets: any[]) => {
+  // Real 252-column grid built directly from the fetched unilog252 record —
+  // the same dict the actual CSV export writes. Column ranges are used only
+  // for the cosmetic section/badge grouping below, never to invent content;
+  // an empty real value renders as "—", not a generated placeholder.
+  const COLUMN_SECTIONS: { max: number; section: string; badgeBg: string; badgeColor: string }[] = [
+    { max: 1, section: "MFR Sourcing", badgeBg: "rgba(37, 99, 235, 0.1)", badgeColor: "#2563eb" },
+    { max: 6, section: "Reference URLs", badgeBg: "rgba(37, 99, 235, 0.1)", badgeColor: "#2563eb" },
+    { max: 22, section: "Identity & SKU", badgeBg: "rgba(16, 185, 129, 0.1)", badgeColor: "#10b981" },
+    { max: 23, section: "Taxonomy Classpath", badgeBg: "rgba(147, 51, 234, 0.1)", badgeColor: "#9333ea" },
+    { max: 29, section: "Description Tiers", badgeBg: "rgba(236, 72, 153, 0.1)", badgeColor: "#db2777" },
+    { max: 49, section: "Item Feature Bullets", badgeBg: "rgba(59, 130, 246, 0.1)", badgeColor: "#2563eb" },
+    { max: 55, section: "Core Product Specs", badgeBg: "rgba(16, 185, 129, 0.1)", badgeColor: "#10b981" },
+    { max: 205, section: "Attribute Triplets", badgeBg: "rgba(14, 165, 233, 0.1)", badgeColor: "#0284c7" },
+    { max: 214, section: "Barcodes & Pricing", badgeBg: "rgba(245, 158, 11, 0.1)", badgeColor: "#d97706" },
+    { max: 223, section: "Dimensions & Weight", badgeBg: "rgba(100, 116, 139, 0.1)", badgeColor: "#475569" },
+    { max: 252, section: "Media & Compliance", badgeBg: "rgba(16, 185, 129, 0.1)", badgeColor: "#10b981" },
+  ];
+
+  const getAll252Columns = (u252: Record<string, string> | null) => {
     return ALL_252_UNILOG_HEADERS.map((header, index) => {
       const colNum = index + 1;
-      let val = "";
-      let section = "General";
-      let badgeBg = "rgba(100, 116, 139, 0.1)";
-      let badgeColor = "#64748b";
-      let isCode = false;
-
-      if (colNum === 1) {
-        val = `https://www.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/products/${sku.toLowerCase()}`;
-        section = "MFR Sourcing";
-        badgeBg = "rgba(37, 99, 235, 0.1)";
-        badgeColor = "#2563eb";
-        isCode = true;
-      } else if (colNum >= 2 && colNum <= 6) {
-        val = `https://cdn.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/ref/source-${colNum - 1}.pdf`;
-        section = "Reference URLs";
-        badgeBg = "rgba(37, 99, 235, 0.1)";
-        badgeColor = "#2563eb";
-        isCode = true;
-      } else if (colNum === 7 || colNum === 11 || colNum === 12 || colNum === 20 || colNum === 21 || colNum === 22) {
-        val = sku;
-        section = "Part Number / SKU";
-        badgeBg = "rgba(16, 185, 129, 0.1)";
-        badgeColor = "#10b981";
-        isCode = true;
-      } else if (colNum === 13) {
-        val = desc;
-        section = "Core Description";
-        badgeBg = "rgba(245, 158, 11, 0.1)";
-        badgeColor = "#d97706";
-      } else if (colNum >= 14 && colNum <= 19) {
-        val = mfr;
-        section = "Brand & MFR";
-        badgeBg = "rgba(99, 102, 241, 0.1)";
-        badgeColor = "#6366f1";
-      } else if (colNum === 23) {
-        val = `Industrial > ${cat} > Standard Components`;
-        section = "Taxonomy Classpath";
-        badgeBg = "rgba(147, 51, 234, 0.1)";
-        badgeColor = "#9333ea";
-      } else if (colNum >= 24 && colNum <= 29) {
-        val = `${mfr} ${sku} - ${desc} (Engineered for high-durability industrial operations)`;
-        section = "Description Tiers";
-        badgeBg = "rgba(236, 72, 153, 0.1)";
-        badgeColor = "#db2777";
-      } else if (colNum >= 30 && colNum <= 49) {
-        const featureIdx = colNum - 29;
-        val = `Feature ${featureIdx}: Precision-engineered for ${cat.toLowerCase()} with high thermal and mechanical resilience.`;
-        section = "Item Feature Bullets";
-        badgeBg = "rgba(59, 130, 246, 0.1)";
-        badgeColor = "#2563eb";
-      } else if (colNum >= 50 && colNum <= 55) {
-        if (header === "With") val = "Mounting Hardware & Gasket Kit";
-        else if (header === "Standard/Approvals") val = "ASME B16.34, CSA, MSS SP-110, API 598";
-        else if (header === "Prop 65") val = "No Warning Required (Compliant)";
-        else if (header === "Application") val = "Commercial / Industrial Processing";
-        else if (header === "Includes") val = "Product Unit, Datasheet, Certificate of Origin";
-        else val = `${mfr} ${sku}`;
-        section = "Core Product Specs";
-        badgeBg = "rgba(16, 185, 129, 0.1)";
-        badgeColor = "#10b981";
-      } else if (colNum >= 56 && colNum <= 205) {
-        const tripletIdx = Math.floor((colNum - 56) / 3);
-        const tripletField = (colNum - 56) % 3;
-        const currentTriplet = triplets[tripletIdx] || { label: `Attribute ${tripletIdx + 1}`, value: `Standard Value ${tripletIdx + 1}`, uom: "" };
-        if (tripletField === 0) val = currentTriplet.label;
-        else if (tripletField === 1) val = currentTriplet.value;
-        else val = currentTriplet.uom || "—";
-        section = `Spec Triplet #${tripletIdx + 1}`;
-        badgeBg = "rgba(14, 165, 233, 0.1)";
-        badgeColor = "#0284c7";
-      } else if (colNum >= 206 && colNum <= 214) {
-        if (header === "UPC") val = `0123456${sku.replace(/[^0-9]/g, "").padEnd(5, "0").slice(0, 5)}`;
-        else if (header === "UNSPSC") val = "40141600";
-        else if (header === "Warranty") val = "5-Year Limited Industrial Warranty";
-        else if (header === "List Price") val = "$184.50";
-        else if (header === "Selling Qty") val = "1";
-        else if (header === "Selling UOM") val = "EA";
-        else val = "Standard Industrial Box Packaging";
-        section = "Barcodes & Pricing";
-        badgeBg = "rgba(245, 158, 11, 0.1)";
-        badgeColor = "#d97706";
-      } else if (colNum >= 215 && colNum <= 223) {
-        if (header.includes("LENGTH")) val = header.includes("UOM") ? "IN" : "6.5";
-        else if (header.includes("HEIGHT")) val = header.includes("UOM") ? "IN" : "4.2";
-        else if (header.includes("WIDTH")) val = header.includes("UOM") ? "IN" : "3.8";
-        else if (header.includes("WEIGHT")) val = header.includes("UOM") ? "LBS" : "2.4";
-        else val = header.includes("UOM") ? "CU IN" : "103.7";
-        section = "Dimensions & Weight";
-        badgeBg = "rgba(100, 116, 139, 0.1)";
-        badgeColor = "#475569";
-      } else {
-        if (header === "Country Of Origin") val = "United States";
-        else if (header === "Discontinued") val = "No";
-        else if (header === "Actual Image (Yes/No)") val = "Yes";
-        else if (header.includes("Image")) val = `https://cdn.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/img/${sku.toLowerCase()}.jpg`;
-        else if (header.includes("Manual") || header.includes("Sheet") || header.includes("Guide") || header.includes("Drawing")) val = `https://cdn.${mfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/docs/${sku.toLowerCase()}-${header.toLowerCase().replace(/[^a-z0-9]/g, "")}.pdf`;
-        else val = "Compliant";
-        section = "Media & Compliance";
-        badgeBg = "rgba(16, 185, 129, 0.1)";
-        badgeColor = "#10b981";
-        isCode = val.startsWith("http");
-      }
-
+      const val = u252?.[header] || "";
+      const bucket = COLUMN_SECTIONS.find((s) => colNum <= s.max) || COLUMN_SECTIONS[COLUMN_SECTIONS.length - 1];
       return {
         num: colNum,
         header,
         val,
-        section,
-        badgeBg,
-        badgeColor,
-        isCode
+        section: bucket.section,
+        badgeBg: bucket.badgeBg,
+        badgeColor: bucket.badgeColor,
+        isCode: val.startsWith("http"),
       };
     });
   };
 
-  const all252ColumnsList = getAll252Columns(inspectedSku, inspectedDesc, inspectedMfr, inspectedCat, inspectedTriplets);
+  const all252ColumnsList = getAll252Columns(unilog252);
   const filtered252Cols = all252ColumnsList.filter(col =>
     !colSearch ||
     col.header.toLowerCase().includes(colSearch.toLowerCase()) ||
@@ -1880,7 +1575,7 @@ function App() {
                   {inspectedSku}
                   <span style={{ fontSize: 12, fontWeight: 500, color: "#94a3b8" }}>· {inspectedMfr}</span>
                   <span style={{ fontSize: 10, background: "rgba(16,185,129,0.2)", color: "#34d399", padding: "2px 8px", borderRadius: 4 }}>
-                    ✓ 252 Columns Populated
+                    {unilog252 ? `${all252ColumnsList.filter((c) => c.val).length} of 252 columns populated` : isLoadingUnilog252 ? "Loading…" : "Unavailable"}
                   </span>
                 </h3>
               </div>
@@ -1901,13 +1596,13 @@ function App() {
                 Full 252-Column Grid (252)
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "triplets" ? "active" : ""}`} onClick={() => setInspectorTab("triplets")}>
-                50 Dynamic Spec Triplets ({inspectedTriplets.length})
+                Spec Triplets ({inspectedTriplets.length} of 50)
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "descriptions" ? "active" : ""}`} onClick={() => setInspectorTab("descriptions")}>
-                6 Description Hierarchy Tiers
+                Description Tiers (6)
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "features" ? "active" : ""}`} onClick={() => setInspectorTab("features")}>
-                20 Feature Bullets
+                Feature Bullets ({unilog252 ? Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length : 0} of 20)
               </button>
               <button className={`spec-tab-btn ${inspectorTab === "evidence" ? "active" : ""}`} onClick={() => setInspectorTab("evidence")}>
                 Verified Sourcing & Safety
@@ -1936,55 +1631,59 @@ function App() {
                       </div>
                       <div className="diff-field-row">
                         <strong>Part_Manuf</strong>
-                        <span>{inspectedMfr} (Distributor #842)</span>
+                        <span>{inspectedMfr}</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>E1_Brand</strong>
-                        <span>{inspectedMfr}</span>
+                        <span>{inspectorValues?.e1_brand || "—"}</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Unilog_Brand</strong>
-                        <span>{inspectedMfr}</span>
+                        <span>{inspectorValues?.unilog_brand || "—"}</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>DIB_Brand</strong>
-                        <span>{inspectedMfr}</span>
+                        <span>{inspectorValues?.dib_brand || "—"}</span>
                       </div>
                     </div>
 
-                    {/* Enriched 252 Columns Summary */}
+                    {/* Enriched 252 Columns Summary — real counts from the fetched unilog252 record */}
                     <div className="diff-card enriched">
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                         <span className="eyebrow" style={{ color: "#1d4ed8" }}>SPECLEDGER ENRICHED RECORD (252 COLS)</span>
-                        <small style={{ color: "#2563eb", fontWeight: 700 }}>100% CX1 Compliant</small>
+                        <small style={{ color: "#2563eb", fontWeight: 700 }}>
+                          {isLoadingUnilog252 ? "Loading…" : unilog252 ? "Real computed record" : "Unavailable"}
+                        </small>
                       </div>
                       <div className="diff-field-row">
                         <strong>Manufacturer URL (Col 1)</strong>
-                        <span style={{ color: "#2563eb" }}>https://www.{inspectedMfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com</span>
+                        <span style={{ color: unilog252?.["MFR URL"] ? "#2563eb" : "#94a3b8" }}>{unilog252?.["MFR URL"] || "Not resolved"}</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Canonical Taxonomy (Col 23)</strong>
-                        <span>Industrial &gt; {inspectedCat} &gt; Standard</span>
+                        <span>{unilog252?.Classpath || "—"}</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Dynamic Spec Triplets (Cols 56-205)</strong>
-                        <span style={{ color: "#10b981", fontWeight: 700 }}>50 Populated (Label / Value / UOM)</span>
+                        <span style={{ color: inspectedTriplets.length > 0 ? "#10b981" : "#94a3b8", fontWeight: 700 }}>
+                          {inspectedTriplets.length} of 50 populated (real, not padded)
+                        </span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Description Tiers (Cols 24-29)</strong>
-                        <span>6 Tiers Synthesized (Mobile, Short, Long, etc.)</span>
+                        <span>{unilog252 ? [unilog252.MOBILE_DESC, unilog252.SHORT_DESC, unilog252.LONG_DESC1, unilog252.RETAIL_DESC, unilog252.MARKETING_DESCRIPTION, unilog252.INVOICE_DESC].filter(Boolean).length : 0} of 6 computed</span>
                       </div>
                       <div className="diff-field-row">
                         <strong>Item Feature Bullets (Cols 30-49)</strong>
-                        <span>20 Standardized Bullet Points</span>
+                        <span>{unilog252 ? Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length : 0} of 20 populated</span>
                       </div>
                       <div className="diff-field-row">
-                        <strong>Safety & Prop 65 (Cols 216-220)</strong>
-                        <span>ASME B16.34, Prop 65 Verified (No Risk)</span>
+                        <strong>Prop 65 (Col 51)</strong>
+                        <span style={{ color: unilog252?.["Prop 65"] ? "#0f172a" : "#94a3b8" }}>{unilog252?.["Prop 65"] || "Not populated"}</span>
                       </div>
                       <div className="diff-field-row">
-                        <strong>Media & Datasheets (Cols 221-252)</strong>
-                        <span>PDF Datasheets, Manuals & Image URLs</span>
+                        <strong>Specification Sheet</strong>
+                        <span style={{ color: unilog252?.["Specification Sheet"] ? "#2563eb" : "#94a3b8" }}>{unilog252?.["Specification Sheet"] || "Not populated"}</span>
                       </div>
                     </div>
                   </div>
@@ -1997,7 +1696,9 @@ function App() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14 }}>Full 252-Column Unilog CX1 Delivery Grid</h4>
-                      <small style={{ color: "#64748b" }}>Complete schema specification matching official UniHack challenge format ({filtered252Cols.length} columns shown)</small>
+                      <small style={{ color: "#64748b" }}>
+                        {unilog252 ? `${all252ColumnsList.filter((c) => c.val).length} of 252 columns populated` : isLoadingUnilog252 ? "Loading…" : "No enriched record available"} · showing {filtered252Cols.length} rows
+                      </small>
                     </div>
                     <input
                       type="text"
@@ -2045,13 +1746,13 @@ function App() {
                 </div>
               )}
 
-              {/* Tab 2: 50 Dynamic Spec Triplets */}
+              {/* Tab 2: Real Attribute Triplets (up to 50 slots, usually sparse) */}
               {inspectorTab === "triplets" && (
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14 }}>50 Dynamic Attribute Triplets (Columns 56–205)</h4>
-                      <small style={{ color: "#64748b" }}>Each slot contains ATTRIBUTE_LABEL, ATTRIBUTE_VALUE, and ATTRIBUTE_UOM</small>
+                      <h4 style={{ margin: 0, fontSize: 14 }}>Attribute Triplets (Columns 56–205, {inspectedTriplets.length} of 50 populated)</h4>
+                      <small style={{ color: "#64748b" }}>Real values only — this deterministic pass mostly captures manufacturer/part number, plus any spec the raw description text itself contains (e.g. voltage, grit)</small>
                     </div>
                     <input
                       type="text"
@@ -2062,108 +1763,97 @@ function App() {
                     />
                   </div>
 
-                  <div className="triplets-grid">
-                    {filteredTriplets.map((trip, idx) => (
-                      <div className="triplet-chip" key={idx}>
-                        <span className="label">Slot #{idx + 1} · {trip.label}</span>
-                        <div className="val-row">
-                          <span className="val">{trip.value}</span>
-                          {trip.uom && <span className="uom">{trip.uom}</span>}
+                  {!unilog252 ? (
+                    <div className="empty-review">{isLoadingUnilog252 ? "Loading real attribute data…" : "No enriched record available for this row."}</div>
+                  ) : (
+                    <div className="triplets-grid">
+                      {filteredTriplets.map((trip, idx) => (
+                        <div className="triplet-chip" key={idx}>
+                          <span className="label">Slot #{idx + 1} · {trip.label}</span>
+                          <div className="val-row">
+                            <span className="val">{trip.value}</span>
+                            {trip.uom && <span className="uom">{trip.uom}</span>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Tab 3: 6 Description Hierarchy Tiers */}
               {inspectorTab === "descriptions" && (
                 <div>
-                  <div className="desc-box">
-                    <div className="desc-box-header">
-                      <span>Col 24 · MOBILE_DESC</span>
-                      <small>{inspectedDesc.length} chars (Concise Mobile Screen)</small>
+                  {!unilog252 ? (
+                    <div className="empty-review">
+                      {isLoadingUnilog252 ? "Loading real description data…" : "No enriched record available for this row."}
                     </div>
-                    <p>{inspectedDesc} - {inspectedSku}</p>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="desc-box">
+                        <div className="desc-box-header">
+                          <span>Col 24 · MOBILE_DESC</span>
+                          <small>{(unilog252.MOBILE_DESC || "").length} chars — derived directly from the real input description</small>
+                        </div>
+                        <p>{unilog252.MOBILE_DESC || "—"}</p>
+                      </div>
 
-                  <div className="desc-box">
-                    <div className="desc-box-header">
-                      <span>Col 25 · INVOICE_DESC</span>
-                      <small>Uppercase ERP line item format</small>
-                    </div>
-                    <p style={{ fontFamily: "DM Mono", fontSize: 11 }}>{inspectedDesc.toUpperCase()} ({inspectedSku})</p>
-                  </div>
+                      <div className="desc-box">
+                        <div className="desc-box-header">
+                          <span>Col 25 · INVOICE_DESC</span>
+                          <small>Uppercase ERP line item format</small>
+                        </div>
+                        <p style={{ fontFamily: "DM Mono", fontSize: 11 }}>{unilog252.INVOICE_DESC || "—"}</p>
+                      </div>
 
-                  <div className="desc-box">
-                    <div className="desc-box-header">
-                      <span>Col 26 · SHORT_DESC</span>
-                      <small>Standard B2B listing title</small>
-                    </div>
-                    <p>{inspectedMfr} {inspectedSku} {inspectedDesc}</p>
-                  </div>
+                      <div className="desc-box">
+                        <div className="desc-box-header">
+                          <span>Col 26 · SHORT_DESC</span>
+                          <small>Standard B2B listing title</small>
+                        </div>
+                        <p>{unilog252.SHORT_DESC || "—"}</p>
+                      </div>
 
-                  <div className="desc-box">
-                    <div className="desc-box-header">
-                      <span>Col 27 · LONG_DESC1</span>
-                      <small>Comprehensive technical paragraph</small>
-                    </div>
-                    <p>
-                      The {inspectedMfr} {inspectedSku} is an industrial-grade {inspectedCat.toLowerCase()} engineered for high-demand commercial applications. Manufactured with premium materials, precision CNC machining, and comprehensive factory hydrostatic testing, it ensures maximum reliability and leak-free performance under extreme operating conditions.
-                    </p>
-                  </div>
+                      <div className="desc-box">
+                        <div className="desc-box-header">
+                          <span>Col 27 · LONG_DESC1</span>
+                          <small>Real input prefix + a fixed generic closing sentence — see README, this is a known simplification, not per-product content</small>
+                        </div>
+                        <p>{unilog252.LONG_DESC1 || "—"}</p>
+                      </div>
 
-                  <div className="desc-box">
-                    <div className="desc-box-header">
-                      <span>Col 28 · RETAIL_DESC</span>
-                      <small>Consumer and distributor packaging copy</small>
-                    </div>
-                    <p>{inspectedMfr} {inspectedSku} - Industrial Grade {inspectedDesc}. Designed for trade professionals.</p>
-                  </div>
+                      <div className="desc-box">
+                        <div className="desc-box-header">
+                          <span>Col 28 · RETAIL_DESC</span>
+                          <small>Consumer and distributor packaging copy</small>
+                        </div>
+                        <p>{unilog252.RETAIL_DESC || "—"}</p>
+                      </div>
 
-                  <div className="desc-box">
-                    <div className="desc-box-header">
-                      <span>Col 29 · MARKETING_DESCRIPTION</span>
-                      <small>Full SEO-optimized product marketing story</small>
-                    </div>
-                    <p>
-                      Discover unbeatable durability and certified performance with the {inspectedMfr} {inspectedSku}. Ideal for maintenance, repair, and operational engineering teams requiring standardized compliance, extended warranty coverage, and trusted industry brand heritage.
-                    </p>
-                  </div>
+                      <div className="desc-box">
+                        <div className="desc-box-header">
+                          <span>Col 29 · MARKETING_DESCRIPTION</span>
+                          <small>Fixed generic marketing copy — same known simplification as LONG_DESC1 above</small>
+                        </div>
+                        <p>{unilog252.MARKETING_DESCRIPTION || "—"}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
-              {/* Tab 4: 20 Item Feature Bullets */}
+              {/* Tab 4: Item Feature Bullets — real, sparse count, not padded to 20 */}
               {inspectorTab === "features" && (
                 <div>
                   <div style={{ marginBottom: 12 }}>
-                    <h4 style={{ margin: 0, fontSize: 14 }}>20 Standardized Feature Bullets (Columns 30–49)</h4>
-                    <small style={{ color: "#64748b" }}>Populated from authoritative manufacturer technical datasheets</small>
+                    <h4 style={{ margin: 0, fontSize: 14 }}>Item Feature Bullets (Columns 30–49)</h4>
+                    <small style={{ color: "#64748b" }}>
+                      {unilog252 ? `${Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter(Boolean).length} of 20 slots populated` : "Loading…"} — generic construction-quality bullets computed deterministically, not sourced from a manufacturer datasheet
+                    </small>
                   </div>
 
                   <ul className="bullet-list">
-                    {[
-                      "Rugged industrial-grade construction for extended service life in demanding environments",
-                      "Precision CNC machined components ensure leak-free seal and optimal fluid control",
-                      "Meets and exceeds ASME B16.34, ANSI, CSA, and MSS SP-110 industrial standards",
-                      "Corrosion-resistant alloy body engineered to withstand harsh chemical and thermal stress",
-                      "Factory hydrostatically pressure tested to 150% rated working pressure prior to dispatch",
-                      "Low operating torque design enables effortless manual operation and smooth actuation",
-                      "Standard NPT threaded connection conforms to ANSI/ASME B1.20.1 standards",
-                      "Blowout-proof stem design provides enhanced operator safety during maintenance",
-                      "Reinforced PTFE seat rings offer bubble-tight shutoff across full temperature curve",
-                      "Bi-directional flow capability simplifies piping layout and field installation",
-                      "Mounting pad geometry allows direct coupling with pneumatic and electric actuators",
-                      "Zinc-plated heavy-duty steel lever with vinyl grip for positive ergonomics",
-                      "Lead-free construction compliant with Federal Safe Drinking Water Act standards",
-                      "Self-cleaning ball and seat mechanism prevents particulate buildup in slurry media",
-                      "Wide thermal operating window from -20°F to 450°F (-29°C to 232°C)",
-                      "Each unit is serialized and laser-etched with full heat-code traceability",
-                      "Universal 4-level taxonomy classification for seamless ERP and PIM syndication",
-                      "Designed and assembled in an ISO 9001 certified manufacturing facility",
-                      "Backed by standard 5-year manufacturer limited warranty on parts and materials",
-                      "Comprehensive documentation including 3D CAD models and PDF specification sheets"
-                    ].map((bullet, idx) => (
+                    {(unilog252 ? Array.from({ length: 20 }, (_, i) => unilog252[`ITEM_FEATURES_${i + 1}`]).filter((b): b is string => Boolean(b)) : []).map((bullet, idx) => (
                       <li className="bullet-item" key={idx}>
                         <span className="idx">Col {30 + idx} · #{idx + 1}</span>
                         <span>{bullet}</span>
@@ -2174,93 +1864,52 @@ function App() {
               )}
 
               {/* Tab 5: Sourcing, Documents & Live Scraper */}
-              {inspectorTab === "evidence" && (
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                    <div>
+              {inspectorTab === "evidence" && (() => {
+                const rowSources = batchSources.filter(
+                  (s: any) => s.manufacturer === inspectedMfr && s.part_number === inspectedSku
+                );
+                return (
+                  <div>
+                    <div style={{ marginBottom: 14 }}>
                       <strong style={{ color: "#0f172a", fontSize: 14, display: "block" }}>
-                        Authoritative Manufacturer Provenance &amp; Documents
+                        Manufacturer Provenance &amp; Documents
                       </strong>
                       <small style={{ color: "#64748b" }}>
-                        Verified against {inspectedMfr} corporate domain. Reseller marketplaces (Amazon, eBay, Walmart) blocked.
+                        Real sources discovered for this SKU during batch ingestion. Reseller marketplaces (Amazon, eBay, Walmart) are blocked at discovery time, never surfaced here.
                       </small>
                     </div>
-                    <button
-                      onClick={() => handleModalScrape(inspectedSku, inspectedMfr, inspectedCat)}
-                      disabled={isModalScraping}
-                      style={{
-                        background: isModalScraping ? "#64748b" : "#2872e3",
-                        color: "#ffffff",
-                        border: "none",
-                        padding: "6px 12px",
-                        borderRadius: 6,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: isModalScraping ? "wait" : "pointer"
-                      }}
-                    >
-                      {isModalScraping ? "Generating Profile..." : "Generate Demo Profile"}
-                    </button>
-                  </div>
 
-                  {modalScrapeResult && (
-                    <div style={{ background: "#0f172a", border: "1px solid #38bdf8", borderRadius: 8, padding: 14, marginBottom: 16, color: "#ffffff" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: 8 }}>
-                        <span style={{ color: "#34d399", fontWeight: 700, fontSize: 11 }}>
-                          ⚠ Unverified synthetic profile: {modalScrapeResult.canonical_domain}
-                        </span>
-                        <span style={{ color: "#94a3b8", fontFamily: "DM Mono", fontSize: 10 }}>
-                          SHA-256: {modalScrapeResult.content_sha256?.slice(0, 16)}...
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 11, fontFamily: "DM Mono", color: "#38bdf8", lineHeight: 1.6, marginBottom: 10 }}>
-                        <div>MFR Product URL: <a href={modalScrapeResult.product_url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>{modalScrapeResult.product_url}</a></div>
-                        {modalScrapeResult.datasheet_urls?.map((u: string, i: number) => (
-                          <div key={i}>Datasheet PDF: <a href={u} target="_blank" rel="noreferrer" style={{ color: "#34d399" }}>{u}</a></div>
+                    {rowSources.length > 0 ? (
+                      <div className="diff-card">
+                        {rowSources.map((s: any, idx: number) => (
+                          <div key={idx} style={{ padding: "10px 0", borderBottom: idx < rowSources.length - 1 ? "1px solid #e2e8f0" : "none" }}>
+                            <div className="diff-field-row">
+                              <strong>{s.source_type}</strong>
+                              <a href={s.url} target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontFamily: "DM Mono", fontSize: 11 }}>{s.url}</a>
+                            </div>
+                            <div style={{ fontSize: 11, color: s.evidence_status === "verified_live" ? "#16a34a" : "#b45309", marginTop: 2 }}>
+                              {s.evidence_status === "verified_live" ? "✓ Verified — part number confirmed on fetched page" : "Unverified candidate — URL pattern-guessed, not fetched"}
+                            </div>
+                            {s.extracted_attributes && s.extracted_attributes.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                                {s.extracted_attributes.map((a: any, i: number) => (
+                                  <span key={i} style={{ background: "#e0f2fe", color: "#0c4a6e", padding: "3px 8px", borderRadius: 5, fontSize: 11 }}>
+                                    <strong>{a.label}:</strong> {a.value}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {modalScrapeResult.attributes?.map((attr: any, i: number) => (
-                          <span key={i} style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 4, fontSize: 10, color: "#e2e8f0" }}>
-                            {attr.label}: <strong>{attr.value} {attr.uom || ""}</strong>
-                          </span>
-                        ))}
+                    ) : (
+                      <div className="empty-review" style={{ margin: 0 }}>
+                        No source evidence discovered for this SKU in the active batch. Re-ingest with <code>live_fetch=true</code> to attempt real manufacturer-site verification, or this manufacturer/part combination wasn't found by the deterministic candidate generator either.
                       </div>
-                    </div>
-                  )}
-
-                  <div className="diff-card">
-                    <div className="diff-field-row">
-                      <strong>Col 1 · MFR URL</strong>
-                      <span style={{ color: "#2563eb", fontFamily: "DM Mono" }}>https://www.{inspectedMfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/products/{inspectedSku.toLowerCase()}</span>
-                    </div>
-                    <div className="diff-field-row">
-                      <strong>Col 222 · Specification Sheet (PDF)</strong>
-                      <span style={{ color: "#2563eb", fontFamily: "DM Mono" }}>https://cdn.{inspectedMfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/docs/{inspectedSku.toLowerCase()}-datasheet.pdf</span>
-                    </div>
-                    <div className="diff-field-row">
-                      <strong>Col 223 · Installation Manual (PDF)</strong>
-                      <span style={{ color: "#2563eb", fontFamily: "DM Mono" }}>https://cdn.{inspectedMfr.toLowerCase().replace(/[^a-z0-9]/g, "")}.com/docs/install-guide.pdf</span>
-                    </div>
-                    <div className="diff-field-row">
-                      <strong>Col 217 · California Prop 65 Status</strong>
-                      <span style={{ color: "#16a34a", fontWeight: 700 }}>Compliant (No Warning Required)</span>
-                    </div>
-                    <div className="diff-field-row">
-                      <strong>Col 216 · Standards &amp; Approvals</strong>
-                      <span>ASME B16.34, ANSI B1.20.1, CSA, MSS SP-110</span>
-                    </div>
-                    <div className="diff-field-row">
-                      <strong>Col 251 · Country of Origin</strong>
-                      <span>United States</span>
-                    </div>
-                    <div className="diff-field-row">
-                      <strong>Marketplace Prohibition Status</strong>
-                      <span style={{ color: "#16a34a", fontWeight: 700 }}>✓ Amazon, eBay, Walmart Blocked (100% Policy Compliant)</span>
-                    </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Modal Footer */}
