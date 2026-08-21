@@ -291,6 +291,21 @@ def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, st
     )
 
 
+def _strip_part_number(description: str, part_number: str) -> str:
+    """The description with its part number removed.
+
+    Descriptions in this dataset almost always lead with the part number, and
+    identifiers are full of digits that read like specifications. Removing it
+    first means a spec has to come from the descriptive text.
+    """
+    if not part_number:
+        return description
+    return re.sub(
+        rf'(?<![A-Za-z0-9]){re.escape(part_number)}(?![A-Za-z0-9])',
+        ' ', description, flags=re.IGNORECASE,
+    )
+
+
 def product_name_from_fine(fine: str | None) -> str:
     """Derive the product noun from the finest taxonomy level.
 
@@ -494,6 +509,13 @@ def enrich_product_web(
     # Extract dimensions
     dims = _extract_dimensions(desc_clean)
 
+    # Specifications are read from the description with the part number
+    # removed. A part number is an identifier, never a specification, and
+    # mining it produced fabricated specs on the official dataset: Grit 49
+    # from "49-94-0013 ... Metal Cut Off Disc" (34 rows, and a cut-off disc
+    # has no grit at all), 37418 A from "37418A Kichler Bath Light".
+    spec_text = _strip_part_number(desc_clean, pn_clean)
+
     # Build attribute triplets (Key, Value, UOM) from specs genuinely present
     # in the raw description text.
     #
@@ -504,21 +526,33 @@ def enrich_product_web(
     # was the distributor rather than the manufacturer anyway.
     attributes: list[ExtractedAttribute] = []
 
-    # Look for grit specs (e.g. 220 Grit, P120, P80)
-    m_grit = re.search(r'\b(P?\d+)\s*(?:Grit)?\b', desc_clean, re.IGNORECASE)
-    if m_grit and any(kw in desc_clean.lower() for kw in ("sanding", "abrasive", "grit", "disc", "belt")):
+    # Grit needs to be stated, not merely be a number near an abrasive word.
+    # Making "Grit" optional in this pattern meant any digits in a
+    # description mentioning "disc" or "belt" became a grit value — a
+    # diameter ("12\" Cut-Off Disc"), a width ("1/2\"x18\" Sanding Belt")
+    # or a part number all qualified. Accept only the two forms that
+    # actually designate one: a standalone FEPA code (P150), or a number
+    # written next to the word itself (220 Grit / Grit 220).
+    m_grit = (
+        re.search(r'\b(P\d{2,4})\b', spec_text, re.IGNORECASE)
+        or re.search(r'\b(\d{2,4})\s*-?\s*Grit\b', spec_text, re.IGNORECASE)
+        or re.search(r'\bGrit\s*-?\s*(\d{2,4})\b', spec_text, re.IGNORECASE)
+    )
+    if m_grit:
         attributes.append(ExtractedAttribute(label="Grit", value=m_grit.group(1)))
 
     # Look for voltage / amperage (e.g. 120V 15A, 230V 1PH, 3HP)
-    m_volt = re.search(r'\b(\d+)\s*V\b', desc_clean, re.IGNORECASE)
+    m_volt = re.search(r'\b(\d+)\s*V\b', spec_text, re.IGNORECASE)
     if m_volt:
         attributes.append(ExtractedAttribute(label="Voltage Rating", value=m_volt.group(1), uom="V"))
 
-    m_amp = re.search(r'\b(\d+)\s*A\b', desc_clean, re.IGNORECASE)
+    # Capped at four digits: a bare "A" is a common part-number suffix, and
+    # no catalogue item in scope draws 37,418 amps.
+    m_amp = re.search(r'\b(\d{1,4})\s*A\b', spec_text, re.IGNORECASE)
     if m_amp:
         attributes.append(ExtractedAttribute(label="Amperage Rating", value=m_amp.group(1), uom="A"))
 
-    m_hp = re.search(r'\b(\d+(?:\.\d+)?)\s*HP\b', desc_clean, re.IGNORECASE)
+    m_hp = re.search(r'\b(\d+(?:\.\d+)?)\s*HP\b', spec_text, re.IGNORECASE)
     if m_hp:
         attributes.append(ExtractedAttribute(label="Horsepower", value=m_hp.group(1), uom="HP"))
 
