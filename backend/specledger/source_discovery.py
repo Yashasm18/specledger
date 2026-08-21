@@ -56,16 +56,22 @@ class SourceStatus(Enum):
 # ---------------------------------------------------------------------------
 
 BLOCKED_DOMAINS = frozenset({
+    # General marketplaces
     "amazon.com", "amazon.co.uk", "amazon.ca", "amazon.de",
-    "ebay.com", "ebay.co.uk",
-    "walmart.com", "target.com",
-    "homedepot.com", "lowes.com",
-    "alibaba.com", "aliexpress.com",
-    "wish.com", "etsy.com",
-    "overstock.com", "wayfair.com",
-    "grainger.com",  # distributor, not manufacturer
+    "amazon.fr", "amazon.in", "amazon.co.jp",
+    "ebay.com", "ebay.co.uk", "ebay.de", "ebay.ca", "ebay.com.au",
+    "walmart.com", "target.com", "bestbuy.com",
+    "alibaba.com", "aliexpress.com", "dhgate.com", "made-in-china.com",
+    "temu.com", "shein.com", "wish.com", "etsy.com",
+    "overstock.com", "wayfair.com", "rakuten.com",
+    "shopee.com", "lazada.com", "mercadolibre.com",
+    # Big-box retail
+    "homedepot.com", "lowes.com", "menards.com",
+    # Industrial distributors — resellers, not the manufacturer of record
+    "grainger.com",
     "mcmaster.com", "mcmaster-carr.com",
     "zoro.com", "globalindustrial.com",
+    "fastenal.com", "mscdirect.com", "ferguson.com",
 })
 
 # Pattern for generic shopping indicators in URLs

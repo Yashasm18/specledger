@@ -147,8 +147,7 @@ const ENTERPRISE_PERSONAS: Record<string, EnterprisePersona> = {
     permissions: [
       "Commercial product catalogue exploration",
       "252-column & 50-triplet attribute inspector",
-      "12-column Commerce PIM feed export",
-      "Vector submittal PDF datasheet generation"
+      "12-column Commerce PIM feed export"
     ],
     description: "Evaluates enriched product descriptions, technical specifications, and syndication feeds for commercial sales channels.",
     recommendedWorkflow: "Commerce Catalogue (⌘ 2) & 1-Click PIM Export"
@@ -199,6 +198,8 @@ function App() {
   // can't tell whether it's safe to show an empty state or must wait.
   const [isLoadingBatch, setIsLoadingBatch] = useState(true);
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
+  // Whole-batch pending count from the API, independent of page size.
+  const [totalPending, setTotalPending] = useState(0);
   const [reviewedRowIds, setReviewedRowIds] = useState<Set<number>>(new Set());
   const reviewedRowIdsRef = useRef<Set<number>>(new Set());
   const [batchSources, setBatchSources] = useState<any[]>([]);
@@ -214,17 +215,18 @@ function App() {
   const [unilog252, setUnilog252] = useState<Record<string, string> | null>(null);
   const [isLoadingUnilog252, setIsLoadingUnilog252] = useState(false);
 
-  // Live Benchmark Runner State. These figures are our last actual measured
-  // run on the full 1,000-row official dataset (deterministic path, no live
-  // fetch), not a live per-click computation — see README "Benchmark results".
+  // Benchmark runner state. Nothing here is pre-filled: the figures stay
+  // empty until a real POST .../benchmark returns timings measured during
+  // that request, on whichever batch is actually loaded.
   const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [benchStep, setBenchStep] = useState(0);
-  const [benchStats, setBenchStats] = useState({
-    time: "0.138s",
-    throughput: "~7,200 rows/s",
-    verified: "38.1%",
-    cost: "$0 (no paid API calls)"
-  });
+  const [benchStats, setBenchStats] = useState<{
+    time: string; throughput: string; verified: string; cost: string;
+  } | null>(null);
+  const [benchStages, setBenchStages] = useState<
+    { name: string; seconds: number; rows_per_sec: number }[]
+  >([]);
+  const [benchError, setBenchError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [liveFetchEnabled, setLiveFetchEnabled] = useState(false);
@@ -318,6 +320,8 @@ function App() {
             const pending = await pendingRes.json();
             const rawPending = pending.pending_rows || [];
             setPendingReviews(rawPending.filter((r: any) => !reviewedRowIdsRef.current.has(r.row_number)));
+            // pending_rows is one page; total_pending is the whole backlog.
+            setTotalPending(pending.total_pending ?? rawPending.length);
           }
           const sourcesRes = await fetch(`${API_BASE}/catalogue/batches/${latestId}/sources`);
           if (sourcesRes.ok) {
@@ -596,28 +600,49 @@ function App() {
     }
   };
 
-  // Replays our last actual measured benchmark run (deterministic pipeline,
-  // full 1,000-row official dataset — see README "Benchmark results") with a
-  // short animated readout. This does not re-run the pipeline live per
-  // click; the numbers shown are real but static, not freshly computed.
-  const runLiveBenchmarkDemo = () => {
+  // Actually re-runs the deterministic pipeline on the server, over whichever
+  // batch is currently loaded, and reports the timings measured during that
+  // request. Nothing is replayed or pre-computed — upload your own file and
+  // this benchmarks that file.
+  const runLiveBenchmark = async () => {
+    const batchId = activeBatch?.batch_id;
+    if (!batchId || !API_BASE) {
+      setBenchError("Load a batch first — there's nothing to benchmark yet.");
+      return;
+    }
+
     setIsBenchmarking(true);
+    setBenchError(null);
+    setBenchStats(null);
+    setBenchStages([]);
     setBenchStep(1);
 
-    setTimeout(() => setBenchStep(2), 250);
-    setTimeout(() => setBenchStep(3), 500);
-    setTimeout(() => setBenchStep(4), 750);
-    setTimeout(() => {
-      setBenchStep(5);
-      setIsBenchmarking(false);
-      setBenchStats({
-        time: "0.138s",
-        throughput: "~7,200 rows/s",
-        verified: "38.1%",
-        cost: "$0 (no paid API calls)"
+    try {
+      const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/benchmark`, {
+        method: "POST",
+        headers: getApiKeyHeaders(),
       });
-      setNotice("Replaying last measured benchmark: 0.138s for 1,000 rows (~7,200 rows/sec, deterministic path). See README for methodology.");
-    }, 1000);
+      if (!res.ok) throw new Error(`Benchmark failed (HTTP ${res.status})`);
+      const data = await res.json();
+
+      setBenchStep(5);
+      setBenchStages(data.stages ?? []);
+      setBenchStats({
+        time: `${data.total_seconds}s`,
+        throughput: `${Number(data.throughput_rows_per_sec).toLocaleString()} rows/s`,
+        verified: `${(data.verified_rate * 100).toFixed(1)}%`,
+        cost: `$${data.cost_usd} (${data.external_api_calls} external API calls)`,
+      });
+      setNotice(
+        `Measured just now: ${data.row_count.toLocaleString()} rows in ${data.total_seconds}s ` +
+        `(${Number(data.throughput_rows_per_sec).toLocaleString()} rows/sec) on "${data.source_name}".`
+      );
+    } catch (err: any) {
+      setBenchStep(0);
+      setBenchError(err?.message ?? "Benchmark request failed.");
+    } finally {
+      setIsBenchmarking(false);
+    }
   };
 
   // Open 252-Column Deep-Dive Inspector Modal. Fetches the real per-row
@@ -684,6 +709,11 @@ function App() {
       })
     : [];
 
+  // How many of the rows actually rendered in this list carry the "Needs
+  // review" status — this labels the list's own filter chip, so it must count
+  // the same collection the filter applies to, not the review-queue page.
+  const needsReviewInList = displayRows.filter((r: any) => r[4] === "Needs review").length;
+
   // Filter rows by Category & Search
   const filteredRows = displayRows.filter((r: any) => {
     if (filterMode === "review" && r[4] !== "Needs review") return false;
@@ -715,8 +745,12 @@ function App() {
       })()
     : 0;
   const verifiedRate = activeBatch?.verified_rate ?? 0;
+  // How many rows are loaded in the review pane right now (one page).
   const reviewCount = pendingReviews.length;
-  const throughput = activeBatch?.metrics?.throughput_rows_per_sec ?? "~7,200";
+  // The real backlog across the whole batch — this is what a "rows needing
+  // review" metric must report, since reviewCount caps at the page size.
+  const reviewBacklog = Math.max(totalPending - reviewedRowIdsRef.current.size, 0);
+  const throughput = activeBatch?.metrics?.throughput_rows_per_sec ?? null;
 
   // Render active view
   const renderMainContent = () => {
@@ -784,7 +818,7 @@ function App() {
                 All records <b>{displayRows.length}</b>
               </button>
               <button className={`filter ${filterMode === "review" ? "active" : ""}`} onClick={() => setFilterMode("review")}>
-                Needs review <b>{reviewCount}</b>
+                Needs review <b>{needsReviewInList}</b>
               </button>
               <div className="search" style={{ display: "flex", alignItems: "center" }}>
                 <input
@@ -857,7 +891,13 @@ function App() {
             <div className="table-head">
               <div>
                 <p className="eyebrow">HUMAN GOVERNANCE WORKSPACE</p>
-                <h3>Priority Review Queue ({pendingReviews.length} pending)</h3>
+                <h3>Priority Review Queue ({reviewBacklog.toLocaleString()} pending)</h3>
+                {reviewBacklog > pendingReviews.length && (
+                  <small style={{ color: "#64748b" }}>
+                    Showing the {pendingReviews.length} highest-priority rows of{" "}
+                    {reviewBacklog.toLocaleString()}.
+                  </small>
+                )}
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 {pendingReviews.length > 0 && (
@@ -866,7 +906,7 @@ function App() {
                     onClick={handleBulkApprove}
                     style={{ background: "rgba(16, 185, 129, 0.15)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.4)", padding: "6px 12px", borderRadius: 6, fontWeight: 600 }}
                   >
-                    ✓ Approve All High Confidence (≥80%)
+                    ✓ Approve High Confidence on This Page (≥80%)
                   </button>
                 )}
                 <span style={{ fontSize: 12, color: "#64748b" }}>
@@ -1294,22 +1334,24 @@ function App() {
                     Enrichment pipeline
                   </h3>
                   <p style={{ margin: "4px 0 0", fontSize: 13, color: "#8b949e" }}>
-                    Deterministic path, measured on the full 1,000-row official dataset
+                    {activeBatch
+                      ? `Deterministic path — runs live against "${activeBatch.source_name}" (${(activeBatch.row_count ?? 0).toLocaleString()} rows)`
+                      : "Deterministic path — load or upload a batch to benchmark it"}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <button
-                    onClick={runLiveBenchmarkDemo}
-                    disabled={isBenchmarking}
+                    onClick={runLiveBenchmark}
+                    disabled={isBenchmarking || !activeBatch}
                     style={{
-                      background: isBenchmarking ? "#30363d" : "#238636",
+                      background: isBenchmarking || !activeBatch ? "#30363d" : "#238636",
                       color: "#ffffff",
                       border: "1px solid rgba(255,255,255,0.1)",
                       padding: "8px 16px",
                       borderRadius: 6,
                       fontWeight: 500,
                       fontSize: 13,
-                      cursor: isBenchmarking ? "wait" : "pointer",
+                      cursor: isBenchmarking ? "wait" : !activeBatch ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
                       gap: 6
@@ -1351,25 +1393,51 @@ function App() {
                 </div>
               </div>
 
-              {/* Benchmark Telemetry Counters */}
+              {/* Benchmark Telemetry Counters — empty until a real run returns */}
               <div className="benchmark-stats-row">
                 <div className="benchmark-stat-item">
                   <span>EXECUTION TIME</span>
-                  <strong>{benchStats.time}</strong>
+                  <strong>{benchStats ? benchStats.time : "—"}</strong>
                 </div>
                 <div className="benchmark-stat-item">
                   <span>THROUGHPUT</span>
-                  <strong>{benchStats.throughput}</strong>
+                  <strong>{benchStats ? benchStats.throughput : "—"}</strong>
                 </div>
-                <div className="benchmark-stat-item" title="Fraction of all output fields matched against reference data on the full 1,000-row official dataset — not a ground-truth accuracy score.">
+                <div className="benchmark-stat-item" title="Fraction of all output fields matched against reference data in this run — not a ground-truth accuracy score.">
                   <span>FIELD VERIFIED RATE</span>
-                  <strong style={{ color: "#34d399" }}>{benchStats.verified}</strong>
+                  <strong style={{ color: benchStats ? "#34d399" : undefined }}>
+                    {benchStats ? benchStats.verified : "—"}
+                  </strong>
                 </div>
-                <div className="benchmark-stat-item" title="This run uses the deterministic path (no live_fetch): zero external API calls, so the real cost is $0. The optional live_fetch mode adds one Serper.dev search call only when direct manufacturer-domain guessing fails — see README for real per-query pricing context. No LLM API is used anywhere in this pipeline.">
+                <div className="benchmark-stat-item" title="The deterministic path makes zero external API calls, so the real cost is $0. The optional live_fetch mode adds one Serper.dev search call only when direct manufacturer-domain guessing fails — see README. No LLM API is used anywhere in this pipeline.">
                   <span>OPERATING COST</span>
-                  <strong>{benchStats.cost}</strong>
+                  <strong>{benchStats ? benchStats.cost : "—"}</strong>
                 </div>
               </div>
+
+              {!benchStats && !benchError && (
+                <p style={{ margin: "10px 0 0", fontSize: 12, color: "#8b949e" }}>
+                  No figures shown until you run it — these are measured during the
+                  request, not stored from a previous run.
+                </p>
+              )}
+
+              {benchError && (
+                <p style={{ margin: "10px 0 0", fontSize: 12, color: "#f85149" }}>
+                  {benchError}
+                </p>
+              )}
+
+              {benchStages.length > 0 && (
+                <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 16 }}>
+                  {benchStages.map((s) => (
+                    <div key={s.name} style={{ fontSize: 12, color: "#8b949e" }}>
+                      <span style={{ color: "#c9d1d9" }}>{s.name}</span>{" "}
+                      {s.seconds}s · {s.rows_per_sec.toLocaleString()} rows/s
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Metrics Cards */}
@@ -1381,8 +1449,8 @@ function App() {
               </article>
               <article>
                 <span>REVIEW QUEUE</span>
-                <strong className="amber">{isLoadingBatch ? "…" : reviewCount}</strong>
-                <small>{isLoadingBatch ? "Loading…" : !activeBatch ? "No batch loaded" : reviewCount > 0 ? "Requires human verification" : "No rows pending review"}</small>
+                <strong className="amber">{isLoadingBatch ? "…" : reviewBacklog.toLocaleString()}</strong>
+                <small>{isLoadingBatch ? "Loading…" : !activeBatch ? "No batch loaded" : reviewBacklog > 0 ? "Requires human verification" : "No rows pending review"}</small>
               </article>
               <article>
                 <span>CATALOGUE HEALTH</span>
@@ -1392,7 +1460,7 @@ function App() {
               <article>
                 <span>EVIDENCE COVERAGE</span>
                 <strong>{isLoadingBatch ? "…" : `${Math.round(evidenceCoverage * 100)}`}<span className="percent">{isLoadingBatch ? "" : "%"}</span></strong>
-                <small>{isLoadingBatch ? "Loading…" : activeBatch ? `Across ${activeBatch.total_fields ?? liveRows.length} fields · ${throughput} rows/sec` : `No batch loaded yet · ${throughput} rows/sec`}</small>
+                <small>{isLoadingBatch ? "Loading…" : activeBatch ? `Across ${activeBatch.total_fields ?? liveRows.length} fields${throughput ? ` · ${throughput} rows/sec` : ""}` : "No batch loaded yet"}</small>
               </article>
             </section>
 
@@ -2012,7 +2080,7 @@ function App() {
           >
             <span>Human review</span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {reviewCount > 0 && <i>{reviewCount}</i>}
+              {reviewBacklog > 0 && <i>{reviewBacklog.toLocaleString()}</i>}
               <kbd>⌘ R</kbd>
             </span>
           </a>

@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -457,6 +458,24 @@ async def ingest_catalogue(
     }
 
 
+def _unilog_args_from_raw(
+    vals: dict[str, Any],
+) -> tuple[str, Any, Any, Any, Any, Any]:
+    """Map a row's raw source values onto row_to_unilog_dict()'s positional
+    arguments. The official challenge columns (mfg_part_num, part_desc,
+    part_manuf, ...) are checked first, with generic names as the fallback so
+    an uploaded file that uses its own headers still resolves.
+    """
+    return (
+        vals.get("mfg_part_num") or vals.get("part_number") or "",
+        vals.get("part_manuf") or vals.get("manufacturer"),
+        vals.get("part_desc") or vals.get("description"),
+        vals.get("e1_brand"),
+        vals.get("unilog_brand"),
+        vals.get("dib_brand"),
+    )
+
+
 def _attach_categories(rows: list[dict[str, Any]]) -> None:
     """Inject a real, deterministic classpath into each row (mutates in
     place) — the raw 6-column input never has a category column, so
@@ -532,13 +551,7 @@ def get_batch_row_unilog252(batch_id: str, row_number: int, organization_id: str
             # in-memory dev store doesn't, so fall back to building it from
             # the fields array directly for parity between both backends.
             vals = row.get("raw_values") or {f["column"]: f["raw_value"] for f in row.get("fields", [])}
-            part_number = vals.get("mfg_part_num") or vals.get("part_number") or ""
-            raw_mfr = vals.get("part_manuf") or vals.get("manufacturer")
-            raw_desc = vals.get("part_desc") or vals.get("description")
-            e1_brand = vals.get("e1_brand")
-            unilog_brand = vals.get("unilog_brand")
-            dib_brand = vals.get("dib_brand")
-            return row_to_unilog_dict(part_number, raw_mfr, raw_desc, e1_brand, unilog_brand, dib_brand)
+            return row_to_unilog_dict(*_unilog_args_from_raw(vals))
     raise HTTPException(status_code=404, detail=f"Row {row_number} not found in batch")
 
 
@@ -562,16 +575,30 @@ def list_pending_review(
     limit: int = Query(default=50, ge=1, le=200),
     organization_id: str = Query(default="default"),
 ) -> dict[str, Any]:
-    """List rows pending human review for a batch, ordered by priority."""
+    """List rows pending human review for a batch, ordered by priority.
+
+    `total_pending` is the real number of rows awaiting review across the
+    whole batch; `count` is only how many this page returned. They differ
+    whenever the queue is longer than `limit`, so callers displaying a
+    "rows needing review" figure must use `total_pending` — using `count`
+    silently caps the reported backlog at the page size.
+    """
     real_id = _resolve_batch_id(batch_id, organization_id)
     queue = _get_review_queue(real_id, organization_id)
     if not queue:
-        return {"batch_id": real_id, "pending_rows": [], "count": 0}
+        return {
+            "batch_id": real_id, "pending_rows": [], "count": 0,
+            "total_pending": 0, "limit": limit, "summary": None,
+        }
 
     pending = queue.get_pending(real_id, limit=limit)
+    summary = queue.get_batch_summary(real_id)
     return {
         "batch_id": real_id,
         "count": len(pending),
+        "total_pending": summary["pending_review"],
+        "limit": limit,
+        "summary": summary,
         "pending_rows": [r.to_dict() for r in pending],
     }
 
@@ -763,6 +790,90 @@ def export_batch_endpoint(
 
 
 # ---------------------------------------------------------------------------
+# Pipeline Benchmark
+# ---------------------------------------------------------------------------
+
+@router.post("/batches/{batch_id}/benchmark")
+@limiter.limit("6/minute")
+def benchmark_batch(
+    request: Request,
+    batch_id: str,
+    organization_id: str = Query(default="default"),
+) -> dict[str, Any]:
+    """Re-run the deterministic pipeline over this batch and time it for real.
+
+    Every number returned here is measured during this request, not replayed
+    from a previous run — including when the batch is one the caller uploaded
+    themselves. The pipeline re-runs from the batch's persisted *raw* values,
+    so it exercises the same code path as the original ingest rather than
+    re-reading a cached result.
+
+    Cost is genuinely $0: the deterministic path makes no external API calls
+    at all (no LLM, no search). Only `live_fetch` ingestion hits a paid
+    dependency, and this endpoint never invokes it.
+    """
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    stored = catalogue_store.get_batch(organization_id, real_id)
+    if not stored or not stored.get("rows"):
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    source_rows = tuple(
+        SourceRow(
+            row_number=r["row_number"],
+            source_name=stored["source_name"],
+            source_fingerprint=r["source_fingerprint"],
+            values=r["raw_values"],
+        )
+        for r in stored["rows"]
+    )
+    batch = CatalogueBatch(stored["source_name"], tuple(stored["columns"]), source_rows)
+
+    # Stage 1 — enrichment (cleaning, LOV matching, UOM/material normalization)
+    t0 = time.perf_counter()
+    enriched = enrich_batch(batch, _reference_store)
+    t_enrich = time.perf_counter() - t0
+
+    # Stage 2 — deterministic validation & auto-approval routing
+    t1 = time.perf_counter()
+    validation = validate_batch(enriched)
+    t_validate = time.perf_counter() - t1
+
+    # Stage 3 — 252-column Unilog CX1 record synthesis (the real export path)
+    t2 = time.perf_counter()
+    for r in stored["rows"]:
+        row_to_unilog_dict(*_unilog_args_from_raw(r["raw_values"]))
+    t_synthesize = time.perf_counter() - t2
+
+    total = t_enrich + t_validate + t_synthesize
+    row_count = enriched.row_count
+
+    return {
+        "batch_id": real_id,
+        "source_name": stored["source_name"],
+        "row_count": row_count,
+        "measured_at_request_time": True,
+        "total_seconds": round(total, 4),
+        "throughput_rows_per_sec": round(row_count / total) if total > 0 else 0,
+        "stages": [
+            {"name": "Enrich & normalize", "seconds": round(t_enrich, 4),
+             "rows_per_sec": round(row_count / t_enrich) if t_enrich > 0 else 0},
+            {"name": "Validate & route", "seconds": round(t_validate, 4),
+             "rows_per_sec": round(row_count / t_validate) if t_validate > 0 else 0},
+            {"name": "Synthesize 252 columns", "seconds": round(t_synthesize, 4),
+             "rows_per_sec": round(row_count / t_synthesize) if t_synthesize > 0 else 0},
+        ],
+        "verified_rate": round(enriched.verified_rate, 4),
+        "auto_approve_rate": round(validation.auto_approve_rate, 4),
+        "auto_approve_count": validation.auto_approve_count,
+        "review_required_count": validation.review_required_count,
+        "total_issues": validation.total_issues,
+        "external_api_calls": 0,
+        "cost_usd": 0.0,
+        "cost_note": "Deterministic path makes no LLM or search API calls.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Ground-Truth Evaluation
 # ---------------------------------------------------------------------------
 
@@ -803,69 +914,3 @@ def evaluate_batch(
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {exc}") from exc
 
     return report.to_dict()
-
-
-# ---------------------------------------------------------------------------
-# Deep Industrial Web & PDF Scraper Endpoints
-# ---------------------------------------------------------------------------
-
-class ScraperQueryInput(BaseModel):
-    part_number: str = Field(min_length=1, max_length=100)
-    manufacturer: str = Field(min_length=1, max_length=200)
-    category: str = Field(default="Industrial Component")
-    raw_description: str = Field(default="")
-
-
-@router.post("/scraper/extract")
-@limiter.limit("15/minute")
-def extract_from_web_and_pdf(request: Request, payload: ScraperQueryInput) -> dict[str, Any]:
-    """Execute deep web scraping & PDF parsing for a manufacturer part number."""
-    from .pdf_and_web_scraper import industrial_scraper
-    profile = industrial_scraper.scrape_product_profile(
-        part_number=payload.part_number,
-        manufacturer=payload.manufacturer,
-        category=payload.category,
-        raw_description=payload.raw_description,
-    )
-    return profile.to_dict()
-
-
-@router.get("/scraper/status")
-def get_scraper_telemetry() -> dict[str, Any]:
-    """Get active scraper status, registered manufacturer portals, and blocked firewall rules."""
-    from .pdf_and_web_scraper import BLOCKED_SHOPPING_DOMAINS, EXPANDED_MANUFACTURER_REGISTRY
-    return {
-        "engine": "SpecLedger Industrial Web & PDF Extractor v2.0",
-        "registered_manufacturers_count": len(EXPANDED_MANUFACTURER_REGISTRY),
-        "blocked_marketplaces_count": len(BLOCKED_SHOPPING_DOMAINS),
-        "supported_document_types": [
-            "Technical Datasheets (PDF)",
-            "Installation, Operation & Maintenance Manuals (IOM)",
-            "3D CAD Models & Drawings (DWG / STEP)",
-            "Safety Data Sheets (SDS / MSDS)",
-            "ASME / CSA / ANSI / RoHS / REACH Compliance Certificates",
-        ],
-        "blocked_marketplaces_sample": list(BLOCKED_SHOPPING_DOMAINS)[:10],
-    }
-
-
-@router.get("/scraper/datasheet.pdf")
-def get_datasheet_pdf(
-    part_number: str = Query(default="LC1D25B7"),
-    manufacturer: str = Query(default="Schneider Electric"),
-    category: str = Query(default="Industrial Component"),
-) -> Response:
-    """Generate and stream a real, validated industrial PDF submittal."""
-    from .pdf_and_web_scraper import generate_submittal_pdf, industrial_scraper
-    profile = industrial_scraper.scrape_product_profile(
-        part_number=part_number,
-        manufacturer=manufacturer,
-        category=category,
-    )
-    pdf_bytes = generate_submittal_pdf(profile)
-    filename = f"{re.sub(r'[^a-zA-Z0-9]', '_', part_number)}_Submittal.pdf"
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
-    )

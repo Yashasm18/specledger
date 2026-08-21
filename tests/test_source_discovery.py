@@ -35,6 +35,24 @@ class BlockedSourceTests(unittest.TestCase):
     def test_alibaba_blocked(self) -> None:
         assert is_blocked_source("https://www.alibaba.com/product-detail/valve")
 
+    def test_industrial_distributors_blocked(self) -> None:
+        # Distributors resell rather than manufacture, so they are not an
+        # authoritative source of record even though they carry real
+        # industrial catalogue data.
+        assert is_blocked_source("https://www.grainger.com/product/12345")
+        assert is_blocked_source("https://www.mcmaster.com/1234A56/")
+        assert is_blocked_source("https://www.zoro.com/product/G1234567/")
+        assert is_blocked_source("https://www.fastenal.com/product/98765")
+        assert is_blocked_source("https://www.mscdirect.com/product/details/1234")
+        assert is_blocked_source("https://www.ferguson.com/product/faucet-123")
+
+    def test_additional_marketplaces_blocked(self) -> None:
+        assert is_blocked_source("https://www.temu.com/goods.html")
+        assert is_blocked_source("https://www.dhgate.com/product/1234.html")
+        assert is_blocked_source("https://www.made-in-china.com/product/abc")
+        assert is_blocked_source("https://www.bestbuy.com/site/item/123")
+        assert is_blocked_source("https://www.menards.com/main/p-1234.htm")
+
     def test_manufacturer_not_blocked(self) -> None:
         assert not is_blocked_source("https://www.parker.com/product/valve-123")
         assert not is_blocked_source("https://www.emerson.com/catalog/item")
