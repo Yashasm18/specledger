@@ -291,6 +291,35 @@ def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, st
     )
 
 
+def product_name_from_fine(fine: str | None) -> str:
+    """Derive the product noun from the finest taxonomy level.
+
+    Unilog's delivery format puts the product itself in "Product Name"
+    ("Dishwasher"). We were writing brand + part number there, which restates
+    two columns that already exist and never says what the item is. The
+    taxonomy leaf already names the product category, so singularise it.
+
+    Returns "" for an unknown category rather than inventing a noun.
+    """
+    if not fine:
+        return ""
+    # A compound leaf like "Sanding Belts & Discs" names two things; an
+    # individual product is one of them, so take the first.
+    head = fine.split("&")[0].strip()
+    if not head:
+        return ""
+    words = head.split()
+    last = words[-1]
+    if last.endswith("ies") and len(last) > 4:
+        last = last[:-3] + "y"
+    elif last.endswith("ses") or last.endswith("xes") or last.endswith("ches") \
+            or last.endswith("shes"):
+        last = last[:-2]
+    elif last.endswith("s") and not last.endswith("ss"):
+        last = last[:-1]
+    return " ".join(words[:-1] + [last])
+
+
 def classify_category(desc: str | None, manufacturer: str | None) -> str:
     """Public entry point for real, deterministic keyword-based taxonomy
     classification — same logic enrich_product_web() uses for the real CSV
@@ -352,8 +381,17 @@ def enrich_product_web(
     # the actual input or a real fetched source, it doesn't belong here.
     short_desc = desc_clean[:100]
     invoice_desc = desc_clean.upper()[:60]
-    mobile_desc = f"{brand_name} {pn_clean} {desc_clean}"[:120]
-    long_desc1 = f"{brand_name} {pn_clean} - {desc_clean}"
+    # Supplier descriptions in this dataset almost always lead with the part
+    # number ("PDSH4816AF Dishwasher SS - Display Only"), so prepending it
+    # unconditionally produced "PDSH4816AF PDSH4816AF Dishwasher ...". Only
+    # prepend when the description doesn't already open with it — the prepend
+    # still earns its place for rows whose description omits the part number.
+    if desc_clean.lower().startswith(pn_clean.lower()):
+        mobile_desc = f"{brand_name} {desc_clean}"[:120]
+        long_desc1 = f"{brand_name} - {desc_clean}"
+    else:
+        mobile_desc = f"{brand_name} {pn_clean} {desc_clean}"[:120]
+        long_desc1 = f"{brand_name} {pn_clean} - {desc_clean}"
     retail_desc = desc_clean
     # No real marketing-copy source exists without live_fetch pulling the
     # manufacturer's own page — left honestly empty rather than fabricated.
@@ -362,12 +400,15 @@ def enrich_product_web(
     # Extract dimensions
     dims = _extract_dimensions(desc_clean)
 
-    # Build attribute triplets (Key, Value, UOM): identity pair plus any
-    # spec genuinely present in the raw description text.
-    attributes: list[ExtractedAttribute] = [
-        ExtractedAttribute(label="Manufacturer", value=mfr_clean),
-        ExtractedAttribute(label="Part Number", value=pn_clean),
-    ]
+    # Build attribute triplets (Key, Value, UOM) from specs genuinely present
+    # in the raw description text.
+    #
+    # No identity pair. Unilog's delivery examples use these slots purely for
+    # specifications — Series, Voltage Rating, Sound Level, Material — and
+    # contain no "Manufacturer" or "Part Number" entry. Seeding those here
+    # restated MANUFACTURER_NAME and MANUFACTURER_PART_NUMBER, and the value
+    # was the distributor rather than the manufacturer anyway.
+    attributes: list[ExtractedAttribute] = []
 
     # Look for grit specs (e.g. 220 Grit, P120, P80)
     m_grit = re.search(r'\b(P?\d+)\s*(?:Grit)?\b', desc_clean, re.IGNORECASE)
@@ -387,14 +428,13 @@ def enrich_product_web(
     if m_hp:
         attributes.append(ExtractedAttribute(label="Horsepower", value=m_hp.group(1), uom="HP"))
 
-    # Feature bullets are derived only from the attributes actually
-    # extracted above (skipping the baseline Manufacturer/Part Number
-    # pair, which already have their own columns) — no generic filler
-    # text. Sparse or empty is the honest result when the raw description
-    # doesn't contain an extractable spec.
+    # Feature bullets are derived only from the attributes actually extracted
+    # above — no generic filler text. Sparse or empty is the honest result
+    # when the raw description doesn't contain an extractable spec. Nothing
+    # is skipped now that the identity pair no longer occupies slots 1 and 2.
     features = [
         f"{attr.label}: {attr.value} {attr.uom}".strip() if attr.uom else f"{attr.label}: {attr.value}"
-        for attr in attributes[2:]
+        for attr in attributes
     ]
 
     # Generate image asset names

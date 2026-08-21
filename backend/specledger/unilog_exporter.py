@@ -21,7 +21,9 @@ from typing import Any, Mapping
 
 from .catalogue_ingestion import CatalogueBatch, clean_manufacturer_name
 from .enrichment import EnrichedBatch
-from .web_enricher import enrich_product_web, WebEnrichmentResult
+from .web_enricher import (
+    enrich_product_web, product_name_from_fine, WebEnrichmentResult,
+)
 
 
 UNILOG_252_HEADERS: list[str] = [
@@ -58,6 +60,14 @@ UNILOG_252_HEADERS.extend([
     'Submittal', 'Compatibility Chart', 'Size Chart', 'Product Label/Insert',
     'Video Link', 'Video Link 1', 'Country Of Origin', 'Discontinued', 'Actual Image (Yes/No)',
 ])
+
+
+def _delivery_classpath(classpath: str | None) -> str:
+    """Render a classpath in Unilog's delivery format: segments joined by a
+    bare ">", with each segment's own internal spaces left alone."""
+    if not classpath:
+        return ""
+    return ">".join(segment.strip() for segment in classpath.split(">"))
 
 
 def row_to_unilog_dict(
@@ -103,13 +113,20 @@ def row_to_unilog_dict(
     row['BRAND_NAME'] = brand
     row['TRADE_NAME'] = web_res.trade_name or f"{brand}®"
     row['MANUFACTURER_PART_NUMBER'] = pn
-    row['Product Name'] = f"{brand} {pn}"
+    # The product itself, not a restatement of two columns that already
+    # exist. Falls back to the old brand+part form only when the taxonomy
+    # could not name the product at all.
+    row['Product Name'] = product_name_from_fine(web_res.fine) or f"{brand} {pn}"
 
     # Classification
     row['Dept'] = web_res.dept or ""
     row['Class'] = web_res.class_name or ""
     row['Fine'] = web_res.fine or ""
-    row['Classpath'] = web_res.classpath or ""
+    # Unilog's delivery format writes the hierarchy with a bare ">".
+    # Internally it carries " > " because that is what reads well in the
+    # dashboard, so normalise at the delivery boundary rather than making the
+    # UI ugly — the exported file is the artifact they compare against.
+    row['Classpath'] = _delivery_classpath(web_res.classpath)
 
     # Descriptions
     row['MOBILE_DESC'] = web_res.mobile_desc or ""

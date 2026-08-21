@@ -202,7 +202,13 @@ class CatalogueApiTests(unittest.TestCase):
             assert row["PART_NUMBER"] == "70-100-01"
             assert row["MANUFACTURER_NAME"] == "Apollo Valves"
             assert "Ball Valve" in row["Part_Desc"]
-            assert row["ATTRIBUTE_LABEL 1"] == "Manufacturer"
+            # Attribute slots hold specifications, never identity fields:
+            # Unilog's own delivery examples use them for Series, Voltage
+            # Rating, Material and the like, and MANUFACTURER_NAME /
+            # MANUFACTURER_PART_NUMBER already have dedicated columns. This
+            # description states no extractable spec, so the slot is honestly
+            # empty rather than padded with something already delivered.
+            assert row["ATTRIBUTE_LABEL 1"] not in ("Manufacturer", "Part Number")
         finally:
             csv_path.unlink(missing_ok=True)
 

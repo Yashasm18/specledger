@@ -2,7 +2,9 @@
 
 import unittest
 
-from backend.specledger.web_enricher import classify_category
+from backend.specledger.web_enricher import (
+    classify_category, enrich_product_web, product_name_from_fine,
+)
 
 
 class TaxonomySignalPriorityTests(unittest.TestCase):
@@ -35,3 +37,118 @@ class TaxonomySignalPriorityTests(unittest.TestCase):
     def test_a_real_freud_abrasive_still_classifies_from_its_description(self) -> None:
         path = classify_category('DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc', "Freud Inc")
         self.assertIn("Abrasives", path)
+
+
+class DescriptionAssemblyTests(unittest.TestCase):
+    """Descriptions must not repeat the part number.
+
+    Supplier Part_Desc values in this dataset almost always start with the
+    part number ("PDSH4816AF Dishwasher SS - Display Only"). Prepending it
+    again produced "... PDSH4816AF PDSH4816AF Dishwasher SS - Display Only",
+    which also burns characters against the 120-char MOBILE_DESC cap.
+    """
+
+    def test_mobile_desc_does_not_repeat_a_leading_part_number(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher SS - Display Only",
+        )
+        self.assertEqual(res.mobile_desc.count("PDSH4816AF"), 1, res.mobile_desc)
+
+    def test_long_desc_does_not_repeat_a_leading_part_number(self) -> None:
+        res = enrich_product_web(
+            "WDTS7024RZ", "Appliance Dealers Cooperative (APPDE)",
+            "WDTS7024RZ Dishwasher SS - Display Only",
+        )
+        self.assertEqual(res.long_desc1.count("WDTS7024RZ"), 1, res.long_desc1)
+
+    def test_part_number_is_still_present_when_the_description_omits_it(self) -> None:
+        # The prepend exists for a reason — descriptions that don't name the
+        # part must still carry it.
+        res = enrich_product_web(
+            "V-100", "Parker Hannifin", "Brass Ball Valve 600 PSI",
+        )
+        self.assertIn("V-100", res.mobile_desc)
+        self.assertIn("V-100", res.long_desc1)
+
+    def test_matching_is_case_insensitive(self) -> None:
+        res = enrich_product_web(
+            "abc-123", "Parker Hannifin", "ABC-123 Brass Ball Valve",
+        )
+        self.assertEqual(res.mobile_desc.lower().count("abc-123"), 1, res.mobile_desc)
+
+
+class ProductNameTests(unittest.TestCase):
+    """Product Name is the product noun, not an identifier restatement.
+
+    Unilog's gold rows put "Dishwasher" here. We put
+    "Appliance Dealers Cooperative PDSH4816AF" — the manufacturer and the
+    part number, both of which already have their own columns, and neither
+    of which says what the thing is.
+    """
+
+    def test_singularises_a_simple_plural_category(self) -> None:
+        self.assertEqual(product_name_from_fine("Dishwashers"), "Dishwasher")
+        self.assertEqual(product_name_from_fine("Ball Valves"), "Ball Valve")
+
+    def test_handles_es_and_ies_plurals(self) -> None:
+        self.assertEqual(product_name_from_fine("Industrial Switches"), "Industrial Switch")
+        self.assertEqual(product_name_from_fine("Supplies"), "Supply")
+
+    def test_takes_the_first_alternative_of_a_compound_category(self) -> None:
+        # "Sanding Belts & Discs" names two things; the product is one of them.
+        self.assertEqual(product_name_from_fine("Sanding Belts & Discs"), "Sanding Belt")
+
+    def test_leaves_a_mass_noun_alone(self) -> None:
+        self.assertEqual(product_name_from_fine("Commercial Lighting"), "Commercial Lighting")
+
+    def test_empty_category_yields_empty_rather_than_a_guess(self) -> None:
+        self.assertEqual(product_name_from_fine(""), "")
+        self.assertEqual(product_name_from_fine(None), "")
+
+
+class AttributeTripletTests(unittest.TestCase):
+    """Attribute slots carry specifications, not identifiers.
+
+    Unilog's two gold rows use 15 attribute slots each and neither contains
+    a "Manufacturer" or "Part Number" entry — they hold Series, Voltage
+    Rating, Sound Level, Material and so on. We seeded every row's slots 1
+    and 2 with the manufacturer and part number, which already have
+    dedicated columns (MANUFACTURER_NAME, MANUFACTURER_PART_NUMBER), and
+    whose value was the distributor rather than the manufacturer anyway.
+    """
+
+    def test_identity_fields_are_not_emitted_as_specifications(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher 120V 15A",
+        )
+        labels = [a.label for a in res.attributes]
+        self.assertNotIn("Manufacturer", labels)
+        self.assertNotIn("Part Number", labels)
+
+    def test_real_specs_take_the_first_slots(self) -> None:
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher 120V 15A",
+        )
+        self.assertTrue(res.attributes, "expected extracted specifications")
+        # Labels and UOMs match Unilog's own vocabulary exactly.
+        self.assertEqual(res.attributes[0].label, "Voltage Rating")
+        self.assertEqual(res.attributes[0].value, "120")
+        self.assertEqual(res.attributes[0].uom, "V")
+
+    def test_feature_bullets_still_cover_every_extracted_spec(self) -> None:
+        # Bullets used to skip the first two entries because they were the
+        # identity pair. With those gone, nothing may be skipped.
+        res = enrich_product_web(
+            "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
+            "PDSH4816AF Dishwasher 120V 15A",
+        )
+        self.assertEqual(len(res.features), len(res.attributes))
+        self.assertIn("Voltage Rating: 120 V", res.features)
+
+    def test_a_row_with_no_extractable_spec_reports_none(self) -> None:
+        res = enrich_product_web("X-1", "Parker Hannifin", "X-1 Widget")
+        self.assertEqual(res.attributes, [])
+        self.assertEqual(res.features, [])
