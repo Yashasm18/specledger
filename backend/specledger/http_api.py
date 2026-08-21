@@ -184,6 +184,33 @@ def health() -> dict[str, str]:
     return status
 
 
+@app.get("/health/features")
+def health_features() -> dict[str, Any]:
+    """Report which optional integrations this process can actually see.
+
+    Booleans only — never a key, a prefix, or a length. Its purpose is to
+    answer "is the deployed process configured the way I think it is?"
+    without reading it out of the environment by hand, which is otherwise
+    guesswork when a platform stages variable changes behind a deploy.
+    """
+    from .llm_enricher import DEFAULT_MODEL, is_llm_configured
+
+    return {
+        "llm_tier": {
+            "configured": is_llm_configured(),
+            "model": os.getenv("SPECLEDGER_LLM_MODEL", DEFAULT_MODEL),
+            "note": (
+                "When false, ai_assist=true is a no-op: set GEMINI_API_KEY "
+                "and ensure the service restarted afterwards."
+            ),
+        },
+        "search_fallback_configured": bool(os.getenv("SERPER_API_KEY", "").strip()),
+        "write_endpoints_protected": bool(os.getenv("SPECLEDGER_API_KEY", "").strip()),
+        "object_store_configured": bool(os.getenv("SUPABASE_URL", "").strip()),
+        "database": "postgres" if os.getenv("DATABASE_URL", "").strip() else "sqlite",
+    }
+
+
 @app.post("/products", dependencies=[Depends(require_api_key)])
 def create_product(payload: ProductInput) -> dict[str, Any]:
     try:
