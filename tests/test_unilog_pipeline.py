@@ -113,3 +113,30 @@ def test_classify_category_is_real_not_uncategorized():
         "Electrical Supplies > Wiring Devices & Distribution > Industrial Switches & Receptacles"
     # Unknown/unmatched descriptions get a real (if generic) bucket, not a crash.
     assert classify_category("", "") == "Industrial Supplies > Maintenance"
+
+
+def test_exported_classpath_uses_the_delivery_format_separator():
+    """Unilog's own Expected Output rows write Classpath with a bare ">".
+
+    Their gold row reads
+    "Appliances & Consumer Electronics>Kitchen Appliances>Built-In Dishwashers".
+    We render " > " internally because it is readable in the dashboard, but
+    the delivered CSV has to match their format exactly — a separator that
+    differs by two spaces fails any string comparison they run.
+    """
+    input_path = _get_input_path()
+    if input_path is None:
+        pytest.skip("Unilog input file not present")
+
+    batch = read_catalogue(input_path)
+    mini_batch = type(batch)(batch.source_name, batch.columns, batch.rows[:5])
+    reader = list(csv.reader(export_unilog_csv(mini_batch).splitlines()))
+    idx = reader[0].index("Classpath")
+
+    classpaths = [r[idx] for r in reader[1:] if r[idx]]
+    assert classpaths, "no row produced a classpath to check"
+    for path in classpaths:
+        assert " > " not in path, f"delivery CSV must not pad the separator: {path!r}"
+        assert ">" in path, f"expected a hierarchical classpath, got {path!r}"
+        # And the segments must survive intact, not get their spaces stripped.
+        assert not any(s.startswith(" ") or s.endswith(" ") for s in path.split(">"))

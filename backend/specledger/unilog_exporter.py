@@ -60,6 +60,14 @@ UNILOG_252_HEADERS.extend([
 ])
 
 
+def _delivery_classpath(classpath: str | None) -> str:
+    """Render a classpath in Unilog's delivery format: segments joined by a
+    bare ">", with each segment's own internal spaces left alone."""
+    if not classpath:
+        return ""
+    return ">".join(segment.strip() for segment in classpath.split(">"))
+
+
 def row_to_unilog_dict(
     part_number: str,
     raw_manufacturer: str | None,
@@ -109,7 +117,11 @@ def row_to_unilog_dict(
     row['Dept'] = web_res.dept or ""
     row['Class'] = web_res.class_name or ""
     row['Fine'] = web_res.fine or ""
-    row['Classpath'] = web_res.classpath or ""
+    # Unilog's delivery format writes the hierarchy with a bare ">".
+    # Internally it carries " > " because that is what reads well in the
+    # dashboard, so normalise at the delivery boundary rather than making the
+    # UI ugly — the exported file is the artifact they compare against.
+    row['Classpath'] = _delivery_classpath(web_res.classpath)
 
     # Descriptions
     row['MOBILE_DESC'] = web_res.mobile_desc or ""
