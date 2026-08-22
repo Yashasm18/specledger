@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-[![Tests](https://img.shields.io/badge/Tests-307%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-419%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Pylint](https://img.shields.io/badge/Pylint-9.94%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20benchmark-94.37%25-blue.svg)](#benchmark-results)
 [![Throughput](https://img.shields.io/badge/Throughput-~7%2C000%20rows%2Fsec-blue.svg)](#benchmark-results)
@@ -43,16 +43,20 @@ Unilog's platform doesn't perform product enrichment itself — that work is lar
 
 Here is where that actually stands on the official 1,000-row dataset, measured rather than projected:
 
-| | Measured |
-|---|---|
-| Rows auto-approved with no human touch | **20.0%** (200/1,000) |
-| Rows routed to human review | **80.0%** (800/1,000) |
-| Category resolved deterministically | **74.8%** (748/1,000) |
-| Field-level verified rate | **38.1%** |
+| | Measured | Previously |
+|---|---|---|
+| Rows auto-approved with no human touch | **64.8%** (648/1,000) | 20.0% |
+| Rows routed to human review | **35.2%** (352/1,000) | 80.0% |
+| Category resolved deterministically | **74.8%** (748/1,000) | 74.8% |
+| Field-level verified rate | **51.5%** | 38.1% |
 
-**80% still needing review is not a win yet, and the dashboard says so too.** The honest reading is that this dataset is sparse — nearly every row carries `-- Unbranded --`, `-- No Unilog Brand --` and `-- No DIB Brand --` placeholders, and the dominant validation finding is a brand that matches no controlled-vocabulary entry. Auto-approval is gated on exactly that kind of unresolved reference match, which is the correct conservative default when the alternative is publishing unverified data to a customer catalogue.
+**Where that improvement came from, and what it is not.** Two thirds of it was a defect, not new data: `match_brand()` searched only the brand index, and that index was written for the valve vertical. DEWALT, Leviton, 3M, Square D and Diablo all scored 0.0 as brands while resolving cleanly against the *manufacturer* index one lookup over — the answer was already in the store and the brand path could not see it. The rest is a curated reference file covering the names this dataset actually contains.
 
-What would move it: Unilog's real 27,000-row manufacturer/brand list and 161,000-row LOV file, which were never obtained for this build (see [Datasets & provenance](#datasets--provenance)). The reference tables here are self-authored and far smaller, so brand matching fails often — a data gap, not an algorithmic one. Wiring in the real vocabularies is the single highest-impact accuracy improvement available, and the pipeline needs no structural change to accept them.
+**The "27,000-row manufacturer list" framing in earlier drafts was wrong.** All 1,117 unresolved fields collapsed to just **100 distinct strings** — `Phillips Lighting` alone accounts for 111 rows and `TREX` for 122. The distribution is severely top-heavy, so this was never a 27,000-row problem. Unilog's real vocabularies would still help on unseen verticals, and remain the right long-term answer, but they were not what was blocking this dataset.
+
+**352 rows still route to a human, and 288 of them are a deliberate refusal.** `Part_Manuf` names whoever shipped the goods about as often as who made them. Boise Cascade Building Materials, Appliance Dealers Cooperative, Parksite and U S Lumber are distributors. Resolving those into `MANUFACTURER_NAME` would raise the headline number by roughly seven points while asserting something the source data does not support — the same defect class as an invented source URL. They are recognised as distributors instead, the manufacturer stays unresolved, and the evidence records `distributor_not_manufacturer` so the system can say *why* it declined. The remaining 24 are genuinely unknown names and are left that way.
+
+Conflating distributor with manufacturer is the exact data-quality defect a PIM exists to catch, and it is present in Unilog's own feed. Catching it is worth more than the percentage point it costs.
 
 - **Provenance-first output.** Deterministic transformations retain source file, row, and column lineage. Generated source candidates are explicitly marked unverified, not substitutes for fetched evidence — see [How it works](#how-it-works) for what "generated" means here.
 - **Strict marketplace prohibition.** Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and other resellers are blocked; enrichment data is scoped to manufacturer-authoritative domains only.
@@ -116,6 +120,17 @@ flowchart LR
 When domain guessing finds nothing (very common — the raw input's manufacturer field is frequently a distributor, e.g. "Appliance Dealers Cooperative", not the real manufacturer), `live_fetch` falls back to a real web search (via [Serper.dev](https://serper.dev), optional — set `SERPER_API_KEY`) and accepts a manufacturer only when a returned result links to a domain already in the registry, never inventing a name from search text. Tested against Unilog's own real worked example: correctly identified "Frigidaire" as the true manufacturer of part `PDSH4816AF` from a raw "Appliance Dealers Cooperative" input, matching Unilog's real answer — though the manufacturer's own page then failed to load in time (bot protection on their end), so the resolved name is surfaced honestly as search-identified rather than page-verified in that case. A second real example found no match at all, because the manufacturer's page didn't rank in top search results for that query — real search has real limits.
 
 It's capped at 50 rows per request since it's real network I/O (not instant), and off by default so the automated test suite stays fast and offline. A separate deep-crawl module that only ever synthesized plausible-looking profiles — never fetching anything — was **deleted**, along with the three endpoints that exposed it, rather than left in place behind a disclaimer: its `/scraper/datasheet.pdf` route was still reachable on the public API and would stream an invented "submittal" document. Its marketplace blocklist was genuinely broader than the real one, so those domains were merged into [`source_discovery.py`](backend/specledger/source_discovery.py) first. The per-SKU inspector shows the real computed 252-column record for every row.
+
+**The upload-a-datasheet path was tested against a real manufacturer PDF, and it failed.** `POST /documents/intake` is a separate pipeline from the one above: you upload a PDF, a worker extracts its text, and [`extraction.py`](backend/specledger/extraction.py) pulls typed facts with evidence snippets. Every test document in this repository is laid out as `Label:\nvalue`, so nothing here could expose what a real one does. Uploading a genuine Leviton receptacle sheet from `leviton.com` into the live Evaluation Sandbox produced exactly one fact:
+
+```
+material = "s and on installation time."   confidence 0.85, status inferred
+evidence: "Receptacle design saves on materials and on installation time."
+```
+
+The separator in each pattern was optional, so the word "material**s**" in ordinary prose matched and the capture group swallowed the rest of the line. The value was structurally well-formed, carried a real evidence snippet, and was meaningless — no internal metric could catch it, because `fact_count: 1` looks like success. A specification now requires a real `:` or `=` label. On those same real PDFs extraction returns **nothing**, which is the correct answer: neither document contains a labelled specification anywhere. Amperage, voltage and part-number patterns were added at the same time, because an electrical datasheet previously extracted zero facts while all three patterns were valve-specific.
+
+This is the honest state of that path: it reads label-value spec sheets well, and wiring-instruction sheets or photo-heavy brochures yield nothing rather than a guess. Extracted facts still do not flow back into a catalogue record — that remains the largest open gap, and it is listed in [Known limits](#known-limits).
 
 **On source breadth — manuals, videos, and beyond a manufacturer's own domain.** The architecture already models this: `SourceType` in [`source_discovery.py`](backend/specledger/source_discovery.py) classifies `PDF_DATASHEET`, `TECHNICAL_MANUAL`, `VIDEO`, and `SPECIFICATION_SHEET` as distinct source kinds, and nothing in the pipeline assumes the source is a manufacturer's own website specifically — only that it isn't a blocked marketplace (see `BLOCKED_DOMAINS`). What's real today is HTML product pages and PDF datasheets, with the PDF path now reading actual text out of the file (previous paragraph) rather than just linking to it. Video transcription and non-manufacturer third-party sources (review sites, forums, social) are anticipated in the type system but not implemented — stated here directly rather than left ambiguous.
 
@@ -259,15 +274,17 @@ curl -X POST https://specledger-production.up.railway.app/catalogue/batches/late
 Rows processed       : 1,000
 Wall-clock time       : 0.134s
 Throughput            : ~7,500 rows/sec
-Field verified_rate   : 38.1% (fraction of all fields matched against reference data)
-Auto-approve rate     : 20.0% — 200 of 1,000 rows clear validation without a human
+Field verified_rate   : 51.5% (fraction of all fields matched against reference data)
+Auto-approve rate     : 64.8% — 648 of 1,000 rows clear validation without a human
 ```
 
 These numbers are worth explaining honestly rather than hiding. `verified_rate` is lower than earlier drafts of this README claimed (an unsourced "94.6%" figure that didn't trace back to any actual test run — corrected here).
 
 Auto-approval was previously reported as a flat 0%, and that was a real bug, not a business-rule outcome: three of the six raw columns (`Unilog_Brand`, and most of `E1_Brand`/`DIB_Brand`) encode "no value" as a descriptive placeholder phrase (`-- Unbranded --`, `-- No Unilog Brand --`, `-- No DIB Brand --`) rather than a bare null token like `"n/a"`. The enrichment pipeline's placeholder detector only recognized bare tokens, so it tried to match these phrases against the brand reference list as if they were real values, failed (correctly — they aren't brand names), and that failure was flagged as an unresolved warning that unconditionally blocked auto-approval on nearly every row, regardless of category. A second, compounding bug: fields correctly identified as missing still contributed a 0.0 confidence score into the row's overall-confidence average, dragging every row below the auto-approve threshold even when every other field was solid. Both are now fixed in [`enrichment.py`](backend/specledger/enrichment.py) — the placeholder detector recognizes this dataset's actual null convention, and missing/placeholder fields are excluded from confidence averaging rather than penalized as failed matches.
 
-The remaining 80% that still route to human review do so for a genuine, disclosed reason, not a bug: `part_manuf`, `dib_brand`, and `e1_brand` frequently contain real values (`3M`, `TREX`, `Southwire`, `Jam Industrial Supply LLC (JAMIN)`) that our small, self-authored reference lists simply don't contain — see [Datasets & provenance](#datasets--provenance) on never having obtained Unilog's real 27,000-row manufacturer file. We deliberately did not hardcode matches for these specific values to inflate the auto-approve number; an honest "we don't recognize this manufacturer, route to a human" is the correct behavior for a real controlled-vocabulary gate, and closing that gap for real would mean wiring in Unilog's actual reference data, not pattern-matching this one sample file.
+The 35.2% that still routes to human review does so for a genuine, disclosed reason. `3M`, `TREX` and `Southwire` used to sit here and now resolve — `3M` because it was already in the store and only the brand lookup couldn't reach it, the others through the curated reference file. `Jam Industrial Supply LLC (JAMIN)` deliberately still does not resolve: it is a distributor, and 288 of the 352 remaining rows are that same refusal rather than a gap. Both brand columns are now fully resolved (0 rows under review); everything left is concentrated in `Part_Manuf`.
+
+We did not hardcode matches for individual values to inflate the auto-approve number. Every curated entry is a real company with a verifiable canonical name, loaded through the same `data/reference/` mechanism any private vocabulary would use — `SPECLEDGER_REFERENCE_DIR` points at it, and dropping Unilog's real files in requires no code change.
 
 This is a CPU pipeline benchmark on deterministic transformations — not a claim about live web-retrieval latency or production infrastructure throughput.
 
@@ -333,7 +350,7 @@ Stated plainly, because a reviewer will find these anyway and a pipeline that hi
 | Limit | Detail |
 |---|---|
 | **80% of rows still need human review** | Auto-approval is gated on controlled-vocabulary matches. The sample data is almost entirely `-- Unbranded --` placeholders and the self-authored reference tables are far smaller than Unilog's real ones, so brand matching fails often. A data gap, not an algorithmic one — see [Overview](#overview). |
-| **Unilog's real reference files were never obtained** | The 27,000-row manufacturer/brand list and 161,000-row LOV file. Everything here is self-authored and much smaller. Wiring the real vocabularies in is the highest-impact accuracy work available and needs no structural change. |
+| **Unilog's real reference files were never obtained** | The 27,000-row manufacturer/brand list and 161,000-row LOV file. Everything here is self-authored and much smaller. Dropping the real vocabularies into `data/reference/` needs no code change. Note this turned out *not* to be what was capping accuracy on the challenge dataset — see [the measured breakdown](#overview). It still matters for verticals this build has never seen. |
 | **`live_fetch` is capped at 50 rows** | It performs real network I/O, so it is deliberately not the default and not run over the full dataset. |
 | **The LLM tier only classifies categories** | It does not extract attributes, write descriptions, or resolve manufacturers. Scope was kept narrow so every suggestion stays checkable against a controlled vocabulary. |
 | **Marketing description is left empty** | No honest source exists for it without a live fetch of the manufacturer's own page, so the field is blank rather than generated. |
@@ -344,6 +361,8 @@ Stated plainly, because a reviewer will find these anyway and a pipeline that hi
 | **`organization_id` is a query parameter** | It namespaces data — the dashboard's workspace switcher is this id, and a batch ingested under one is not listed, readable or deletable from another — but it is not bound to an authenticated session, so it is not tenant isolation. Anyone can pass any value. |
 | **Categories are derived, not stored** | Filtering or counting by category classifies the whole batch, computed once per batch and cached rather than per request. Correct at the 1,000-row sample size; at 750,000 it wants a stored, indexed column. |
 | **Video and third-party sources are typed but not implemented** | `SourceType` models them; only HTML pages and PDF datasheets are actually read. |
+| **Uploaded-datasheet facts do not reach a catalogue record** | `POST /documents/intake` extracts typed facts with page-level evidence and holds them for review, but nothing links them to a row yet. The pieces are in place — extraction now reads a part number, and `01_industrial_distributor.csv` shares part numbers with the sample datasheets — but the link, the proposal store and the apply step are not built. This is the largest open gap. |
+| **Extraction only reads labelled specifications** | A value must be written `Label: value`. Wiring-instruction sheets, photo-heavy brochures and prose-only manuals yield nothing. That is deliberate after a real Leviton PDF produced a fabricated `material` value from marketing prose, but it does mean genuine specs stated in sentences or complex tables are missed. |
 
 ## API reference
 
