@@ -6,7 +6,7 @@
 [![Deploy](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml/badge.svg)](https://github.com/Yashasm18/specledger/actions/workflows/gh-pages.yml)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Yashasm18/specledger/blob/main/LICENSE)
 
-[![Tests](https://img.shields.io/badge/Tests-419%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
+[![Tests](https://img.shields.io/badge/Tests-475%20passed%2C%201%20skipped-brightgreen.svg)](https://github.com/Yashasm18/specledger/tree/main/tests)
 [![Pylint](https://img.shields.io/badge/Pylint-9.94%2F10-brightgreen.svg)](https://github.com/Yashasm18/specledger/blob/main/.pylintrc)
 [![Synthetic Benchmark](https://img.shields.io/badge/Synthetic%20benchmark-94.37%25-blue.svg)](#benchmark-results)
 [![Throughput](https://img.shields.io/badge/Throughput-~7%2C000%20rows%2Fsec-blue.svg)](#benchmark-results)
@@ -130,7 +130,26 @@ evidence: "Receptacle design saves on materials and on installation time."
 
 The separator in each pattern was optional, so the word "material**s**" in ordinary prose matched and the capture group swallowed the rest of the line. The value was structurally well-formed, carried a real evidence snippet, and was meaningless — no internal metric could catch it, because `fact_count: 1` looks like success. A specification now requires a real `:` or `=` label. On those same real PDFs extraction returns **nothing**, which is the correct answer: neither document contains a labelled specification anywhere. Amperage, voltage and part-number patterns were added at the same time, because an electrical datasheet previously extracted zero facts while all three patterns were valve-specific.
 
-This is the honest state of that path: it reads label-value spec sheets well, and wiring-instruction sheets or photo-heavy brochures yield nothing rather than a guess. Extracted facts still do not flow back into a catalogue record — that remains the largest open gap, and it is listed in [Known limits](#known-limits).
+This is the honest state of that path: it reads label-value spec sheets well, and wiring-instruction sheets or photo-heavy brochures yield nothing rather than a guess.
+
+### Accepted uploads
+
+Nine formats, in two groups. Which group a file lands in decides what happens to it.
+
+| | Formats | What happens |
+|---|---|---|
+| **Catalogue** | `.csv` `.tsv` `.xlsx` `.json` `.xml` | Becomes a batch of enriched 252-column records. Column names are matched by role, so `SKU` / `Item Description` / `Vendor` works the same as the challenge file's headers. |
+| **Document** | `.pdf` `.txt` `.docx` `.rtf` | Read for labelled specifications, each kept with the page and sentence it came from. Creates no catalogue rows. |
+
+Everything else is refused with the reason and the remedy, in the browser, before any bytes are sent. Images (`.jpg`, `.jpeg`, `.png`, `.gif`, `.svg`) carry no machine-readable specification and say to send the datasheet as a PDF; audio (`.mp3`, `.wav`) and video (`.mp4`, `.avi`, `.mov`) carry nothing this system can verify; archives (`.zip`) are not opened; executables (`.exe`) and disk images (`.iso`) are never accepted. Legacy `.xls` and `.doc` are refused rather than half-read, and name `.xlsx` / `.docx` as the replacement.
+
+Silence was the worst available option: someone who uploads a scan of a datasheet and sees nothing happen cannot tell a rejected format from a broken pipeline. `.docx` is read straight out of the archive — a `.docx` is a zip and its text is `<w:t>` runs inside `<w:p>` paragraphs — so no dependency was added for a paragraph loop.
+
+**A datasheet now finds the row it describes.** `GET /documents/for-part/{part_number}` returns the uploaded documents that name a part and what each says about it, and the row inspector shows them against the record — Apollo's own `600 WOG`, `1/2 in` and `Bronze ASTM B584` appear on row `70-104-01`, each with the page and the sentence it came from. The reviewer would otherwise have to go and find the manufacturer's document themselves, which is the only reason reading them is worth doing.
+
+Matching is exact on the part number. Case and separators are tolerated, because `70-104-01` and `7010401` are the same part written twice; a digit difference is a different product and never matches. A fuzzy match would hang a 2-inch valve's specifications on a 1/2-inch valve and look verified doing it.
+
+**Nothing is applied.** These are proposals; a human decides. Writing an accepted value into the delivered 252 columns is deliberately still not wired — the attribute slots are per-category schema-driven, and adding an attribute to a row's values changes nothing in the export today (measured, not assumed). An Apply button that silently failed to reach the CSV would be the same defect class as the `manufacturer.com` URLs: a control that looks like it did something. That last step is the remaining gap, in [Known limits](#known-limits).
 
 **On source breadth — manuals, videos, and beyond a manufacturer's own domain.** The architecture already models this: `SourceType` in [`source_discovery.py`](backend/specledger/source_discovery.py) classifies `PDF_DATASHEET`, `TECHNICAL_MANUAL`, `VIDEO`, and `SPECIFICATION_SHEET` as distinct source kinds, and nothing in the pipeline assumes the source is a manufacturer's own website specifically — only that it isn't a blocked marketplace (see `BLOCKED_DOMAINS`). What's real today is HTML product pages and PDF datasheets, with the PDF path now reading actual text out of the file (previous paragraph) rather than just linking to it. Video transcription and non-manufacturer third-party sources (review sites, forums, social) are anticipated in the type system but not implemented — stated here directly rather than left ambiguous.
 
@@ -361,7 +380,8 @@ Stated plainly, because a reviewer will find these anyway and a pipeline that hi
 | **`organization_id` is a query parameter** | It namespaces data — the dashboard's workspace switcher is this id, and a batch ingested under one is not listed, readable or deletable from another — but it is not bound to an authenticated session, so it is not tenant isolation. Anyone can pass any value. |
 | **Categories are derived, not stored** | Filtering or counting by category classifies the whole batch, computed once per batch and cached rather than per request. Correct at the 1,000-row sample size; at 750,000 it wants a stored, indexed column. |
 | **Video and third-party sources are typed but not implemented** | `SourceType` models them; only HTML pages and PDF datasheets are actually read. |
-| **Uploaded-datasheet facts do not reach a catalogue record** | `POST /documents/intake` extracts typed facts with page-level evidence and holds them for review, but nothing links them to a row yet. The pieces are in place — extraction now reads a part number, and `01_industrial_distributor.csv` shares part numbers with the sample datasheets — but the link, the proposal store and the apply step are not built. This is the largest open gap. |
+| **An accepted datasheet value is not written into the delivered columns** | A datasheet is matched to its catalogue row and its specifications are shown there as proposals with page-level evidence, but accepting one does not yet change the exported 252-column record: the attribute slots are per-category schema-driven, so adding an attribute to a row's values changes nothing in the export. The link and the review surface exist; the write-back does not. This is the largest remaining gap. |
+| **Document links are computed per request** | `GET /documents/for-part/{part}` reads every artifact in the workspace and matches in memory rather than reading a stored link table. That is correct at demo scale and deliberately avoids a link that needs backfilling whenever either side changes, but it is O(documents) per call and would want an indexed `part_number` column before real volume. |
 | **Extraction only reads labelled specifications** | A value must be written `Label: value`. Wiring-instruction sheets, photo-heavy brochures and prose-only manuals yield nothing. That is deliberate after a real Leviton PDF produced a fabricated `material` value from marketing prose, but it does mean genuine specs stated in sentences or complex tables are missed. |
 
 ## API reference
@@ -370,7 +390,8 @@ REST endpoints under `/catalogue` (FastAPI, OpenAPI docs at `/docs` on any runni
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX, enrich, validate, route for review. `live_fetch=true` does real manufacturer-site HTTP verification instead of templated candidates (50-row cap); `ai_assist=true` runs the LLM tier over rows the deterministic classifier left unresolved |
+| `POST` | `/catalogue/ingest` | Upload CSV/TSV/XLSX/JSON/XML, enrich, validate, route for review. `live_fetch=true` does real manufacturer-site HTTP verification instead of templated candidates (50-row cap); `ai_assist=true` runs the LLM tier over rows the deterministic classifier left unresolved |
+| `GET` | `/documents/for-part/{part_number}` | Uploaded datasheets that name this part, and every specification each states, with the page and sentence it came from. Matching is exact on the part number; nothing returned has been written into the delivered record |
 | `GET` | `/catalogue/batches` | List ingested batches |
 | `GET` | `/catalogue/batches/{id}` | Batch details, review summary, metrics. Rows are paginated — `limit` (default 100, max 500), `offset`, and `include_fields=true` for per-field evidence. `row_count` is the batch total; `returned_rows`/`has_more` describe the page. `search=` filters rows across the **whole batch** (matched on values, whatever the uploaded columns are named) and `category=` filters to one classpath; both report `matched_rows`, and paging then walks the matched set |
 | `GET` | `/catalogue/batches/{id}/categories` | The categories actually present in a batch, each with its row count, plus how many rows no rule placed. The dashboard's filter chips are built from this rather than a fixed list of verticals |
