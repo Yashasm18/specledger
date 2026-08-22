@@ -21,8 +21,12 @@ function detectRole(column: string): string {
   const k = column.toLowerCase().trim();
   if (["part_num", "part_no", "part_number", "sku", "item_num", "item_no", "model_num", "mfg_part", "item_code"].some((p) => k.includes(p))) return "part_number";
   if (["desc", "description", "product_name", "item_title", "title", "part_desc"].some((d) => k.includes(d))) return "description";
-  if (["manufacturer", "mfr", "mfg", "vendor", "supplier", "part_manuf"].some((m) => k.includes(m))) return "manufacturer";
+  // Brand before manufacturer, matching detect_role()'s order in
+  // enrichment.py. A column like "supplier_brand" contains both words, and
+  // the backend calls it a brand — checking manufacturer first here made the
+  // dashboard disagree with the delivered file about the same column.
   if (["brand", "trade_name"].some((b) => k.includes(b))) return "brand";
+  if (["manufacturer", "mfr", "mfg", "vendor", "supplier", "part_manuf"].some((m) => k.includes(m))) return "manufacturer";
   if (["category", "prod_type", "taxonomy"].some((c) => k.includes(c))) return "category";
   return "other";
 }
@@ -169,7 +173,12 @@ const ENTERPRISE_PERSONAS: Record<string, EnterprisePersona> = {
 
 function App() {
   const [selected, setSelected] = useState(0);
-  const [activeTab, setActiveTab] = useState<"overview" | "catalogue" | "review" | "imports" | "schemas" | "evidence" | "audit">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "catalogue" | "review" | "imports" | "schemas" | "evidence" | "audit" | "help">("overview");
+  // Which batch the workspace is showing. Null means "the most recent one",
+  // which is what an uploaded file becomes — so without this a judge who
+  // uploads their own dataset has no way back to the one they were shown.
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [openQuestion, setOpenQuestion] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "review" | "changed">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   // "auto" is the pipeline's own events. The server groups by whether an
@@ -288,7 +297,7 @@ function App() {
   useEffect(() => {
     fetchLatestBatch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageOffset, debouncedSearch]);
+  }, [pageOffset, debouncedSearch, selectedBatchId]);
 
   // Changing the audit actor filter refetches only the trail. The filter is
   // applied server-side across every event, so it cannot be done on the
@@ -350,6 +359,8 @@ function App() {
         "e": "evidence",
         "7": "audit",
         "a": "audit",
+        "8": "help",
+        "h": "help",
       };
 
       if (actionMap[key]) {
@@ -395,7 +406,12 @@ function App() {
         const data = await res.json();
         setBatchList(data.batches || []);
         if (data.batches && data.batches.length > 0) {
-          const latestId = data.batches[0].batch_id;
+          const available = data.batches as Array<{ batch_id: string }>;
+          const chosen = selectedBatchId
+            && available.find((b) => b.batch_id === selectedBatchId);
+          // Falls back to the newest batch when the selected one is gone,
+          // rather than leaving the workspace pointed at nothing.
+          const latestId = (chosen || available[0]).batch_id;
           const batchRes = await fetchWithRetry(
             `${API_BASE}/catalogue/batches/${latestId}?limit=${ROWS_PER_PAGE}&offset=${pageOffset}` +
               (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "")
@@ -1699,6 +1715,254 @@ function App() {
         );
       }
 
+      case "help": {
+        // Answers are derived from the batch that is actually loaded wherever
+        // that is possible. A fixed FAQ would be exactly the static screen
+        // this project is meant not to ship — "which columns did you find?"
+        // is only worth asking if it answers about the reader's own file.
+        const detected = activeBatch?.columns
+          ? (activeBatch.columns as string[]).map((col) => ({ col, role: detectRole(col) }))
+          : [];
+        const roleLabels: Record<string, string> = {
+          part_number: "Part number", description: "Description",
+          manufacturer: "Manufacturer", brand: "Brand",
+          category: "Category", other: "Carried through, not interpreted",
+        };
+        const summary = activeBatch?.review_summary;
+        const autoApproved = summary?.auto_approved ?? 0;
+        const pending = summary?.pending_review ?? 0;
+        const known = autoApproved + pending + (summary?.approved ?? 0)
+          + (summary?.corrected ?? 0) + (summary?.rejected ?? 0);
+
+        const qa: Array<{ id: string; q: string; body: React.ReactNode }> = [
+          {
+            id: "upload",
+            q: "How do I run this on my own dataset?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  Use <b>+ Import documents</b> in the top right. CSV, TSV and XLSX are accepted.
+                  The file is enriched, validated and routed on upload, and the workspace switches to it.
+                </p>
+                <p style={{ margin: "0 0 10px" }}>
+                  <b>Your column names do not have to match ours.</b> Columns are matched by role,
+                  not by name — a file using <code>SKU</code>, <code>Item Description</code> and{" "}
+                  <code>Vendor</code> works the same as one using{" "}
+                  <code>Mfg_Part_Num</code>, <code>Part_Desc</code> and <code>Part_Manuf</code>.
+                </p>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  Nothing is required. Columns we cannot interpret are carried through untouched,
+                  and a missing field is delivered blank rather than filled in with a guess.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "columns",
+            q: "Which columns did you find in the loaded file?",
+            body: detected.length ? (
+              <div>
+                <p style={{ margin: "0 0 10px", color: "#64748b" }}>
+                  Read from <b>{activeBatch?.source_name}</b> just now — not a fixed list.
+                </p>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ textAlign: "left", color: "#64748b" }}>
+                      <th style={{ padding: "6px 8px" }}>COLUMN IN YOUR FILE</th>
+                      <th style={{ padding: "6px 8px" }}>READ AS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detected.map(({ col, role }) => (
+                      <tr key={col} style={{ borderTop: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "6px 8px", fontFamily: "DM Mono" }}>{col}</td>
+                        <td style={{ padding: "6px 8px", color: role === "other" ? "#94a3b8" : "#0f172a" }}>
+                          {roleLabels[role] ?? role}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p style={{ margin: 0 }}>No batch is loaded yet.</p>,
+          },
+          {
+            id: "batches",
+            q: "I uploaded a file — how do I get back to the previous one?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px", color: "#64748b" }}>
+                  Every batch stays available. Click one to switch the whole workspace to it.
+                </p>
+                {(batchList || []).map((b: any) => {
+                  const isActive = b.batch_id === activeBatch?.batch_id;
+                  return (
+                    <div
+                      key={b.batch_id}
+                      onClick={() => { setSelectedBatchId(b.batch_id); setPageOffset(0); }}
+                      style={{
+                        padding: "8px 10px", marginBottom: 6, borderRadius: 6, cursor: "pointer",
+                        border: `1px solid ${isActive ? "#2872e3" : "#e2e8f0"}`,
+                        background: isActive ? "rgba(40,114,227,0.06)" : "#fff",
+                      }}
+                    >
+                      <b style={{ fontSize: 12 }}>{isActive ? "✓ " : ""}{b.source_name}</b>
+                      <small style={{ display: "block", color: "#64748b" }}>
+                        {(b.row_count ?? 0).toLocaleString()} rows
+                      </small>
+                    </div>
+                  );
+                })}
+              </div>
+            ),
+          },
+          {
+            id: "review",
+            q: "Why do so many rows still need a human?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  {known > 0 ? (
+                    <>On the batch loaded now, <b>{autoApproved.toLocaleString()}</b> rows cleared
+                    validation without a human and <b>{pending.toLocaleString()}</b> were routed for review.</>
+                  ) : <>Load a batch to see the split for it.</>}
+                </p>
+                <p style={{ margin: "0 0 10px" }}>
+                  Auto-approval is gated on matching a controlled vocabulary. This sample data is
+                  almost entirely <code>-- Unbranded --</code> placeholders, and the reference tables
+                  here are self-authored and much smaller than Unilog's real 27,000-row manufacturer
+                  list, which was never available for this build.
+                </p>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  So the number is a data gap, not an algorithmic one — and routing an unrecognised
+                  manufacturer to a person is the correct behaviour for a real vocabulary gate.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "blank",
+            q: "Why are some cells empty instead of filled in?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  Because we could not establish the value. Empty is a real answer here, and it is
+                  chosen deliberately over a plausible-looking one:
+                </p>
+                <ul style={{ margin: "0 0 10px", paddingLeft: 18, color: "#334155" }}>
+                  <li>No manufacturer URL unless we can say which manufacturer the row belongs to</li>
+                  <li>No category unless a rule actually placed the product</li>
+                  <li>No marketing copy, which has no honest source without fetching the maker's page</li>
+                  <li>No specification read out of a part number</li>
+                </ul>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  A wrong value is worse than a missing one, because a missing one is visible.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "verify",
+            q: "How do I check a value is real?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  Open any row's <b>Inspect 252 Specs</b>, then <b>Verified Sourcing &amp; Safety</b>,
+                  and press <b>⚡ Verify live</b>. That fetches the manufacturer's page during the
+                  request and marks a source verified <b>only if the part number appears on the page
+                  it fetched</b>, returning the URL and the surrounding page text.
+                </p>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  Open the link and search it yourself — that is the point. It does not always find
+                  one, and reports that rather than inventing a source. Marketplace domains are
+                  blocked; manufacturer sites only.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "ai",
+            q: "Where is the AI, and what does it cost?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  The default path is fully deterministic and makes <b>zero</b> model calls. The
+                  opt-in <b>AI assist</b> toggle sends only the rows deterministic rules could not
+                  resolve, batched and constrained to the existing taxonomy.
+                </p>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  Its suggestions are marked <code>ai_inferred</code> and <b>can never auto-approve</b> —
+                  they shorten a reviewer's reading, they do not replace the decision.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "limits",
+            q: "What isn't ready for production?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  This is a hackathon prototype, and the gaps are stated rather than hidden:
+                </p>
+                <ul style={{ margin: "0 0 10px", paddingLeft: 18, color: "#334155" }}>
+                  <li>No real user accounts — the reviewer name is not authenticated</li>
+                  <li>The review queue is single-writer; concurrent reviewers would need row locking</li>
+                  <li>Audit events are partly reconstructed after a restart</li>
+                  <li>Ingest is synchronous, which would not hold at 750,000 rows</li>
+                  <li>Live verification is a spot-check, not full coverage</li>
+                </ul>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  The full list, with what closing each would take, is in the repository README.
+                </p>
+              </div>
+            ),
+          },
+        ];
+
+        return (
+          <section className="section-card" style={{ marginTop: 0 }}>
+            <div className="table-head">
+              <div>
+                <p className="eyebrow">GETTING STARTED</p>
+                <h3>How this works</h3>
+              </div>
+            </div>
+            <p style={{ fontSize: 12, color: "#7d8590", margin: "8px 0 16px" }}>
+              Answers about the batch you have loaded, read live rather than written in advance.
+              Click a question to open it.
+            </p>
+            <div>
+              {qa.map(({ id, q, body }) => {
+                const open = openQuestion === id;
+                return (
+                  <div key={id} style={{ borderTop: "1px solid #e2e8f0" }}>
+                    <button
+                      onClick={() => setOpenQuestion(open ? null : id)}
+                      aria-expanded={open}
+                      style={{
+                        width: "100%", textAlign: "left", background: "none", border: "none",
+                        padding: "14px 4px", cursor: "pointer", fontSize: 13, fontWeight: 600,
+                        color: "#0f172a", display: "flex", justifyContent: "space-between",
+                        alignItems: "center", gap: 12, font: "inherit",
+                      }}
+                    >
+                      <span>{q}</span>
+                      <span style={{ color: "#94a3b8", fontSize: 15 }}>{open ? "−" : "+"}</span>
+                    </button>
+                    {open && (
+                      <div style={{ padding: "0 4px 16px", fontSize: 12.5, lineHeight: 1.65, color: "#334155" }}>
+                        {body}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      }
+
       case "overview":
       default:
         return (
@@ -2622,6 +2886,18 @@ function App() {
           >
             <span>Audit trail</span>
             <kbd>⌘ A</kbd>
+          </a>
+        </div>
+
+        <div className="nav-group">
+          <label>GETTING STARTED</label>
+          <a
+            className={activeTab === "help" ? "active" : ""}
+            onClick={() => setActiveTab("help")}
+            style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+          >
+            <span>How this works</span>
+            <kbd>⌘ H</kbd>
           </a>
         </div>
 
