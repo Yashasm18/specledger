@@ -277,3 +277,47 @@ class SpecExtractionPrecisionTests(unittest.TestCase):
         found = {a.label: a.value for a in res.attributes}
         self.assertEqual(found.get("Voltage Rating"), "230")
         self.assertEqual(found.get("Horsepower"), "3")
+
+
+class KeywordBoundaryTests(unittest.TestCase):
+    """Category keywords must match words, not fragments inside other words.
+
+    The cascade tested membership with `kw in text`, so every keyword also
+    matched anything containing it. Found by running a real 1,081-row public
+    product catalogue through the live app: a Bose speaker system came back
+    as a kitchen appliance ("range" inside "wide-range drivers") and a Sony
+    A/V switcher as an electrical wiring device ("switch" inside "Switcher").
+
+    The same flaw reaches much further — "lamp" inside "clamp", "led" inside
+    "sealed", "trap" inside "strap", "oven" inside "proven", "tape" inside
+    "tapered" — so a hose clamp classified as lighting.
+    """
+
+    def _cat(self, desc: str) -> str:
+        return classify_category(desc, "")
+
+    def test_fragments_do_not_trigger_a_category(self) -> None:
+        for desc, fragment in [
+            ("Stainless Steel Hose Clamp 2 in", "lamp/clamp"),
+            ("Nylon Strap Tie Down 10 ft", "trap/strap"),
+            ("Sealed Ball Bearing 6203-2RS", "led/sealed"),
+            ("Tapered Roller Bearing Set", "tape/tapered"),
+            ("Sony Switcher SBV40S A/V Selector", "switch/switcher"),
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertEqual(
+                    self._cat(desc), "Industrial Supplies > Maintenance",
+                    f"{fragment}: {desc!r} matched on a word fragment",
+                )
+
+    def test_a_hyphenated_compound_is_not_its_last_word(self) -> None:
+        # "wide-range" is not a kitchen range.
+        cat = self._cat("Bose Speaker System 2 Wide-range Drivers 200 Watts")
+        self.assertNotIn("Kitchen", cat)
+
+    def test_real_keywords_still_match(self) -> None:
+        self.assertIn("Lighting", self._cat("65W Led BR40 Med 27k"))
+        self.assertIn("Valves", self._cat("1/2 in Bronze Ball Valve 600 PSI"))
+        self.assertIn("Switches", self._cat("20A Industrial Rocker Switch"))
+        self.assertIn("Abrasives", self._cat("3M Stikit Film P150 Disc/Box"))
+        self.assertIn("Kitchen", self._cat("Frigidaire Gas Range 30 in Stainless"))

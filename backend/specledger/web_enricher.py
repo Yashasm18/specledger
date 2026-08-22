@@ -12,6 +12,7 @@ All enrichment retains explicit source URL citations.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from dataclasses import dataclass, field
 
 from .source_discovery import (
@@ -124,6 +125,51 @@ def _extract_dimensions(desc: str) -> dict[str, str]:
     return dims
 
 
+# Keywords that are also the tail of common compound modifiers, where the
+# compound means something unrelated: "wide-range drivers" on a speaker is
+# not a kitchen range. For these, a preceding hyphen blocks the match; every
+# other keyword treats a hyphen as a separator so "R-Sheathing" still counts
+# as sheathing.
+_HYPHEN_SENSITIVE = frozenset({"range"})
+
+
+@lru_cache(maxsize=None)
+def _keyword_pattern(keywords: tuple[str, ...]) -> re.Pattern[str]:
+    """Compile a keyword set into one whole-word alternation.
+
+    Three rules, each learned from real catalogue text rather than guessed:
+
+    * Letters and digits bound the match, so a keyword is never a fragment of
+      an unrelated word — "lamp" inside "clamp", "led" inside "sealed",
+      "switch" inside "switcher", "trap" inside "strap". A hose clamp was
+      being classified as lighting.
+    * A trailing plural or gerund is the same word, so "balusters" matches
+      "baluster" and "drilling" matches "drill".
+    * A hyphen separates words, so "R-Sheathing" is sheathing — except for
+      the few keywords in _HYPHEN_SENSITIVE, where the compound changes the
+      meaning entirely.
+    """
+    loose = tuple(k for k in keywords if k not in _HYPHEN_SENSITIVE)
+    strict = tuple(k for k in keywords if k in _HYPHEN_SENSITIVE)
+    parts = []
+    if loose:
+        parts.append(
+            rf"(?<![A-Za-z0-9])(?:{'|'.join(re.escape(k) for k in loose)})"
+            rf"(?:s|es|ing|ed)?(?![A-Za-z0-9])"
+        )
+    if strict:
+        parts.append(
+            rf"(?<![A-Za-z0-9-])(?:{'|'.join(re.escape(k) for k in strict)})"
+            rf"(?:s|es|ing|ed)?(?![A-Za-z0-9])"
+        )
+    return re.compile("|".join(parts))
+
+
+def _has_keyword(text: str, keywords: tuple[str, ...]) -> bool:
+    """Whether any keyword appears in `text` as a whole word."""
+    return _keyword_pattern(keywords).search(text) is not None
+
+
 def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
     """Run the keyword cascade against `text`, returning None if nothing hits.
 
@@ -132,7 +178,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
     """
 
     # 1. HVAC & Refrigeration
-    if any(kw in text for kw in ("water heater", "heat pump", "furnace", "boiler", "compressor", "refrigerant", "hvac", "thermostat", "air conditioner", "condenser", "rheem", "carrier", "trane", "lennox")):
+    if _has_keyword(text, ("water heater", "heat pump", "furnace", "boiler", "compressor", "refrigerant", "hvac", "thermostat", "air conditioner", "condenser", "rheem", "carrier", "trane", "lennox")):
         dept = "HVAC & Commercial Heating"
         cls = "Water Heaters & HVAC"
         fine = "Commercial Water Heating" if "water heater" in desc_l else "Heating & Cooling Systems"
@@ -140,7 +186,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 2. Plumbing & Flow Control
-    if any(kw in text for kw in ("valve", "ball valve", "check valve", "butterfly valve", "gate valve", "pipe fitting", "faucet", "coupling", "flange", "drain", "trap", "backflow")):
+    if _has_keyword(text, ("valve", "ball valve", "check valve", "butterfly valve", "gate valve", "pipe fitting", "faucet", "coupling", "flange", "drain", "trap", "backflow")):
         dept = "Plumbing & Flow Control"
         cls = "Industrial Valves & Fittings"
         fine = "Ball Valves" if "ball" in desc_l else ("Check Valves" if "check" in desc_l else "Valves & Actuators")
@@ -157,7 +203,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
     # saws, chisels and drill bits alongside abrasives. Testing a real
     # 14-product Diablo catalogue, every row landed in Coated Abrasives on
     # the strength of the brand name alone.
-    if any(kw in text for kw in ("sanding belt", "cut-off disc", "cut off disc", "cutoff disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "abrasives", "sandpaper", "stikit", "cubitron", "hiolit", "mirka")):
+    if _has_keyword(text, ("sanding belt", "cut-off disc", "cut off disc", "cutoff disc", "grinding wheel", "sanding sponge", "disc/box", "abranet", "abrasive", "abrasives", "sandpaper", "stikit", "cubitron", "hiolit", "mirka")):
         dept = "Abrasives & Cutting Tools"
         cls = "Abrasives"
         fine = "Sanding Belts & Discs" if "belt" in desc_l or "disc" in desc_l else "Coated Abrasives"
@@ -165,7 +211,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 4. Electrical & Power Distribution
-    if any(kw in text for kw in ("breaker", "panelboard", "switch", "receptacle", "enclosure", "transformer", "conduit", "relay", "starter", "leviton", "eaton", "schneider", "square d")):
+    if _has_keyword(text, ("breaker", "panelboard", "switch", "receptacle", "enclosure", "transformer", "conduit", "relay", "starter", "leviton", "eaton", "schneider", "square d")):
         dept = "Electrical & Automation"
         cls = "Wiring Devices & Distribution"
         fine = "Industrial Switches & Receptacles" if any(k in desc_l for k in ("switch", "receptacle")) else "Circuit Protection"
@@ -173,7 +219,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 5. Major Appliances & Residential Equipment
-    if any(kw in text for kw in ("dishwasher", "dryer", "washer", "laundry", "refrigerator", "oven", "range", "heater kit", "frigidaire", "whirlpool", "maytag")):
+    if _has_keyword(text, ("dishwasher", "dryer", "washer", "laundry", "refrigerator", "oven", "range", "cooktop", "heater kit", "frigidaire", "whirlpool", "maytag")):
         dept = "Appliances"
         cls = "Large Appliances"
         fine = "Dishwashers" if "dishwasher" in desc_l else ("Dryers & Washers" if any(k in desc_l for k in ("dryer", "washer")) else "Major Appliances")
@@ -181,7 +227,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 6. Woodworking & Power Tools
-    if any(kw in text for kw in ("planer", "jointer", "shaper", "miter sled", "fence", "stock feeder", "sanders", "router", "drill", "impact driver", "saw", "milwaukee", "dewalt", "makita")):
+    if _has_keyword(text, ("planer", "jointer", "shaper", "miter sled", "fence", "stock feeder", "sanders", "router", "drill", "impact driver", "saw", "bandsaw", "jigsaw", "chainsaw", "hacksaw", "circular saw", "miter saw", "milwaukee", "dewalt", "makita")):
         dept = "Power Tools & Machinery"
         cls = "Woodworking & Construction Tools"
         fine = "Planers & Jointers" if "planer" in desc_l or "jointer" in desc_l else "Power Tools"
@@ -189,7 +235,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 7. Lighting & Fixtures
-    if any(kw in text for kw in ("lighting", "lamp", "led", "fixture", "bulb", "chandelier", "sconce", "kichler")):
+    if _has_keyword(text, ("lighting", "lamp", "led", "fixture", "bulb", "chandelier", "sconce", "kichler")):
         dept = "Electrical & Lighting"
         cls = "Lighting Fixtures"
         fine = "Commercial Lighting"
@@ -201,7 +247,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
     # terms ("grooved", "fascia", "post sleeve") are specific enough to
     # classify on their own, and they are the single largest group in this
     # dataset that keyword matching previously left unclassified.
-    if any(kw in text for kw in (
+    if _has_keyword(text, (
         "decking", "deck board", "azek", "trex", "timbertech", "fiberon",
         "fascia", "baluster", "post sleeve", "rail kit", "railing",
         "grooved", "riser", "pergola", "lattice",
@@ -218,7 +264,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 9. Safety & Personal Protective Equipment
-    if any(kw in text for kw in (
+    if _has_keyword(text, (
         "safety glass", "safety glasses", "goggle", "hard hat", "respirator",
         "ear muff", "earplug", "hearing protect", "work glove", "safety vest",
         "high visibility", "hi-vis", "face shield", "knee pad", "kneeling pad",
@@ -236,7 +282,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
 
     # 10. Lumber & Sheet Goods — structural material, distinct from the
     # adhesives branch it used to be lumped into.
-    if any(kw in text for kw in ("lumber", "plywood", "osb", "sheathing", "boise cascade", "stud ")):
+    if _has_keyword(text, ("lumber", "plywood", "osb", "sheathing", "boise cascade", "stud ")):
         dept = "Building Materials"
         cls = "Lumber & Sheet Goods"
         fine = "Panels & Sheathing" if any(k in text for k in ("plywood", "osb", "sheathing")) else "Dimensional Lumber"
@@ -244,7 +290,7 @@ def _match_taxonomy(text: str, desc_l: str) -> tuple[str, str, str, str] | None:
         return dept, cls, fine, path
 
     # 11. Building Supplies & Adhesives
-    if any(kw in text for kw in ("tape", "mortar", "sealant", "joint", "caulk", "grout")):
+    if _has_keyword(text, ("tape", "mortar", "sealant", "joint", "caulk", "grout")):
         dept = "Building Materials"
         cls = "Adhesives & Tapes"
         fine = "Specialty Tapes" if "tape" in desc_l else "Masonry & Mortar"
