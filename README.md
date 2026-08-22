@@ -47,7 +47,7 @@ Here is where that actually stands on the official 1,000-row dataset, measured r
 |---|---|
 | Rows auto-approved with no human touch | **20.0%** (200/1,000) |
 | Rows routed to human review | **80.0%** (800/1,000) |
-| Category resolved deterministically | **75.1%** (751/1,000) |
+| Category resolved deterministically | **74.8%** (748/1,000) |
 | Field-level verified rate | **38.1%** |
 
 **80% still needing review is not a win yet, and the dashboard says so too.** The honest reading is that this dataset is sparse — nearly every row carries `-- Unbranded --`, `-- No Unilog Brand --` and `-- No DIB Brand --` placeholders, and the dominant validation finding is a brand that matches no controlled-vocabulary entry. Auto-approval is gated on exactly that kind of unresolved reference match, which is the correct conservative default when the alternative is publishing unverified data to a customer catalogue.
@@ -61,9 +61,9 @@ What would move it: Unilog's real 27,000-row manufacturer/brand list and 161,000
 
 **Domain-agnostic by design.** Unilog's own catalogue skews HVAC, plumbing, and electrical (and so does the sample dataset this challenge provides), but nothing in the pipeline is hardcoded to that vertical. Column-to-role detection (`detect_role()` in [`enrichment.py`](backend/specledger/enrichment.py)) is keyword-based, not a fixed schema; the validation framework's 6 rule categories (required fields, LOV membership, cross-field consistency, completeness, duplicates, character limits) apply to any category, and the one example cross-field rule shown in this README (PVC vs. 600 PSI) is a single illustrative rule within that generic framework, not evidence the framework only works for valves. Point it at a different catalogue — electronics, apparel, food service equipment — and the same pipeline runs; only the reference data (`reference_data.py`'s manufacturer/brand/material tables) would need extending with that vertical's own vocabulary.
 
-**On cost — the expensive part is deliberately not where the AI is.** The default path is 100% deterministic, rule-based normalization: **zero LLM calls**, for every row, at any stage. That covers the **75.1%** of the official dataset the keyword classifier resolves outright, at exactly $0.
+**On cost — the expensive part is deliberately not where the AI is.** The default path is 100% deterministic, rule-based normalization: **zero LLM calls**, for every row, at any stage. That covers the **74.8%** of the official dataset the keyword classifier resolves outright, at exactly $0.
 
-The remaining **24.9%** is where deterministic matching genuinely fails — sparse, ambiguous descriptions no keyword list resolves. Those rows, and only those, can be sent to an **opt-in LLM tier** (`ai_assist=true`, or the "AI assist" toggle in the dashboard). It is off by default, and a no-op without `GEMINI_API_KEY`.
+The remaining **25.2%** is where deterministic matching genuinely fails — sparse, ambiguous descriptions no keyword list resolves. Those rows, and only those, can be sent to an **opt-in LLM tier** (`ai_assist=true`, or the "AI assist" toggle in the dashboard). It is off by default, and a no-op without `GEMINI_API_KEY`.
 
 That tier is bounded by construction rather than by promise:
 
@@ -96,8 +96,8 @@ flowchart LR
     A["1. Ingest\nCSV/TSV/XLSX/PDF\nSHA-256 fingerprinting"] --> B["2. Source discovery\nManufacturer-domain allowlist\nMarketplace blocker"]
     B --> C["3. Enrichment\nLOV normalization\n6 description tiers\n50 attribute triplets"]
     C --> D{"Category resolved?"}
-    D -- "yes (75.1%)" --> E["4. Validation\nCross-field physics\nCompleteness scoring"]
-    D -- "no (24.9%)" --> L["3b. LLM tier — opt-in\nBatched, schema-constrained\nMarked ai_inferred"]
+    D -- "yes (74.8%)" --> E["4. Validation\nCross-field physics\nCompleteness scoring"]
+    D -- "no (25.2%)" --> L["3b. LLM tier — opt-in\nBatched, schema-constrained\nMarked ai_inferred"]
     L --> E
     E --> F{"5. Confidence ≥ 80%\nand 0 errors?"}
     F -- yes --> G["Auto-approved"]
