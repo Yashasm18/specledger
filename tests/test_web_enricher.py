@@ -346,3 +346,35 @@ class PlaceholderHonestyTests(unittest.TestCase):
         res = enrich_product_web("V-100", "Parker Hannifin", "Bronze Ball Valve")
         self.assertEqual(res.part_number, "V-100")
         self.assertEqual(res.manufacturer_clean, "Parker Hannifin")
+
+
+class SizeAttributeTests(unittest.TestCase):
+    """Dimensions belong in the attribute slots too.
+
+    Unilog's worked rows carry a "Size" attribute (`24 in W x 24-1/4 in D`).
+    We already parsed dimensions out of the description and wrote them to the
+    LENGTH/WIDTH columns, then left the attribute slot empty — the data was
+    computed and simply not delivered where their format expects it.
+    """
+
+    def _attrs(self, desc: str) -> dict:
+        res = enrich_product_web("X-1", "Freud Inc", desc)
+        return {a.label: (a.value, a.uom) for a in res.attributes}
+
+    def test_size_is_emitted_when_two_dimensions_are_present(self) -> None:
+        attrs = self._attrs('DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc')
+        self.assertEqual(attrs.get("Size"), ("1/2 in x 18 in", None))
+
+    def test_weight_is_emitted_with_its_unit(self) -> None:
+        attrs = self._attrs("Mortar Mix 50 lb Bag")
+        self.assertEqual(attrs.get("Weight"), ("50", "LB"))
+
+    def test_nothing_is_invented_when_no_dimension_is_stated(self) -> None:
+        attrs = self._attrs("Plain Widget Assembly")
+        self.assertNotIn("Size", attrs)
+        self.assertNotIn("Weight", attrs)
+
+    def test_size_does_not_displace_a_real_spec(self) -> None:
+        attrs = self._attrs('Bandsaw 18" 1.75HP 1PH 115V')
+        self.assertIn("Voltage Rating", attrs)
+        self.assertIn("Horsepower", attrs)

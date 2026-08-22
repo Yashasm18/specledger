@@ -617,6 +617,21 @@ def enrich_product_web(
     if m_hp:
         attributes.append(ExtractedAttribute(label="Horsepower", value=m_hp.group(1), uom="HP"))
 
+    # Dimensions were already parsed for the LENGTH/WIDTH/WEIGHT columns.
+    # Unilog's delivery examples also carry them as attributes ("Size",
+    # "24 in W x 24-1/4 in D"), so deliver them there too rather than
+    # computing the value and leaving the slot empty.
+    if dims.get("width") and dims.get("length"):
+        attributes.append(ExtractedAttribute(
+            label="Size",
+            value=f"{dims['width']} {dims.get('width_uom', 'in')}"
+                  f" x {dims['length']} {dims.get('length_uom', 'in')}",
+        ))
+    if dims.get("weight"):
+        attributes.append(ExtractedAttribute(
+            label="Weight", value=dims["weight"], uom=dims.get("weight_uom"),
+        ))
+
     # Feature bullets are derived only from the attributes actually extracted
     # above — no generic filler text. Sparse or empty is the honest result
     # when the raw description doesn't contain an extractable spec. Nothing
