@@ -22,7 +22,8 @@ from typing import Any, Mapping
 from .catalogue_ingestion import CatalogueBatch, clean_manufacturer_name
 from .enrichment import EnrichedBatch
 from .web_enricher import (
-    enrich_product_web, product_name_from_fine, WebEnrichmentResult,
+    enrich_product_web, is_unresolved_classpath, product_name_from_fine,
+    WebEnrichmentResult,
 )
 
 
@@ -114,19 +115,31 @@ def row_to_unilog_dict(
     row['TRADE_NAME'] = web_res.trade_name or f"{brand}®"
     row['MANUFACTURER_PART_NUMBER'] = pn
     # The product itself, not a restatement of two columns that already
-    # exist. Falls back to the old brand+part form only when the taxonomy
-    # could not name the product at all.
-    row['Product Name'] = product_name_from_fine(web_res.fine) or f"{brand} {pn}"
+    # exist. Left blank when the taxonomy could not place the product: the
+    # old brand+part fallback only restated the identity columns, and
+    # deriving from the generic bucket produced "Maintenance Product".
+    row['Product Name'] = (
+        "" if is_unresolved_classpath(web_res.classpath) else product_name_from_fine(web_res.fine)
+    )
 
-    # Classification
-    row['Dept'] = web_res.dept or ""
-    row['Class'] = web_res.class_name or ""
-    row['Fine'] = web_res.fine or ""
-    # Unilog's delivery format writes the hierarchy with a bare ">".
-    # Internally it carries " > " because that is what reads well in the
-    # dashboard, so normalise at the delivery boundary rather than making the
-    # UI ugly — the exported file is the artifact they compare against.
-    row['Classpath'] = _delivery_classpath(web_res.classpath)
+    # Classification. An unmatched product is delivered blank rather than
+    # bucketed: the fallback taxonomy would otherwise assert "Maintenance
+    # Products" for a tire gauge or a fence post, and the pipeline already
+    # treats that bucket as unresolved everywhere else — needs_llm() keys on
+    # it, and the LLM prompt uses it as the model's "don't guess" answer. The
+    # row still routes to the LLM tier or a human, which is where a real
+    # category comes from.
+    if is_unresolved_classpath(web_res.classpath):
+        row['Dept'] = row['Class'] = row['Fine'] = row['Classpath'] = ""
+    else:
+        row['Dept'] = web_res.dept or ""
+        row['Class'] = web_res.class_name or ""
+        row['Fine'] = web_res.fine or ""
+        # Unilog's delivery format writes the hierarchy with a bare ">".
+        # Internally it carries " > " because that is what reads well in the
+        # dashboard, so normalise at the delivery boundary rather than making
+        # the UI ugly — the exported file is what they compare against.
+        row['Classpath'] = _delivery_classpath(web_res.classpath)
 
     # Descriptions
     row['MOBILE_DESC'] = web_res.mobile_desc or ""

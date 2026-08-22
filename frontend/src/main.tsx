@@ -901,7 +901,14 @@ function App() {
         // detection alone always resolves to "Uncategorized" — the backend
         // computes a real classpath from the description (r.category) and
         // this falls back to it before giving up.
-        const catField = findByRole(values, "category") || r.category || "Uncategorized";
+        // An unresolved row carries an empty category deliberately — the
+        // export leaves its taxonomy blank rather than bucketing a tire gauge
+        // as a maintenance product. Say so, instead of rendering an empty cell.
+        const catField = findByRole(values, "category")
+          || r.category
+          || (r.category_source === "unresolved"
+            ? "Not classified — routed for review"
+            : "Uncategorized");
         // A row is "Ready" when the pipeline cleared it without a human
         // (auto_approved) or a reviewer signed it off (approved/corrected).
         // review_state is the live routing decision, so it governs; the
@@ -1117,7 +1124,15 @@ function App() {
                     <small>{r[1]}</small>
                   </span>
                   <span>{r[2]}</span>
-                  <span className="tag">
+                  <span
+                    className="tag"
+                    style={r[6]?.category_source === "unresolved"
+                      ? { color: "#94a3b8", fontStyle: "italic" }
+                      : undefined}
+                    title={r[6]?.category_source === "unresolved"
+                      ? "No keyword rule placed this product, so no category is claimed. The delivered file leaves Dept/Class/Fine blank and the row routes to the AI tier or a human."
+                      : undefined}
+                  >
                     {r[3]}
                     {r[6]?.category_source === "ai_inferred" && (
                       <em

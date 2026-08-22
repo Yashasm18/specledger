@@ -35,10 +35,14 @@ from typing import Any, Sequence
 
 import requests
 
+from .web_enricher import GENERIC_CLASSPATH as _GENERIC_CLASSPATH
+
 
 # The classpath _infer_taxonomy() falls back to when no keyword branch hits.
 # Rows carrying this are the only ones eligible for the LLM tier.
-GENERIC_CLASSPATH = "Industrial Supplies > Maintenance"
+# Re-exported: the taxonomy owns this, and a second copy here would be free
+# to drift from the one the export checks.
+GENERIC_CLASSPATH = _GENERIC_CLASSPATH
 
 # The controlled vocabulary the model must choose from. Keeping the model
 # inside the taxonomy the deterministic path already emits means its output
