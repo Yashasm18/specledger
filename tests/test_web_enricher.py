@@ -133,19 +133,28 @@ class AttributeTripletTests(unittest.TestCase):
             "PDSH4816AF Dishwasher 120V 15A",
         )
         self.assertTrue(res.attributes, "expected extracted specifications")
-        # Labels and UOMs match Unilog's own vocabulary exactly.
-        self.assertEqual(res.attributes[0].label, "Voltage Rating")
-        self.assertEqual(res.attributes[0].value, "120")
-        self.assertEqual(res.attributes[0].uom, "V")
+        # Slot order now follows the category's declared schema, which is how
+        # Unilog's own rows are laid out, so the first slot is the first
+        # attribute of that schema rather than the first thing extracted.
+        # What matters is that identity fields hold none of them, and that
+        # extracted values land on their own label with the right unit.
+        by_label = {a.label: a for a in res.attributes}
+        self.assertNotIn("Manufacturer", by_label)
+        self.assertNotIn("Part Number", by_label)
+        self.assertEqual(by_label["Voltage Rating"].value, "120")
+        self.assertEqual(by_label["Voltage Rating"].uom, "V")
 
-    def test_feature_bullets_still_cover_every_extracted_spec(self) -> None:
-        # Bullets used to skip the first two entries because they were the
-        # identity pair. With those gone, nothing may be skipped.
+    def test_feature_bullets_cover_every_spec_that_has_a_value(self) -> None:
+        # A bullet is a claim about the product, so it needs a value behind
+        # it. Attributes now include the category's declared labels, which
+        # are delivered empty when the description does not state them —
+        # those are schema, not features.
         res = enrich_product_web(
             "PDSH4816AF", "Appliance Dealers Cooperative (APPDE)",
             "PDSH4816AF Dishwasher 120V 15A",
         )
-        self.assertEqual(len(res.features), len(res.attributes))
+        with_values = [a for a in res.attributes if a.value]
+        self.assertEqual(len(res.features), len(with_values))
         self.assertIn("Voltage Rating: 120 V", res.features)
 
     def test_a_row_with_no_extractable_spec_reports_none(self) -> None:
@@ -233,11 +242,16 @@ class SpecExtractionPrecisionTests(unittest.TestCase):
             "49-94-0013", "Milwaukee Tool",
             '49-94-0013 Milw 5"x.045"x7/8" Metal Cut Off Disc',
         )
-        self.assertNotIn("Grit", [a.label for a in res.attributes])
+        # The abrasives template declares a Grit attribute, so the label is
+        # present. What must not appear is a value: a cut-off disc has no
+        # grit, and "49" was its part number.
+        grit = {a.label: a.value for a in res.attributes}.get("Grit", "")
+        self.assertEqual(grit, "")
 
     def test_no_amperage_from_a_part_number_suffix(self) -> None:
         res = enrich_product_web("37418A", "Kichler", "37418A Kichler Bath Light")
-        self.assertNotIn("Amperage Rating", [a.label for a in res.attributes])
+        amps = {a.label: a.value for a in res.attributes}.get("Amperage Rating", "")
+        self.assertEqual(amps, "")
 
     def test_no_grit_from_a_fractional_size(self) -> None:
         # 1/2" is a width. It is not grit 1.
@@ -245,7 +259,8 @@ class SpecExtractionPrecisionTests(unittest.TestCase):
             "DCB518ASTS06G", "Freud Inc",
             'DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc',
         )
-        self.assertNotIn("Grit", [a.label for a in res.attributes])
+        grit = {a.label: a.value for a in res.attributes}.get("Grit", "")
+        self.assertEqual(grit, "")
 
     def test_a_real_p_designation_is_still_read(self) -> None:
         res = enrich_product_web(
@@ -412,3 +427,52 @@ class ManufacturerUrlShapeTests(unittest.TestCase):
     def test_still_nothing_when_the_manufacturer_is_unknown(self) -> None:
         res = enrich_product_web("X-1", "V & V Appliance Parts Inc", "Dryer Timer")
         self.assertFalse(res.mfr_url)
+
+
+class AttributeTemplateTests(unittest.TestCase):
+    """Each category declares the attributes it expects.
+
+    Unilog's two worked rows use the same 15 attribute labels in the same
+    order, and emit the label even where they have no value for it —
+    "Model", "Plug Type" and "Colour" are all present and blank. That is a
+    per-category schema, and it is most of the gap between the 79 columns
+    their rows populate and the 43 ours did.
+
+    The label says which attribute the category has. The value is only
+    filled when the description actually states it, so a blank stays a
+    blank rather than becoming a guess.
+    """
+
+    def _labels(self, desc: str, mfr: str = "") -> list:
+        res = enrich_product_web("X-1", mfr, desc)
+        return [a.label for a in res.attributes]
+
+    def test_a_dishwasher_declares_unilogs_own_schema(self) -> None:
+        labels = self._labels("Frigidaire Dishwasher Built-in 120V 15A Stainless")
+        for expected in ("Series", "Voltage Rating", "Sound Level", "Material"):
+            self.assertIn(expected, labels)
+        # Their order, so a column position means the same thing row to row.
+        self.assertLess(labels.index("Series"), labels.index("Voltage Rating"))
+
+    def test_an_extracted_value_lands_on_its_template_label(self) -> None:
+        res = enrich_product_web("X-1", "", "Frigidaire Dishwasher Built-in 120V 15A")
+        by_label = {a.label: a.value for a in res.attributes}
+        self.assertEqual(by_label["Voltage Rating"], "120")
+        self.assertEqual(by_label["Amperage Rating"], "15")
+
+    def test_template_labels_without_a_value_stay_empty(self) -> None:
+        res = enrich_product_web("X-1", "", "Frigidaire Dishwasher Built-in 120V 15A")
+        by_label = {a.label: a.value for a in res.attributes}
+        self.assertIn("Series", by_label)
+        self.assertEqual(by_label["Series"], "")
+
+    def test_a_category_with_no_template_still_reports_real_specs(self) -> None:
+        labels = self._labels("Widget Assembly 240V")
+        self.assertIn("Voltage Rating", labels)
+
+    def test_feature_bullets_only_come_from_values_we_have(self) -> None:
+        # A declared-but-empty attribute is not a feature of the product.
+        res = enrich_product_web("X-1", "", "Frigidaire Dishwasher Built-in 120V 15A")
+        self.assertTrue(res.features)
+        self.assertTrue(all(":" in f and not f.endswith(": ") for f in res.features))
+        self.assertFalse(any(f.startswith("Series") for f in res.features))

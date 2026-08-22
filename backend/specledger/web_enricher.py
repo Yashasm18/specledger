@@ -115,7 +115,13 @@ def _extract_dimensions(desc: str) -> dict[str, str]:
         dims["weight_uom"] = m_weight.group(2).upper()
 
     # Check for LxWxH or size specs: e.g. 24 in W x 24-1/4 in D x 34 in H
-    m_dim = re.search(r'(\d+(?:[-/]\d+|\.\d+)?)\s*(?:in|inch|\")\s*x\s*(\d+(?:[-/]\d+|\.\d+)?)\s*(?:in|inch|\")', desc, re.IGNORECASE)
+    # A leading "." must be part of the number: ".045 in" is 0.045 inches,
+    # and capturing only the digits delivered it as "045".
+    _num = r'(?:\d+(?:[-/]\d+|\.\d+)?|\.\d+)'
+    m_dim = re.search(
+        rf'({_num})\s*(?:in|inch|")\s*x\s*({_num})\s*(?:in|inch|")',
+        desc, re.IGNORECASE,
+    )
     if m_dim:
         dims["width"] = m_dim.group(1)
         dims["width_uom"] = "in"
@@ -360,6 +366,104 @@ def _strip_part_number(description: str, part_number: str) -> str:
         rf'(?<![A-Za-z0-9]){re.escape(part_number)}(?![A-Za-z0-9])',
         ' ', description, flags=re.IGNORECASE,
     )
+
+
+# The attributes each category declares, in the order they are delivered.
+#
+# Unilog's two worked rows use the same 15 labels in the same order and emit
+# the label even where they have no value ("Model", "Plug Type" and "Colour"
+# are present and blank), so a column position means the same thing from row
+# to row. The dishwasher list below is theirs, copied exactly; the others are
+# the attributes those categories are normally specified by.
+#
+# A label declares what the category has. It never asserts a value — anything
+# not stated in the description is delivered blank.
+_ATTRIBUTE_TEMPLATES: dict[str, tuple[str, ...]] = {
+    "Kitchen Appliances": (
+        "Series", "Model", "Number of Wash Cycles", "Voltage Rating",
+        "Amperage Rating", "Mounting Type", "Plug Type", "Size",
+        "Depth With Door Open", "Minimum Height", "Maximum Height",
+        "Sound Level", "Material", "Color", "Additional Information",
+    ),
+    "Abrasives": (
+        "Series", "Grit", "Size", "Backing", "Pack Quantity",
+        "Material", "Application", "Additional Information",
+    ),
+    "Industrial Valves & Fittings": (
+        "Series", "Size", "Pressure Rating", "Body Material", "Connection Type",
+        "Temperature Range", "Operation", "Additional Information",
+    ),
+    "Machinery": (
+        "Series", "Size", "Voltage Rating", "Amperage Rating", "Horsepower",
+        "Phase", "Speed", "Material", "Additional Information",
+    ),
+    "Wiring Devices & Distribution": (
+        "Series", "Voltage Rating", "Amperage Rating", "Poles", "Mounting Type",
+        "Color", "Standards/Approvals", "Additional Information",
+    ),
+    "Lighting": (
+        "Series", "Wattage", "Voltage Rating", "Color Temperature", "Base Type",
+        "Lumens", "Material", "Additional Information",
+    ),
+    "Water Heaters & HVAC": (
+        "Series", "Size", "Voltage Rating", "Amperage Rating", "Capacity",
+        "Material", "Standards/Approvals", "Additional Information",
+    ),
+    "Decking & Outdoor Living": (
+        "Series", "Size", "Material", "Color", "Finish", "Additional Information",
+    ),
+    "Lumber & Sheet Goods": (
+        "Series", "Size", "Thickness", "Material", "Grade", "Additional Information",
+    ),
+    "Adhesives & Sealants": (
+        "Series", "Size", "Color", "Material", "Coverage", "Additional Information",
+    ),
+    "Personal Protective Equipment": (
+        "Series", "Size", "Color", "Material", "Standards/Approvals",
+        "Additional Information",
+    ),
+}
+
+
+def _attribute_template(classpath: str | None) -> tuple[str, ...]:
+    """The attribute schema for a classpath's family, if one is defined.
+
+    Keyed on the middle segment ("Appliances & Consumer Electronics >
+    Kitchen Appliances > Dishwashers"), which names the product family. The
+    Class column holds a different value for the same family, so keying on
+    that silently matched nothing.
+    """
+    if not classpath:
+        return ()
+    segments = [seg.strip() for seg in classpath.split(">")]
+    for segment in reversed(segments):
+        template = _ATTRIBUTE_TEMPLATES.get(segment)
+        if template:
+            return template
+    return ()
+
+
+def _apply_attribute_template(
+    extracted: list[ExtractedAttribute], classpath: str | None,
+) -> list[ExtractedAttribute]:
+    """Lay extracted specs onto the category's declared attributes.
+
+    Values found in the description fill their matching label; labels with
+    nothing behind them are still delivered, empty. Anything extracted that
+    the template does not name is appended, so a real spec is never dropped
+    to fit the schema.
+    """
+    template = _attribute_template(classpath)
+    if not template:
+        return extracted
+
+    found = {attr.label: attr for attr in extracted}
+    laid_out = [
+        found.get(label, ExtractedAttribute(label=label, value=""))
+        for label in template
+    ]
+    laid_out.extend(attr for attr in extracted if attr.label not in template)
+    return laid_out
 
 
 def product_name_from_fine(fine: str | None) -> str:
@@ -636,10 +740,14 @@ def enrich_product_web(
     # above — no generic filler text. Sparse or empty is the honest result
     # when the raw description doesn't contain an extractable spec. Nothing
     # is skipped now that the identity pair no longer occupies slots 1 and 2.
+    # Bullets before the template is applied: a declared-but-empty attribute
+    # is part of the schema, not a feature of the product.
     features = [
         f"{attr.label}: {attr.value} {attr.uom}".strip() if attr.uom else f"{attr.label}: {attr.value}"
-        for attr in attributes
+        for attr in attributes if attr.value
     ]
+
+    attributes = _apply_attribute_template(attributes, classpath)
 
     # Generate image asset names
     slug_file = re.sub(r'[^A-Z0-9_-]+', '_', pn_clean.upper())

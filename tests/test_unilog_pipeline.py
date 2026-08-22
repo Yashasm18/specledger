@@ -75,8 +75,16 @@ def test_domain_agnostic_web_enricher():
     # raw description — real, not padded. Every attribute is a spec now that
     # the identity pair no longer occupies the first two slots, so nothing
     # is skipped.
-    assert res1.features == [f"{a.label}: {a.value}" for a in res1.attributes]
-    assert "Manufacturer" not in [a.label for a in res1.attributes]
+    # Bullets come only from attributes that carry a value; the rest are the
+    # category's declared schema, delivered empty rather than guessed. This
+    # description states no extractable spec, so there is nothing to bullet.
+    assert res1.features == []
+    assert [a.label for a in res1.attributes if a.value] == []
+    # The schema is still declared, and holds no identity fields.
+    labels = [a.label for a in res1.attributes]
+    assert labels, "expected the abrasives schema to be declared"
+    assert "Manufacturer" not in labels
+    assert "Part Number" not in labels
     assert res1.marketing_desc == ""
     assert "Industrial grade component" not in res1.long_desc1
 
