@@ -954,7 +954,11 @@ function App() {
       body.append("file", file);
 
       try {
-        const response = await fetch(`${API_BASE}/documents/intake?organization_id=default&category=generic`, {
+        // The workspace chosen for this upload, like the spreadsheet path.
+        // This was pinned to "default", so a datasheet uploaded from the
+        // sandbox was filed against the master workspace instead.
+        const response = await fetch(
+          `${API_BASE}/documents/intake?organization_id=${encodeURIComponent(uploadOrg)}&category=generic`, {
           method: "POST",
           headers: getApiKeyHeaders(),
           body,
@@ -974,7 +978,11 @@ function App() {
         setNotice(`Queued ${file.name} · task ${result.task_id.slice(0, 8)}`);
         const poll = window.setInterval(async () => {
           try {
-            const status = await fetch(`${API_BASE}/documents/tasks/${result.task_id}?organization_id=default`).then((r) => r.json());
+            // Same workspace the document was filed under, or the task is
+            // looked for somewhere it does not exist and never completes.
+            const status = await fetch(
+              `${API_BASE}/documents/tasks/${result.task_id}?organization_id=${encodeURIComponent(uploadOrg)}`
+            ).then((r) => r.json());
             if (status.state === "completed" || status.state === "failed") {
               window.clearInterval(poll);
               setNotice(status.state === "completed" ? `Extraction complete · ${file.name}` : `Extraction failed · ${status.error_message || "retry required"}`);
