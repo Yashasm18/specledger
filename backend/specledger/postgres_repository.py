@@ -87,7 +87,25 @@ class PostgresRepository:
             from psycopg_pool import ConnectionPool
         except ImportError as exc:
             raise RuntimeError("Install psycopg[binary] and psycopg_pool to use PostgreSQL") from exc
-        self.pool = ConnectionPool(database_url or os.environ["DATABASE_URL"], min_size=min_size, max_size=max_size, open=True)
+        # Supabase's pooler uses transaction pooling, which does not carry
+        # session-level prepared statements — a pooled connection can be
+        # handed to a different backend between statements. psycopg3
+        # auto-prepares a statement after a few executions, so ingest began
+        # failing with DuplicatePreparedStatement / InvalidSqlStatementName
+        # and the extraction worker fell into a claim-error loop. It is
+        # intermittent, depending which backend a statement lands on, so a
+        # run that succeeded earlier proves nothing.
+        #
+        # Disabling client-side preparation costs little at this query
+        # volume. Detecting "am I behind a pooler?" would be cleverer and
+        # would fail closed on a wrong guess.
+        self.pool = ConnectionPool(
+            database_url or os.environ["DATABASE_URL"],
+            min_size=min_size,
+            max_size=max_size,
+            open=True,
+            kwargs={"prepare_threshold": None},
+        )
         self.initialize()
 
     @contextmanager

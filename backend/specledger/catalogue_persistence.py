@@ -212,8 +212,15 @@ class PostgresCatalogueStore(CatalogueStore):
         """
         if self._pool is None:
             from psycopg_pool import ConnectionPool
+            # prepare_threshold=None for the same reason as in
+            # postgres_repository.PostgresRepository: the managed Postgres
+            # sits behind a transaction pooler that cannot carry
+            # session-level prepared statements. This pool is the one that
+            # raised DuplicatePreparedStatement out of save_batch and 500'd
+            # catalogue ingest.
             self._pool = ConnectionPool(
                 self.connection_url, min_size=1, max_size=10, open=True,
+                kwargs={"prepare_threshold": None},
             )
         return self._pool
 
