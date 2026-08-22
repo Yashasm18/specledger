@@ -1742,7 +1742,11 @@ function App() {
               sample: new Set(["routed for human review"]),
             });
           }
-          return [...counts.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+          // Every department, not the top six. Capping them while the copy
+          // above says "across all N SKUs" left the cards summing to less
+          // than the batch — 960 of 1,000 on the official input. The taxonomy
+          // has about a dozen branches, so there is nothing to truncate for.
+          return [...counts.entries()].sort((a, b) => b[1].count - a[1].count);
         })();
 
         return (
