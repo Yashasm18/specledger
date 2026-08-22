@@ -148,6 +148,33 @@ class TaskQueue:
                 "schema_version": row[3], "fact_count": row[4], "created_at": row[5].isoformat(),
                 "review_state": row[6]}
 
+    def list_artifacts(self, organization_id: str, limit: int = 200) -> list[dict]:
+        """Every stored extraction artifact for an organization, newest first.
+
+        Used to find which uploaded datasheets describe a given catalogue
+        row. The link is derived on request rather than stored: a document
+        uploaded before a batch must still attach to it, and a stored link
+        would have to be backfilled every time either side changes.
+        """
+        with self.database.connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """SELECT artifact.artifact_id, artifact.document_id, artifact.object_key,
+                              artifact.fact_count, artifact.created_at, artifact.review_state,
+                              COALESCE(asset.filename, '')
+                       FROM extraction_artifacts artifact
+                       LEFT JOIN document_assets asset
+                         ON asset.organization_id = artifact.organization_id
+                        AND asset.document_id = artifact.document_id
+                       WHERE artifact.organization_id = %s
+                       ORDER BY artifact.created_at DESC LIMIT %s""",
+                    (organization_id, limit),
+                )
+                rows = cursor.fetchall()
+        return [{"artifact_id": r[0], "document_id": r[1], "object_key": r[2],
+                 "fact_count": r[3], "created_at": r[4].isoformat(), "review_state": r[5],
+                 "filename": r[6]} for r in rows]
+
     def latest_any_artifact(self, organization_id: str) -> dict | None:
         with self.database.connection() as connection:
             with connection.cursor() as cursor:

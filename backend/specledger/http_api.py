@@ -23,6 +23,7 @@ from slowapi import _rate_limit_exceeded_handler
 from .api import SpecLedgerService
 from .auth import require_api_key
 from .file_types import classify_upload
+from .document_linking import find_matching_rows, proposals_from_facts, normalize_part_number
 from .worker import DocumentProcessingWorker
 from .database import resolve_database_url
 from .batch import BatchImportService, BatchJobRepository
@@ -450,6 +451,67 @@ def get_latest_artifact(document_id: str, organization_id: str = Query(default="
     facts = [ExtractedFact(**fact) for fact in artifact["data"].get("facts", [])]
     artifact["validation"] = {"issues": validate_facts(facts)}
     return artifact
+
+
+@app.get("/documents/for-part/{part_number}")
+def documents_for_part(
+    part_number: str,
+    organization_id: str = Query(default="default", min_length=1),
+) -> dict[str, Any]:
+    """Uploaded datasheets that name this part number, with what they say.
+
+    This is the bridge between the two pipelines. A catalogue row is six
+    sparse columns; a manufacturer's datasheet for the same part carries
+    the specifications those columns are missing. Matching them by part
+    number puts the manufacturer's own stated values, and the sentence each
+    came from, in front of the person reviewing that row — instead of
+    leaving them to go and find the datasheet themselves.
+
+    Nothing here is applied to the record. These are proposals with
+    evidence; a reviewer decides. Matching is exact on the part number,
+    tolerating only case and separators, because a fuzzy match would hang
+    one product's specifications on another and look verified doing it.
+
+    The link is computed per request rather than stored, so a datasheet
+    uploaded before its catalogue still attaches to it.
+    """
+    if task_queue is None:
+        raise HTTPException(status_code=503, detail="Document linking requires PostgreSQL")
+
+    import json
+    wanted = normalize_part_number(part_number)
+    if not wanted:
+        raise HTTPException(status_code=400, detail="A part number is required")
+
+    matches: list[dict[str, Any]] = []
+    for artifact in task_queue.list_artifacts(organization_id):
+        if not artifact_store.exists(artifact["object_key"]):
+            continue
+        try:
+            data = json.loads(artifact_store.get(artifact["object_key"]))
+        except (ValueError, OSError):
+            # A single unreadable artifact must not hide every other one.
+            continue
+        facts = [ExtractedFact(**fact) for fact in data.get("facts", [])]
+        row = {"batch_id": "", "row_number": 0, "part_number": part_number}
+        if not find_matching_rows(facts, [row]):
+            continue
+        matches.append({
+            "document_id": artifact["document_id"],
+            "artifact_id": artifact["artifact_id"],
+            "filename": artifact["filename"],
+            "created_at": artifact["created_at"],
+            "review_state": artifact["review_state"],
+            "page_count": len(data.get("pages", [])),
+            "proposals": proposals_from_facts(facts),
+        })
+
+    return {
+        "part_number": part_number,
+        "organization_id": organization_id,
+        "documents": matches,
+        "count": len(matches),
+    }
 
 
 @app.get("/documents/latest/artifact")
