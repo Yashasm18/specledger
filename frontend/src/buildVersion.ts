@@ -84,3 +84,14 @@ export function clearReloadMarker(): void {
   url.searchParams.delete("_v");
   window.history.replaceState({}, "", url.pathname + url.search + url.hash);
 }
+
+/** Clear the boot-recovery flag set by the inline guard in index.html.
+ *  Called once the app has actually started, so a genuine failure later in
+ *  the session can still trigger its one retry. */
+export function clearStaleHtmlRetryFlag(): void {
+  try {
+    sessionStorage.removeItem("specledger:reloaded-for-stale-html");
+  } catch {
+    /* storage unavailable; the guard is a no-op in that case too */
+  }
+}

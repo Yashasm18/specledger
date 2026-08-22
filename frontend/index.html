@@ -15,6 +15,36 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
+    <script>
+      /*
+       * Recovering when this HTML is a cached copy of a replaced build.
+       *
+       * GitHub Pages caches index.html and offers no way to change that, and
+       * a deploy removes the previous fingerprinted bundles — verified: an
+       * earlier build's asset 404s once a new one ships. So a browser holding
+       * the old HTML requests a script that no longer exists, the module
+       * never runs, and the page is blank. The in-app "newer version" notice
+       * cannot help, because the app never starts.
+       *
+       * Resource errors do not bubble, hence the capture phase. One retry
+       * only: a reload loop would be worse than the blank page it replaces.
+       */
+      (function () {
+        var RETRY_KEY = "specledger:reloaded-for-stale-html";
+        window.addEventListener("error", function (event) {
+          var el = event.target;
+          if (!el || el.tagName !== "SCRIPT") return;
+          if (!/assets\/index-.*\.js/.test(el.src || "")) return;
+          try {
+            if (sessionStorage.getItem(RETRY_KEY)) return;
+            sessionStorage.setItem(RETRY_KEY, "1");
+          } catch (e) { return; }
+          var url = new URL(window.location.href);
+          url.searchParams.set("_v", String(Date.now()));
+          window.location.replace(url.toString());
+        }, true);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

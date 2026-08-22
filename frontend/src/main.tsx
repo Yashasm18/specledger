@@ -12,7 +12,9 @@ import { openReviewWorkspace } from "./reviewWorkspace";
 import { apiFetch, fetchWithRetry, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiClient";
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
-import { clearReloadMarker, isSupersededBuild, reloadOntoLatest } from "./buildVersion";
+import {
+  clearReloadMarker, clearStaleHtmlRetryFlag, isSupersededBuild, reloadOntoLatest,
+} from "./buildVersion";
 
 // Mirrors backend/specledger/enrichment.py's detect_role() keyword heuristic.
 // The catalogue persistence API returns raw_values/enriched_values keyed by
@@ -350,6 +352,8 @@ function App() {
   // and occasionally while it sits open.
   useEffect(() => {
     clearReloadMarker();
+    // The app started, so the boot-recovery retry is spent and can reset.
+    clearStaleHtmlRetryFlag();
     const controller = new AbortController();
     let cancelled = false;
     const check = async () => {
