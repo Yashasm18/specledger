@@ -321,3 +321,28 @@ class KeywordBoundaryTests(unittest.TestCase):
         self.assertIn("Switches", self._cat("20A Industrial Rocker Switch"))
         self.assertIn("Abrasives", self._cat("3M Stikit Film P150 Disc/Box"))
         self.assertIn("Kitchen", self._cat("Frigidaire Gas Range 30 in Stainless"))
+
+
+class PlaceholderHonestyTests(unittest.TestCase):
+    """Missing identity is delivered blank, not as invented text.
+
+    A file with no usable manufacturer or part-number column exported
+    "Industrial Manufacturer" and "UNKNOWN-PN" — strings that read like data
+    in a spreadsheet and are not. Same defect as the "manufacturer.com"
+    placeholder URL: absent is a real answer, and stating it plainly is
+    better than filling the cell with something that isn't true.
+    """
+
+    def test_absent_manufacturer_is_blank(self) -> None:
+        res = enrich_product_web("X-1", None, "X-1 Widget Assembly")
+        self.assertEqual(res.manufacturer_clean or "", "")
+        self.assertNotIn("Industrial Manufacturer", str(res.manufacturer_clean))
+
+    def test_absent_part_number_is_blank(self) -> None:
+        res = enrich_product_web("", "Parker Hannifin", "Bronze Ball Valve")
+        self.assertEqual(res.part_number or "", "")
+
+    def test_present_values_are_untouched(self) -> None:
+        res = enrich_product_web("V-100", "Parker Hannifin", "Bronze Ball Valve")
+        self.assertEqual(res.part_number, "V-100")
+        self.assertEqual(res.manufacturer_clean, "Parker Hannifin")

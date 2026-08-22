@@ -504,8 +504,13 @@ def enrich_product_web(
     dib_brand: str | None = None,
 ) -> WebEnrichmentResult:
     """Enrich a single product record via web discovery and extraction rules."""
-    mfr_clean = clean_manufacturer_name(raw_manufacturer) or "Industrial Manufacturer"
-    pn_clean = part_number.strip() if part_number else "UNKNOWN-PN"
+    # Absent identity stays absent. "Industrial Manufacturer" and
+    # "UNKNOWN-PN" read like values in a delivered spreadsheet and are not —
+    # the same defect as the placeholder manufacturer.com URL. A file with no
+    # usable manufacturer or part-number column now delivers those cells
+    # blank, and the row routes to review like any other unresolved field.
+    mfr_clean = clean_manufacturer_name(raw_manufacturer) or ""
+    pn_clean = part_number.strip() if part_number else ""
     desc_clean = raw_description.strip() if raw_description else f"{mfr_clean} {pn_clean}"
 
     # Work out which manufacturer this row actually belongs to before

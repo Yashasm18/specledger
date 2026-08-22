@@ -503,11 +503,16 @@ def export_schema_org_jsonld(enriched: EnrichedBatch, indent: int = 2) -> str:
             f = field_map.get(col_name)
             return f.canonical_value if f and f.canonical_value else None
 
-        mfr = get_val("manufacturer") or get_val("part_manuf") or "Industrial Manufacturer"
+        # Absent values stay absent rather than becoming invented text.
+        # "Industrial Manufacturer", "SKU-<row>" and a blanket "Industrial
+        # Supplies" category all read as real data to anything consuming this
+        # feed, which is the same defect as a placeholder manufacturer URL.
+        # Empty keys are dropped from the emitted object below.
+        mfr = get_val("manufacturer") or get_val("part_manuf") or ""
         brand = get_val("brand") or get_val("unilog_brand") or get_val("e1_brand") or mfr
-        part_num = get_val("part_number") or get_val("mfg_part_num") or f"SKU-{row.row_number}"
-        desc = get_val("description") or get_val("part_desc") or f"{mfr} {part_num}"
-        category = get_val("category") or get_val("classpath") or "Industrial Supplies"
+        part_num = get_val("part_number") or get_val("mfg_part_num") or ""
+        desc = get_val("description") or get_val("part_desc") or ""
+        category = get_val("category") or get_val("classpath") or ""
 
         # Build additionalProperty array conforming to schema.org/PropertyValue
         additional_props: list[dict[str, Any]] = []
@@ -531,18 +536,17 @@ def export_schema_org_jsonld(enriched: EnrichedBatch, indent: int = 2) -> str:
                         prop_dict["unitText"] = uom_val
                 additional_props.append(prop_dict)
 
+        # schema.org omits what it doesn't know; a consumer can tell absent
+        # from wrong, but not from fabricated.
+        name = " - ".join(p for p in (f"{brand} {part_num}".strip(), desc) if p)
         product_ld: dict[str, Any] = {
             "@context": "https://schema.org/",
             "@type": "Product",
-            "name": f"{brand} {part_num} - {desc}".strip(),
-            "sku": part_num,
-            "mpn": part_num,
-            "description": desc,
-            "category": category,
-            "brand": {
-                "@type": "Brand",
-                "name": brand,
-            },
+            "name": name,
+            **({"sku": part_num, "mpn": part_num} if part_num else {}),
+            **({"description": desc} if desc else {}),
+            **({"category": category} if category else {}),
+            **({"brand": {"@type": "Brand", "name": brand}} if brand else {}),
             "manufacturer": {
                 "@type": "Organization",
                 "name": mfr,
