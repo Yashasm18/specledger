@@ -1148,12 +1148,21 @@ function App() {
   // the whole batch. Every "of N" label and the pager must count that set,
   // not the batch total.
   const isSearching = debouncedSearch.length > 0;
+  const isCategoryFiltered = categoryFilter !== "all";
+  // Either filter narrows the batch server-side, so both report against the
+  // matched set rather than the batch total.
+  const isFiltered = isSearching || isCategoryFiltered;
+  const activeCategoryLabel =
+    categoryFilter === "__unclassified__"
+      ? "not classified"
+      : batchCategories.find((c) => c.classpath === categoryFilter)?.label ?? categoryFilter;
   // The API echoes the term it filtered on. Until the response for the
   // current term lands, the rows on screen still belong to the previous
   // query — reporting a match count against them would flash a wrong
   // number (e.g. "100 of 1,000 match") over stale rows mid-keystroke.
-  const searchApplied = (activeBatch?.search ?? "") === debouncedSearch;
-  const matchedRowCount = isSearching
+  const searchApplied = (activeBatch?.search ?? "") === debouncedSearch
+    && (activeBatch?.category ?? "all") === (isCategoryFiltered ? categoryFilter : "all");
+  const matchedRowCount = isFiltered
     ? (activeBatch?.matched_rows ?? displayRows.length)
     : batchRowCount;
 
@@ -1214,11 +1223,15 @@ function App() {
               <div>
                 <p className="eyebrow">COMMERCE CATALOGUE WORKSPACE</p>
                 <h3>Enriched Product Catalogue ({batchRowCount.toLocaleString()} SKUs)</h3>
-                {isSearching ? (
+                {isFiltered ? (
                   <small style={{ color: "#64748b" }}>
-                    {searchApplied
-                      ? `${matchedRowCount.toLocaleString()} of ${batchRowCount.toLocaleString()} SKUs match “${debouncedSearch}” — searched across the whole batch.`
-                      : `Searching all ${batchRowCount.toLocaleString()} SKUs for “${debouncedSearch}”…`}
+                    {!searchApplied
+                      ? `Filtering all ${batchRowCount.toLocaleString()} SKUs…`
+                      : isSearching && isCategoryFiltered
+                        ? `${matchedRowCount.toLocaleString()} of ${batchRowCount.toLocaleString()} SKUs in “${activeCategoryLabel}” match “${debouncedSearch}”.`
+                        : isSearching
+                          ? `${matchedRowCount.toLocaleString()} of ${batchRowCount.toLocaleString()} SKUs match “${debouncedSearch}” — searched across the whole batch.`
+                          : `${matchedRowCount.toLocaleString()} of ${batchRowCount.toLocaleString()} SKUs are in “${activeCategoryLabel}” — filtered across the whole batch.`}
                   </small>
                 ) : batchRowCount > displayRows.length && (
                   <small style={{ color: "#64748b" }}>
@@ -1325,7 +1338,7 @@ function App() {
                 <div className="empty-review" style={{ margin: 16 }}>
                   {liveRows.length === 0 && !isSearching
                     ? "No batch loaded — import a catalogue to see real product records."
-                    : isSearching && searchApplied && matchedRowCount === 0
+                    : isFiltered && searchApplied && matchedRowCount === 0
                       // Say what was actually searched. The old wording read as
                       // "not on this page" while sounding like "not in the batch".
                       ? `No SKU, description, or manufacturer in this batch matches “${debouncedSearch}”. All ${batchRowCount.toLocaleString()} rows were searched.`
@@ -1398,6 +1411,7 @@ function App() {
                   Rows {(rowOffset + 1).toLocaleString()}–{(rowOffset + displayRows.length).toLocaleString()} of{" "}
                   {matchedRowCount.toLocaleString()}
                   {isSearching && <> matching “{debouncedSearch}”</>}
+                  {isCategoryFiltered && <> in “{activeCategoryLabel}”</>}
                   {isPagingRows && <span style={{ marginLeft: 8, color: "#2872e3" }}>loading…</span>}
                   {filteredRows.length !== displayRows.length && (
                     <> · {filteredRows.length} shown after the category filter on this page</>
