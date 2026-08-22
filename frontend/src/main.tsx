@@ -21,9 +21,26 @@ import {
 // The catalogue persistence API returns raw_values/enriched_values keyed by
 // original CSV column name (e.g. "mfg_part_num"), not a role-tagged fields
 // array, so the frontend re-derives role from column name the same way.
+// Column names that are a row's identifier rather than a described part
+// number. Mirrors is_identifier_column() in enrichment.py: a published feed
+// keyed on "id" delivered 552 in the CSV while the table showed "ROW-2",
+// because only the backend knew the rule.
+const IDENTIFIER_PREFIXES = [
+  "product", "item", "catalog", "catalogue", "part", "sku",
+  "record", "asset", "entity", "row",
+];
+const IDENTIFIER_PATTERN = new RegExp(
+  `^(?:id|[a-z0-9]+[_\\-]id|(?:${IDENTIFIER_PREFIXES.join("|")})id)$`
+);
+
+function isIdentifierColumn(column: string): boolean {
+  return IDENTIFIER_PATTERN.test(column.toLowerCase().trim());
+}
+
 function detectRole(column: string): string {
   const k = column.toLowerCase().trim();
   if (["part_num", "part_no", "part_number", "sku", "item_num", "item_no", "model_num", "mfg_part", "item_code"].some((p) => k.includes(p))) return "part_number";
+  if (isIdentifierColumn(k)) return "part_number";
   if (["desc", "description", "product_name", "item_title", "title", "part_desc"].some((d) => k.includes(d))) return "description";
   // Brand before manufacturer, matching detect_role()'s order in
   // enrichment.py. A column like "supplier_brand" contains both words, and
@@ -49,10 +66,15 @@ function isPlaceholder(value: string | undefined): boolean {
 
 function findByRole(values: Record<string, string> | undefined, role: string): string | undefined {
   if (!values) return undefined;
-  for (const [col, val] of Object.entries(values)) {
-    if (val && !isPlaceholder(val) && detectRole(col) === role) return val;
+  const matches = Object.entries(values)
+    .filter(([col, val]) => val && !isPlaceholder(val) && detectRole(col) === role);
+  if (matches.length === 0) return undefined;
+  if (role === "part_number") {
+    // Both identify the row; only one of them is the product's number.
+    const named = matches.find(([col]) => !isIdentifierColumn(col));
+    if (named) return named[1];
   }
-  return undefined;
+  return matches[0][1];
 }
 
 // Mirrors AUTO_APPROVE_CONFIDENCE in backend/specledger/validation_engine.py —
