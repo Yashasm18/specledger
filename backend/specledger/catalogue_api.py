@@ -69,11 +69,25 @@ _batch_results: dict[str, BatchProcessingResult] = {}
 _source_cache = SourceCache()
 
 
-def _ensure_seed_batch(organization_id: str = "default") -> str | None:
-    """Ensure at least one sample or ground truth batch is loaded in store."""
+# Only this organization is seeded with the bundled sample data. Any other
+# one is somebody's own workspace and starts genuinely empty.
+DEFAULT_ORGANIZATION = "default"
+
+
+def _ensure_seed_batch(organization_id: str = DEFAULT_ORGANIZATION) -> str | None:
+    """Ensure the default organization has a batch loaded.
+
+    Seeding exists so a fresh deployment has something to show. It must not
+    apply to other organizations: the dashboard's workspaces are
+    organization ids, and an "Evaluation Sandbox" that fills itself with the
+    challenge dataset the moment it is opened is not a sandbox — the point of
+    it is somewhere to upload a catalogue without disturbing the demo.
+    """
     summaries = catalogue_store.list_batches(organization_id)
     if summaries:
         return summaries[0]["batch_id"]
+    if organization_id != DEFAULT_ORGANIZATION:
+        return None
 
     seed_paths = [
         "data/challenge/Unihack_ Sample Dataset - Input.csv",

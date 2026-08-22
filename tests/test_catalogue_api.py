@@ -906,6 +906,21 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_a_non_default_organization_starts_empty(self) -> None:
+        # Seeding exists so a fresh deployment has something to show. Applied
+        # to every organization it filled the dashboard's "Evaluation Sandbox"
+        # with the challenge dataset as soon as it was opened, which is the
+        # opposite of what that workspace is for.
+        listed = self.client.get("/catalogue/batches?organization_id=fresh_org").json()
+        self.assertEqual(listed.get("batches", []), [])
+
+        # Resolving "latest" must not conjure one either.
+        res = self.client.get("/catalogue/batches/latest?organization_id=fresh_org")
+        self.assertEqual(res.status_code, 404)
+
+        still_empty = self.client.get("/catalogue/batches?organization_id=fresh_org").json()
+        self.assertEqual(still_empty.get("batches", []), [])
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
