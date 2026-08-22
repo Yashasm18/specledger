@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import threading
 import time
 import hashlib
 from uuid import uuid4
@@ -21,6 +22,7 @@ from slowapi import _rate_limit_exceeded_handler
 
 from .api import SpecLedgerService
 from .auth import require_api_key
+from .worker import DocumentProcessingWorker
 from .database import resolve_database_url
 from .batch import BatchImportService, BatchJobRepository
 from .models import AttributeValue, Evidence, Product, ProductVersion, ValueStatus
@@ -57,9 +59,44 @@ artifact_store = build_object_store()
 batch_service = BatchImportService(repository, job_repository)
 
 
+_worker_stop = threading.Event()
+
+
+def _drain_extraction_tasks(worker: DocumentProcessingWorker) -> None:
+    """Claim and process queued PDF extractions until asked to stop.
+
+    Tasks are claimed with FOR UPDATE SKIP LOCKED, so this coexists with any
+    separately deployed worker rather than replacing that design — it exists
+    because this deployment runs one container, and without something draining
+    the queue an uploaded PDF is stored, enqueued, and then waited on forever.
+    """
+    while not _worker_stop.wait(2.0):
+        try:
+            while worker.run_once() is not None:
+                if _worker_stop.is_set():
+                    return
+        except Exception:  # pylint: disable=broad-except
+            # A failed document must not take the worker down with it; the
+            # queue records the failure against that task and moves on.
+            logger.exception("PDF extraction worker failed on a task")
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    worker_thread: threading.Thread | None = None
+    if task_queue is not None:
+        worker_thread = threading.Thread(
+            target=_drain_extraction_tasks,
+            args=(DocumentProcessingWorker(task_queue, artifact_store),),
+            name="pdf-extract-worker",
+            daemon=True,
+        )
+        worker_thread.start()
+        logger.info("PDF extraction worker started in-process")
     yield
+    _worker_stop.set()
+    if worker_thread is not None:
+        worker_thread.join(timeout=5)
     if hasattr(repository, "close"):
         repository.close()
     job_repository.close()

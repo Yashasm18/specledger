@@ -66,3 +66,51 @@ class WorkerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExtractionStoreAgnosticTests(unittest.TestCase):
+    """Extraction must use only the object store's interface.
+
+    _extract() wrote the fetched bytes to a temporary file inside
+    `object_store.root` before opening it. That attribute exists only on the
+    local development store, so against the deployed Supabase-backed store
+    every extraction raised AttributeError — an uploaded PDF was accepted,
+    queued, and then silently never processed.
+
+    The only other worker test needs PostgreSQL, so it is skipped in CI, and
+    it passes a LocalObjectStore either way. Neither would have caught this.
+    """
+
+    class _StoreWithoutRoot:
+        """A store exposing get() and nothing else, like the remote one."""
+
+        def __init__(self, content: bytes) -> None:
+            self._content = content
+
+        def get(self, object_key: str) -> bytes:  # noqa: ARG002
+            return self._content
+
+    def _one_page_pdf(self, text: str) -> bytes:
+        document = fitz.open()
+        document.new_page().insert_text((72, 72), text)
+        data = document.tobytes()
+        document.close()
+        return data
+
+    def test_extract_works_without_a_filesystem_backed_store(self) -> None:
+        from backend.specledger.tasks import ProcessingTask
+
+        pdf = self._one_page_pdf("Pressure rating: 600 WOG")
+        worker = DocumentProcessingWorker(
+            queue=None,  # type: ignore[arg-type]
+            object_store=self._StoreWithoutRoot(pdf),
+        )
+        task = ProcessingTask(
+            task_id="t-1", organization_id="default", task_type="pdf_extract",
+            state="processing", attempts=1, document_id="doc-1", error_message=None,
+        )
+        extracted = worker._extract(task)  # pylint: disable=protected-access
+
+        self.assertEqual(extracted.document_id, "doc-1")
+        self.assertEqual(len(extracted.pages), 1)
+        self.assertIn("600 WOG", extracted.pages[0].text)

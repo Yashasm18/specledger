@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from uuid import uuid4
 
 from .object_store import LocalObjectStore
@@ -65,12 +64,17 @@ class DocumentProcessingWorker:
         except ImportError as exc:
             raise RuntimeError("PyMuPDF is required for PDF worker tasks") from exc
 
-        temporary_path = Path(self.object_store.root) / f".worker-{uuid4().hex}.pdf"
-        temporary_path.write_bytes(content)
+        # Opened from memory. This wrote the bytes to a temporary file inside
+        # object_store.root first, which only exists on the local development
+        # store — against the deployed Supabase-backed store every extraction
+        # failed on a missing attribute, so an uploaded PDF was accepted and
+        # then never processed. The content is already in hand by this point.
+        document = fitz.open(stream=content, filetype="pdf")
         try:
-            document = fitz.open(str(temporary_path))
-            pages = tuple(ExtractedPage(index + 1, page.get_text("text").strip()) for index, page in enumerate(document))
-            document.close()
+            pages = tuple(
+                ExtractedPage(index + 1, page.get_text("text").strip())
+                for index, page in enumerate(document)
+            )
         finally:
-            temporary_path.unlink(missing_ok=True)
+            document.close()
         return ExtractedDocument(task.document_id, pages)
