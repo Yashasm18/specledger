@@ -26,6 +26,30 @@
 
 ---
 
+## What it achieves
+
+**Two thirds of Unilog's 1,000-row challenge dataset now clears enrichment with no human touch at all**, delivered in the official 252-column format with a source and a reason attached to every value.
+
+| | Result | At the start |
+|---|---|---|
+| Rows auto-approved, no human touch | **64.8%** — 648 of 1,000 | 20.0% |
+| Rows still needing a person | **35.2%** — 352 | 80.0% |
+| Field-level verified rate | **51.5%** | 38.1% |
+| Category resolved deterministically | **74.8%** — 748 of 1,000 | 74.8% |
+| Throughput, deterministic path | **~7,000 rows/sec** | — |
+| Cost per SKU | **$0** — no LLM call on the default path | — |
+| 252-column header vs Unilog's Expected Output | **exact match** | — |
+
+That is a **2.3x reduction in rows requiring human attention** (800 → 352) and a **3.2x increase in rows clearing with no human at all** (200 → 648) — the numbers that decide whether 150,000 SKUs a month can become 750,000 without hiring proportionally. Throughput was never the constraint — the deterministic path already runs orders of magnitude faster than any realistic monthly volume. The constraint is people, and this moves it.
+
+**Every figure above is measured on Unilog's own file, live, and you can reproduce all of it.** Press **Run benchmark** in the [live app](https://yashasm18.github.io/specledger/) and the pipeline runs during that request — the tiles read `—` until you do, because nothing here is a stored figure from a past run. Or clone the repo and run `pytest`; the before-numbers were re-measured at the exact commit they came from rather than quoted from notes.
+
+**What makes the numbers worth trusting is what the system refuses to do.** 288 of the 352 rows still routed to a human are a deliberate refusal, not a gap: `Part_Manuf` in Unilog's feed frequently names a *distributor* — Boise Cascade, Appliance Dealers Cooperative, Parksite, U S Lumber — rather than who made the product. Writing those into `MANUFACTURER_NAME` would have added roughly seven points to the headline number while asserting something the source data does not support. Instead the system identifies them as distributors, leaves the manufacturer unresolved, and records *why*. Conflating distributor with manufacturer is precisely the data-quality defect a PIM exists to catch, and it is present in Unilog's own data.
+
+The same discipline runs through the whole build: a row with no verifiable manufacturer URL gets no URL rather than a plausible one, a datasheet with no labelled specification yields nothing rather than a guess, and three real manufacturer PDFs tested against this pipeline returned **zero** extracted facts because they genuinely contained none — [with their source URLs listed](#datasets--provenance) so you can check.
+
+---
+
 ## Trying it in 3 minutes
 
 Open [the live app](https://yashasm18.github.io/specledger/). It lands on **Unilog CX1 Master**, which already holds Unilog's official 1,000-row dataset, enriched. Nothing is staged and no document is pre-loaded — every workspace holds only Unilog's data and what SpecLedger derived from it, so anything you see a feature do, you did.
@@ -45,7 +69,7 @@ The three sample datasheets are synthetic fixtures and say so on their own first
 ---
 
 ## Contents
-[Trying it in 3 minutes](#trying-it-in-3-minutes) · [Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [External catalogue test](#tested-against-an-external-manufacturer-catalogue) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
+[What it achieves](#what-it-achieves) · [Trying it in 3 minutes](#trying-it-in-3-minutes) · [Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [External catalogue test](#tested-against-an-external-manufacturer-catalogue) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
 
 ---
 
@@ -57,24 +81,11 @@ Unilog's platform doesn't perform product enrichment itself — that work is lar
 
 **SpecLedger** cleans, normalizes, validates, enriches, and audits industrial product records before they reach sales channels — as a hackathon prototype, not a production data-verification service. It's built around that division of labor: deterministic, auditable automation for everything with one clearly correct answer, and a fast human review queue for the rest.
 
-**Why 150K → 750K SKUs/month is a review-queue problem, not a compute problem.** Unilog's stated target is a 5x volume increase at the same operational capacity — without proportionally growing headcount. Raw speed was never the bottleneck: the deterministic path runs at ~7,000 rows/sec (see [Benchmark results](#benchmark-results)), far beyond what any realistic monthly volume needs. The real constraint is how many rows require a *person*.
+**Why 150K → 750K SKUs/month is a review-queue problem, not a compute problem.** Unilog's stated target is a 5x volume increase at the same operational capacity, without proportionally growing headcount. Raw speed was never the bottleneck; the number of rows that require a *person* is. See [What it achieves](#what-it-achieves) above for where that stands.
 
-Here is where that actually stands on the official 1,000-row dataset, measured rather than projected:
+**Where the improvement came from, and what it is not.** Two thirds of it was a defect, not new data: `match_brand()` searched only the brand index, and that index was written for the valve vertical. DEWALT, Leviton, 3M, Square D and Diablo all scored 0.0 as brands while resolving cleanly against the *manufacturer* index one lookup over — the answer was already in the store and the brand path could not see it. The rest is a curated reference file covering the names this dataset actually contains.
 
-| | Measured | Previously |
-|---|---|---|
-| Rows auto-approved with no human touch | **64.8%** (648/1,000) | 20.0% |
-| Rows routed to human review | **35.2%** (352/1,000) | 80.0% |
-| Category resolved deterministically | **74.8%** (748/1,000) | 74.8% |
-| Field-level verified rate | **51.5%** | 38.1% |
-
-**Where that improvement came from, and what it is not.** Two thirds of it was a defect, not new data: `match_brand()` searched only the brand index, and that index was written for the valve vertical. DEWALT, Leviton, 3M, Square D and Diablo all scored 0.0 as brands while resolving cleanly against the *manufacturer* index one lookup over — the answer was already in the store and the brand path could not see it. The rest is a curated reference file covering the names this dataset actually contains.
-
-**The "27,000-row manufacturer list" framing in earlier drafts was wrong.** All 1,117 unresolved fields collapsed to just **100 distinct strings** — `Phillips Lighting` alone accounts for 111 rows and `TREX` for 122. The distribution is severely top-heavy, so this was never a 27,000-row problem. Unilog's real vocabularies would still help on unseen verticals, and remain the right long-term answer, but they were not what was blocking this dataset.
-
-**352 rows still route to a human, and 288 of them are a deliberate refusal.** `Part_Manuf` names whoever shipped the goods about as often as who made them. Boise Cascade Building Materials, Appliance Dealers Cooperative, Parksite and U S Lumber are distributors. Resolving those into `MANUFACTURER_NAME` would raise the headline number by roughly seven points while asserting something the source data does not support — the same defect class as an invented source URL. They are recognised as distributors instead, the manufacturer stays unresolved, and the evidence records `distributor_not_manufacturer` so the system can say *why* it declined. The remaining 24 are genuinely unknown names and are left that way.
-
-Conflating distributor with manufacturer is the exact data-quality defect a PIM exists to catch, and it is present in Unilog's own feed. Catching it is worth more than the percentage point it costs.
+**The "27,000-row manufacturer list" framing in earlier drafts was wrong.** All 1,117 unresolved fields collapsed to just **100 distinct strings** — `Phillips Lighting` alone accounts for 111 rows and `TREX` for 122. The distribution is severely top-heavy, so this was never a 27,000-row problem. Unilog's real vocabularies would still help on verticals this build has not seen, and remain the right long-term answer, but they were not what was capping this dataset.
 
 - **Provenance-first output.** Deterministic transformations retain source file, row, and column lineage. Generated source candidates are explicitly marked unverified, not substitutes for fetched evidence — see [How it works](#how-it-works) for what "generated" means here.
 - **Strict marketplace prohibition.** Amazon, eBay, Alibaba, Walmart, Zoro, Grainger, and other resellers are blocked; enrichment data is scoped to manufacturer-authoritative domains only.
