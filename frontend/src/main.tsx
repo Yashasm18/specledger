@@ -1563,7 +1563,27 @@ function App() {
               ) : filteredRows.length === 0 ? (
                 <div className="empty-review" style={{ margin: 16 }}>
                   {liveRows.length === 0 && !isSearching
-                    ? "No batch loaded — import a catalogue to see real product records."
+                    ? (
+                      // An empty workspace is where someone decides what to do
+                      // next, so this is the one place worth spending words.
+                      // It also carries the only pointer to the datasheet
+                      // link: nothing is pre-loaded anywhere to demonstrate
+                      // that feature, so it has to be findable here.
+                      <span>
+                        No batch loaded — import a catalogue to see real product records.
+                        <span style={{ display: "block", marginTop: 10, lineHeight: 1.6 }}>
+                          Accepted: <code>.csv</code> <code>.tsv</code> <code>.xlsx</code>{" "}
+                          <code>.json</code> <code>.xml</code>. Column names do not have to match
+                          ours — they are matched by role.
+                        </span>
+                        <span style={{ display: "block", marginTop: 10, lineHeight: 1.6 }}>
+                          To watch a manufacturer datasheet attach itself to a product row, import{" "}
+                          <code>data/samples/01_industrial_distributor.csv</code> from the
+                          repository, then <code>data/samples/sample_datasheet_apollo_70-104-01.pdf</code>.
+                          Open row <code>70-104-01</code> and its <b>Spec Triplets</b> tab.
+                        </span>
+                      </span>
+                    )
                     : isFiltered && searchApplied && matchedRowCount === 0
                       // Say what was actually searched. The old wording read as
                       // "not on this page" while sounding like "not in the batch".

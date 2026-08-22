@@ -26,8 +26,26 @@
 
 ---
 
+## Trying it in 3 minutes
+
+Open [the live app](https://yashasm18.github.io/specledger/). It lands on **Unilog CX1 Master**, which already holds Unilog's official 1,000-row dataset, enriched. Nothing is staged and no document is pre-loaded — every workspace holds only Unilog's data and what SpecLedger derived from it, so anything you see a feature do, you did.
+
+**See the numbers computed live.** Press **Run benchmark** on the Overview. The four tiles read `—` until you do, deliberately: execution time, throughput, field verified rate and cost are measured during that request, never replayed from a stored run.
+
+**Look inside one record.** Any row → **Inspect 252 Specs** → six tabs covering the 6-to-252 transformation, the full column grid, attribute triplets, description tiers, feature bullets, and sourcing. **Evidence library** shows every source URL with whether it was actually fetched or is an untested candidate; **Audit trail** shows every real decision event.
+
+**Run your own catalogue.** **+ Import documents** → choose **Evaluation Sandbox** (it starts empty, and keeps the challenge dataset untouched for the next reader). Accepts `.csv` `.tsv` `.xlsx` `.json` `.xml`; your column names do not have to match ours. Anything unsupported is refused in the browser with the reason, before a byte is uploaded.
+
+**Watch a datasheet find its product.** In the sandbox, import [`data/samples/01_industrial_distributor.csv`](data/samples/01_industrial_distributor.csv), then [`data/samples/sample_datasheet_apollo_70-104-01.pdf`](data/samples/sample_datasheet_apollo_70-104-01.pdf). Open row `70-104-01` and its **Spec Triplets** tab: the datasheet's size, pressure rating and body material appear against the record, each with the page and sentence it came from. They are proposals for a reviewer — nothing is written into the delivered 252 columns.
+
+Worth a second try: [`sample_datasheet_leviton_R02D215P1RW.pdf`](data/samples/sample_datasheet_leviton_R02D215P1RW.pdf) matches in *both* workspaces. The sample catalogue writes that Leviton part `R02D215P1RW`; Unilog's official dataset writes the same part `R02-D215P-1RW`. One resolves exactly, the other by ignoring separators — which is why separator tolerance exists, demonstrated on real supplied data rather than a constructed example.
+
+The three sample datasheets are synthetic fixtures and say so on their own first line. Every value in them is one the catalogue row already states, so none was invented to make the feature look better. The real manufacturer PDFs this was tested against — including two that exposed fabricated values — are listed with their source URLs under [Datasets & provenance](#datasets--provenance).
+
+---
+
 ## Contents
-[Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [External catalogue test](#tested-against-an-external-manufacturer-catalogue) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
+[Trying it in 3 minutes](#trying-it-in-3-minutes) · [Overview](#overview) · [How it works](#how-it-works) · [Datasets & provenance](#datasets--provenance) · [Benchmark results](#benchmark-results) · [Evaluation criteria](#evaluation-criteria) · [Verify live](#verify-live--the-claim-you-can-check-yourself) · [Hit rate](#measured-hit-rate-on-real-rows) · [External catalogue test](#tested-against-an-external-manufacturer-catalogue) · [Known limits](#known-limits) · [API reference](#api-reference) · [Web dashboard](#web-dashboard) · [Environment variables](#environment-variables) · [Running locally](#running-locally) · [Repository structure](#repository-structure)
 
 ---
 
