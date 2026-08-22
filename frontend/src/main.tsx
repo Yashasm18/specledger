@@ -844,8 +844,27 @@ function App() {
 
   const confirmDestination = () => {
     const target = chosenDestination;
+    // The request reads this rather than state: setState has not landed by
+    // the time the file picker returns.
     pendingUploadOrgRef.current = target;
     setUploadDestination(null);
+
+    // Move to the chosen workspace now, not after the upload finishes.
+    // Waiting meant choosing "Evaluation Sandbox" appeared to do nothing —
+    // the header still read Unilog CX1 Master while the file picker was
+    // open, and cancelling the picker left no trace that a choice had been
+    // made at all. Someone who says where their catalogue belongs should be
+    // taken there, whether or not they go on to pick a file.
+    if (target !== organizationId) {
+      setSelectedBatchId(null);
+      setPageOffset(0);
+      setSearchQuery("");
+      setCategoryFilter("all");
+      setIsLoadingBatch(true);
+      setOrganizationId(target);
+      const destination = WORKSPACES.find((w) => w.id === target);
+      if (destination) setNotice(`Switched to ${destination.name} — choose your catalogue file`);
+    }
     fileInputRef.current?.click();
   };
 
