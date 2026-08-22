@@ -877,6 +877,35 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_organizations_do_not_see_each_other_s_batches(self) -> None:
+        # The workspace switcher in the dashboard is an organization_id, so
+        # separation has to be real: a catalogue uploaded into one workspace
+        # must not appear in another, or "switch workspace" is a label.
+        csv_path = self._make_csv([{"Manufacturer": "Parker Hannifin", "Part Number": "V-1"}])
+        try:
+            with csv_path.open("rb") as f:
+                created = self.client.post(
+                    "/catalogue/ingest?organization_id=sandbox",
+                    files={"file": ("sandboxed.csv", f, "text/csv")},
+                ).json()["batch_id"]
+
+            listed = self.client.get("/catalogue/batches?organization_id=sandbox").json()
+            self.assertIn("sandboxed.csv", [b["source_name"] for b in listed["batches"]])
+
+            other = self.client.get("/catalogue/batches?organization_id=someone_else").json()
+            self.assertNotIn(
+                "sandboxed.csv", [b["source_name"] for b in other.get("batches", [])],
+                "a batch leaked across organizations",
+            )
+
+            # And the rows are not reachable by id from another organization.
+            cross = self.client.get(
+                f"/catalogue/batches/{created}?organization_id=someone_else"
+            )
+            self.assertEqual(cross.status_code, 404)
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},

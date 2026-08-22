@@ -210,7 +210,23 @@ function App() {
   // number doesn't fire a request per keystroke.
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [notice, setNotice] = useState("");
-  const [workspaceName, setWorkspaceName] = useState("Unilog CX1 Workspace");
+  // A workspace is an organization_id, which the API already namespaces every
+  // batch by. It used to be a label plus a hardcoded category filter — the
+  // catalogue underneath never changed, and picking the second workspace on
+  // any uploaded dataset simply emptied the table.
+  const WORKSPACES = [
+    {
+      id: "default",
+      name: "Unilog CX1 Master",
+      blurb: "The challenge dataset and everything enriched alongside it.",
+    },
+    {
+      id: "sandbox",
+      name: "Evaluation Sandbox",
+      blurb: "Upload your own catalogue here. Separate data; the master workspace is untouched.",
+    },
+  ] as const;
+  const [organizationId, setOrganizationId] = useState<string>("default");
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -310,7 +326,7 @@ function App() {
   useEffect(() => {
     fetchWorkspace();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBatchId]);
+  }, [selectedBatchId, organizationId]);
 
   // Paging and searching only move within a batch, so they refetch only the
   // rows. Skipped until a batch is loaded, which the effect above handles.
@@ -331,7 +347,7 @@ function App() {
     (async () => {
       try {
         const res = await fetchWithRetry(
-          `${API_BASE}/catalogue/batches/${batchId}/audit?limit=50&actor=${auditFilter}`
+          withOrg(`${API_BASE}/catalogue/batches/${batchId}/audit?limit=50&actor=${auditFilter}`)
         );
         if (!res.ok || cancelled) return;
         const data = await res.json();
@@ -409,6 +425,15 @@ function App() {
 
   const API_BASE = getApiBaseUrl();
 
+  /** Append the active workspace to an API path. Every read and write is
+   *  scoped to it, which is what makes the workspaces actually separate
+   *  rather than two names for one catalogue. */
+  const withOrg = (path: string) =>
+    `${path}${path.includes("?") ? "&" : "?"}organization_id=${encodeURIComponent(organizationId)}`;
+
+  const currentWorkspace =
+    WORKSPACES.find((w) => w.id === organizationId) ?? WORKSPACES[0];
+
   // Format a 0–1 accuracy as a percentage, or "—" when it isn't available.
   const pct = (v: number | null | undefined) =>
     typeof v === "number" ? `${(v * 100).toFixed(1)}%` : "—";
@@ -423,8 +448,10 @@ function App() {
 
   /** Fetch one page of rows for a batch. This is all paging and search need. */
   const pageUrl = (batchId: string, offset: number) =>
-    `${API_BASE}/catalogue/batches/${batchId}?limit=${ROWS_PER_PAGE}&offset=${offset}` +
-    (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "");
+    withOrg(
+      `${API_BASE}/catalogue/batches/${batchId}?limit=${ROWS_PER_PAGE}&offset=${offset}` +
+      (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "")
+    );
 
   const pageCacheKey = (batchId: string, offset: number) =>
     `${batchId}|${debouncedSearch}|${offset}`;
@@ -497,7 +524,7 @@ function App() {
     setApiError(null);
     pageCacheRef.current.clear();
     try {
-      const res = await fetchWithRetry(`${API_BASE}/catalogue/batches`);
+      const res = await fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches`));
       if (!res.ok) {
         throw new Error(`The API responded with HTTP ${res.status}.`);
       }
@@ -520,14 +547,11 @@ function App() {
         if (switchingBatch && pageOffset !== 0) setPageOffset(0);
 
         const [batchRes, pendingRes, sourcesRes, auditRes] = await Promise.all([
+          fetchWithRetry(pageUrl(latestId, offset)),
+          fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches/${latestId}/review/pending`)),
+          fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches/${latestId}/sources`)),
           fetchWithRetry(
-            `${API_BASE}/catalogue/batches/${latestId}?limit=${ROWS_PER_PAGE}&offset=${offset}` +
-              (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "")
-          ),
-          fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}/review/pending`),
-          fetchWithRetry(`${API_BASE}/catalogue/batches/${latestId}/sources`),
-          fetchWithRetry(
-            `${API_BASE}/catalogue/batches/${latestId}/audit?limit=50&actor=${auditFilterRef.current}`
+            withOrg(`${API_BASE}/catalogue/batches/${latestId}/audit?limit=50&actor=${auditFilterRef.current}`)
           ),
         ]);
 
@@ -682,7 +706,7 @@ function App() {
     setNotice(`Exporting ${filename}…`);
 
     try {
-      const blob = await fetchCatalogueExport(activeBatch?.batch_id, format);
+      const blob = await fetchCatalogueExport(activeBatch?.batch_id, format, organizationId);
       downloadBlob(blob, filename);
       setNotice(`Downloaded ${filename} successfully!`);
     } catch (err) {
@@ -710,7 +734,7 @@ function App() {
 
       try {
         const response = await apiFetch(
-          `/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}${aiAssistEnabled ? "&ai_assist=true" : ""}`,
+          withOrg(`/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}${aiAssistEnabled ? "&ai_assist=true" : ""}`),
           { method: "POST", body }
         );
 
@@ -814,7 +838,7 @@ function App() {
     try {
       // Deliberately not retried: this records an audit event, so a retry
       // after a request that actually succeeded would log the decision twice.
-      const res = await fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`, {
+      const res = await fetch(withOrg(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/review`), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
         body: JSON.stringify({ action, reviewer: reviewerName, comment: comment || `Row ${PAST_TENSE[action]} via workspace` })
@@ -858,7 +882,7 @@ function App() {
     // success up front and swallowing whatever happens next.
     const results = await Promise.allSettled(
       eligible.map((r) =>
-        fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${r.row_number}/review`, {
+        fetch(withOrg(`${API_BASE}/catalogue/batches/${batchId}/rows/${r.row_number}/review`), {
           method: "POST",
           headers: { "Content-Type": "application/json", ...getApiKeyHeaders() },
           body: JSON.stringify({ action: "approve", reviewer: reviewerName, comment: "Bulk approved via workspace" })
@@ -912,7 +936,7 @@ function App() {
       // Deliberately not retried: it performs real outbound fetches, and a
       // retry would just repeat them.
       const res = await fetch(
-        `${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/verify`,
+        withOrg(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/verify`),
         { method: "POST", headers: getApiKeyHeaders() }
       );
       if (!res.ok) throw new Error(`Verification failed (HTTP ${res.status})`);
@@ -943,7 +967,7 @@ function App() {
 
     try {
       // Safe to retry: this endpoint only measures, it doesn't mutate state.
-      const res = await fetchWithRetry(`${API_BASE}/catalogue/batches/${batchId}/benchmark`, {
+      const res = await fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches/${batchId}/benchmark`), {
         method: "POST",
         headers: getApiKeyHeaders(),
       });
@@ -985,7 +1009,7 @@ function App() {
     if (!rowNumber || !batchId || !API_BASE) return;
 
     setIsLoadingUnilog252(true);
-    fetch(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/unilog252`)
+    fetch(withOrg(`${API_BASE}/catalogue/batches/${batchId}/rows/${rowNumber}/unilog252`))
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setUnilog252(data))
       .catch(() => setUnilog252(null))
@@ -2909,33 +2933,43 @@ function App() {
           title="Click to switch workspace"
         >
           <span className="workspace-dot" />
-          {workspaceName} <b>▾</b>
+          {currentWorkspace.name}
+          {activeBatch ? ` (${batchRowCount.toLocaleString()} SKUs)` : ""} <b>▾</b>
         </div>
 
         {showWorkspaceMenu && (
           <div style={{ background: "#172232", border: "1px solid #2c374b", borderRadius: 6, padding: 6, marginTop: 4, fontSize: 11 }}>
-            <div
-              style={{ padding: "6px 8px", cursor: "pointer", color: workspaceName === "Unilog CX1 Workspace" || workspaceName.includes("1,000") ? "#38bdf8" : "#aeb7c7", fontWeight: workspaceName === "Unilog CX1 Workspace" || workspaceName.includes("1,000") ? 700 : 500 }}
-              onClick={() => {
-                setWorkspaceName("Unilog CX1 Master (1,000 SKUs)");
-                setCategoryFilter("all");
-                setShowWorkspaceMenu(false);
-                setNotice("Switched to Unilog CX1 Master Workspace (All Categories)");
-              }}
-            >
-              {workspaceName === "Unilog CX1 Workspace" || workspaceName.includes("1,000") ? "✓ " : ""}Unilog CX1 Master (1,000 SKUs)
-            </div>
-            <div
-              style={{ padding: "6px 8px", cursor: "pointer", color: workspaceName === "Industrial Valves PIM" ? "#38bdf8" : "#aeb7c7", fontWeight: workspaceName === "Industrial Valves PIM" ? 700 : 500 }}
-              onClick={() => {
-                setWorkspaceName("Industrial Valves PIM");
-                setCategoryFilter("valves");
-                setShowWorkspaceMenu(false);
-                setNotice("Switched to Industrial Valves PIM Workspace (Valves & Fluidics)");
-              }}
-            >
-              {workspaceName === "Industrial Valves PIM" ? "✓ " : ""}Industrial Valves PIM
-            </div>
+            {WORKSPACES.map((w) => {
+              const isActive = w.id === organizationId;
+              return (
+                <div
+                  key={w.id}
+                  onClick={() => {
+                    if (w.id !== organizationId) {
+                      // Switching organization changes which batches exist at
+                      // all, so nothing from the previous one may survive.
+                      setOrganizationId(w.id);
+                      setSelectedBatchId(null);
+                      setPageOffset(0);
+                      setSearchQuery("");
+                      setCategoryFilter("all");
+                      setIsLoadingBatch(true);
+                    }
+                    setShowWorkspaceMenu(false);
+                  }}
+                  style={{
+                    padding: "8px 8px", cursor: "pointer", borderRadius: 4,
+                    color: isActive ? "#38bdf8" : "#aeb7c7",
+                    fontWeight: isActive ? 700 : 500,
+                  }}
+                >
+                  <div>{isActive ? "✓ " : ""}{w.name}</div>
+                  <div style={{ color: "#6b7688", fontWeight: 400, marginTop: 2, lineHeight: 1.4 }}>
+                    {w.blurb}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
