@@ -2674,7 +2674,11 @@ function App() {
         <div
           className="spec-modal-backdrop"
           onClick={closeDestinationDialog}
-          style={{ alignItems: "center" }}
+          // Scrollable and top-aligned. Centring a dialog taller than the
+          // viewport clips it at both ends, and the page behind is frozen, so
+          // there was nothing left to scroll — the buttons were simply
+          // unreachable on a short window.
+          style={{ alignItems: "flex-start", overflowY: "auto", padding: "24px 20px" }}
         >
           <div
             role="dialog"
@@ -2702,17 +2706,24 @@ function App() {
             }}
             style={{
               background: "#ffffff", borderRadius: 12, width: "min(560px, 92vw)",
-              padding: "26px 28px", boxShadow: "0 24px 60px rgba(2,6,23,0.35)",
+              boxShadow: "0 24px 60px rgba(2,6,23,0.35)",
+              // Same shape as the inspector modal: bounded height, the middle
+              // scrolls, and the actions never leave the screen.
+              maxHeight: "calc(100vh - 48px)",
+              display: "flex", flexDirection: "column", overflow: "hidden",
             }}
           >
-            <h3 id="upload-destination-title" style={{ margin: "0 0 6px", fontSize: 17, color: "#0f172a" }}>
-              Where should this catalogue go?
-            </h3>
-            <p id="upload-destination-desc" style={{ margin: "0 0 18px", fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
-              An uploaded file becomes a batch in one workspace, and the dashboard
-              opens on the most recent one. Choose where yours belongs.
-            </p>
+            <div style={{ padding: "26px 28px 14px", flexShrink: 0 }}>
+              <h3 id="upload-destination-title" style={{ margin: "0 0 6px", fontSize: 17, color: "#0f172a" }}>
+                Where should this catalogue go?
+              </h3>
+              <p id="upload-destination-desc" style={{ margin: 0, fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
+                An uploaded file becomes a batch in one workspace, and the dashboard
+                opens on the most recent one. Choose where yours belongs.
+              </p>
+            </div>
 
+            <div style={{ padding: "0 28px", overflowY: "auto", flex: "1 1 auto" }}>
             <div role="radiogroup" aria-labelledby="upload-destination-title">
               {[
                 {
@@ -2795,8 +2806,13 @@ function App() {
               are matched by role, so <code>SKU</code> / <code>Item Description</code> /{" "}
               <code>Vendor</code> works the same as the challenge file's headers.
             </p>
+            </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div style={{
+              display: "flex", justifyContent: "flex-end", gap: 10,
+              padding: "14px 28px 20px", flexShrink: 0,
+              borderTop: "1px solid #f1f5f9", background: "#fff",
+            }}>
               <button
                 onClick={closeDestinationDialog}
                 style={{
