@@ -198,6 +198,17 @@ function App() {
   // blank the batch-wide metric tiles, which do not change with the page.
   const [isPagingRows, setIsPagingRows] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  // Where the next upload should land. Asked before the file picker opens,
+  // because it is the moment the choice actually matters — afterwards the
+  // batch already exists somewhere.
+  const [uploadDestination, setUploadDestination] = useState<string | null>(null);
+  const [chosenDestination, setChosenDestination] = useState<string>("sandbox");
+  // Read synchronously by the upload handler: setState has not landed by the
+  // time the file picker returns, so the request would use the old workspace.
+  const pendingUploadOrgRef = useRef<string | null>(null);
+  // Restored when the dialog closes, per the dialog focus contract.
+  const importTriggerRef = useRef<HTMLElement | null>(null);
+  const destinationDialogRef = useRef<HTMLDivElement | null>(null);
   // Pages already fetched, keyed by batch + search term + offset. Cleared
   // whenever a row's state could have changed underneath them, since a stale
   // page would show a row as still pending after it was approved.
@@ -237,6 +248,7 @@ function App() {
   // batch by. It used to be a label plus a hardcoded category filter — the
   // catalogue underneath never changed, and picking the second workspace on
   // any uploaded dataset simply emptied the table.
+  const DEFAULT_WORKSPACE_ID = "default";
   const WORKSPACES = [
     {
       id: "default",
@@ -792,8 +804,55 @@ function App() {
   };
 
   // Upload handler for spreadsheets & PDFs
+  /** Open the file picker, asking first where the catalogue should go.
+   *
+   *  Uploading adds a batch to whichever workspace is active and that batch
+   *  becomes the one the dashboard opens on, so someone trying the app with
+   *  their own data would quietly replace what the next reader sees. The
+   *  choice is only ambiguous from the master workspace; inside a sandbox the
+   *  intent is already clear, so it goes straight to the picker. */
+  const requestImport = (trigger?: HTMLElement | null) => {
+    if (organizationId !== DEFAULT_WORKSPACE_ID) {
+      pendingUploadOrgRef.current = organizationId;
+      fileInputRef.current?.click();
+      return;
+    }
+    importTriggerRef.current = trigger ?? (document.activeElement as HTMLElement | null);
+    setChosenDestination("sandbox");
+    setUploadDestination(DEFAULT_WORKSPACE_ID);
+  };
+
+  // Opening the dialog: freeze the page behind it and move focus in, once.
+  // This lived in an inline ref callback, which React runs on every render —
+  // so each arrow-key selection dragged focus back to the first option and
+  // the radiogroup could not be navigated by keyboard at all.
+  useEffect(() => {
+    if (!uploadDestination) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    destinationDialogRef.current
+      ?.querySelector<HTMLElement>('[role="radio"]')
+      ?.focus();
+    return () => { document.body.style.overflow = previous; };
+  }, [uploadDestination]);
+
+  const closeDestinationDialog = () => {
+    setUploadDestination(null);
+    // Focus returns to whatever opened the dialog.
+    importTriggerRef.current?.focus?.();
+  };
+
+  const confirmDestination = () => {
+    const target = chosenDestination;
+    pendingUploadOrgRef.current = target;
+    setUploadDestination(null);
+    fileInputRef.current?.click();
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    const uploadOrg = pendingUploadOrgRef.current ?? organizationId;
+    pendingUploadOrgRef.current = null;
     if (!file) return;
 
     const isSpreadsheet = file.name.endsWith(".csv") || file.name.endsWith(".tsv") || file.name.endsWith(".xlsx");
@@ -811,7 +870,10 @@ function App() {
 
       try {
         const response = await apiFetch(
-          withOrg(`/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}${aiAssistEnabled ? "&ai_assist=true" : ""}`),
+          // The destination chosen in the dialog, not the active workspace:
+          // switching first and relying on state would race the file picker.
+          `/catalogue/ingest?process_immediately=true${liveFetchEnabled ? "&live_fetch=true" : ""}${aiAssistEnabled ? "&ai_assist=true" : ""}`
+            + `&organization_id=${encodeURIComponent(uploadOrg)}`,
           { method: "POST", body }
         );
 
@@ -821,9 +883,20 @@ function App() {
         }
 
         const result = await response.json();
-        setNotice(`Enrichment complete · ${file.name} (${result.row_count} SKUs enriched in 252-column format)`);
-        await fetchWorkspace();
+        const destination = WORKSPACES.find((w) => w.id === uploadOrg);
+        setNotice(
+          `Enrichment complete · ${file.name} (${result.row_count} SKUs enriched in 252-column format)`
+          + (destination ? ` — in ${destination.name}` : "")
+        );
         setActiveTab("catalogue");
+        if (uploadOrg !== organizationId) {
+          // Switching workspaces reloads it, so don't also fetch here.
+          setSelectedBatchId(null);
+          setPageOffset(0);
+          setOrganizationId(uploadOrg);
+        } else {
+          await fetchWorkspace();
+        }
       } catch (error) {
         setNotice(`Catalogue ingestion failed · ${error instanceof Error ? error.message : "Backend unavailable"}`);
       }
@@ -1625,7 +1698,7 @@ function App() {
                 <p className="eyebrow">BATCH INGESTION & ACCURACY BENCHMARK</p>
                 <h3>Ingested Batches & Evaluation Telemetry</h3>
               </div>
-              <button className="primary" onClick={() => fileInputRef.current?.click()}>
+              <button className="primary" onClick={(e) => requestImport(e.currentTarget)}>
                 + Import CSV / XLSX / PDF
               </button>
             </div>
@@ -2590,6 +2663,165 @@ function App() {
         style={{ display: "none" }}
       />
 
+      {/* Where an uploaded catalogue should go.
+          Asked before the file picker rather than after, because once the
+          batch exists it is already in a workspace. Built to the dialog
+          contract: labelled heading, described body, focus moved in on open
+          and returned to the trigger on close, Tab kept inside, Escape and
+          backdrop both cancel, and the options are a real radiogroup so
+          arrow keys move between them. */}
+      {uploadDestination && (
+        <div
+          className="spec-modal-backdrop"
+          onClick={closeDestinationDialog}
+          style={{ alignItems: "center" }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upload-destination-title"
+            aria-describedby="upload-destination-desc"
+            onClick={(e) => e.stopPropagation()}
+            ref={destinationDialogRef}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { e.stopPropagation(); closeDestinationDialog(); return; }
+              if (e.key !== "Tab") return;
+              const focusable = Array.from(
+                e.currentTarget.querySelectorAll<HTMLElement>(
+                  'button:not([disabled]), [role="radio"]'
+                )
+              ).filter((el) => el.tabIndex !== -1);
+              if (focusable.length === 0) return;
+              const first = focusable[0];
+              const last = focusable[focusable.length - 1];
+              if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault(); last.focus();
+              } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault(); first.focus();
+              }
+            }}
+            style={{
+              background: "#ffffff", borderRadius: 12, width: "min(560px, 92vw)",
+              padding: "26px 28px", boxShadow: "0 24px 60px rgba(2,6,23,0.35)",
+            }}
+          >
+            <h3 id="upload-destination-title" style={{ margin: "0 0 6px", fontSize: 17, color: "#0f172a" }}>
+              Where should this catalogue go?
+            </h3>
+            <p id="upload-destination-desc" style={{ margin: "0 0 18px", fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
+              An uploaded file becomes a batch in one workspace, and the dashboard
+              opens on the most recent one. Choose where yours belongs.
+            </p>
+
+            <div role="radiogroup" aria-labelledby="upload-destination-title">
+              {[
+                {
+                  id: "sandbox",
+                  name: "Evaluation Sandbox",
+                  recommended: true,
+                  detail: "Your catalogue is kept on its own. The Unilog challenge dataset stays exactly as it is for the next person who opens the app.",
+                },
+                {
+                  id: DEFAULT_WORKSPACE_ID,
+                  name: "Unilog CX1 Master",
+                  recommended: false,
+                  detail: "Added alongside the 1,000-row challenge dataset, and becomes the batch the dashboard opens on.",
+                },
+              ].map((option, index, all) => {
+                const selected = chosenDestination === option.id;
+                return (
+                  <div
+                    key={option.id}
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => setChosenDestination(option.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === " " || e.key === "Enter") {
+                        e.preventDefault(); setChosenDestination(option.id); return;
+                      }
+                      if (!["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(e.key)) return;
+                      e.preventDefault();
+                      const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : -1;
+                      const next = all[(index + step + all.length) % all.length];
+                      setChosenDestination(next.id);
+                      const group = e.currentTarget.parentElement;
+                      const radios = group?.querySelectorAll<HTMLElement>('[role="radio"]');
+                      radios?.[(index + step + all.length) % all.length]?.focus();
+                    }}
+                    style={{
+                      display: "flex", gap: 12, alignItems: "flex-start",
+                      border: `1px solid ${selected ? "#2872e3" : "#e2e8f0"}`,
+                      background: selected ? "rgba(40,114,227,0.05)" : "#fff",
+                      borderRadius: 9, padding: "13px 15px", marginBottom: 10,
+                      cursor: "pointer", outlineOffset: 2,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        marginTop: 2, width: 15, height: 15, borderRadius: "50%",
+                        border: `2px solid ${selected ? "#2872e3" : "#cbd5e1"}`,
+                        background: selected
+                          ? "radial-gradient(circle, #2872e3 0 4px, #fff 5px)"
+                          : "#fff",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>
+                      <b style={{ fontSize: 13.5, color: "#0f172a" }}>
+                        {option.name}
+                        {option.recommended && (
+                          <em style={{
+                            marginLeft: 8, fontStyle: "normal", fontSize: 10, fontWeight: 700,
+                            background: "rgba(16,185,129,0.14)", color: "#059669",
+                            padding: "2px 7px", borderRadius: 4, letterSpacing: "0.02em",
+                          }}>
+                            RECOMMENDED
+                          </em>
+                        )}
+                      </b>
+                      <span style={{ display: "block", fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.55 }}>
+                        {option.detail}
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p style={{ margin: "4px 0 18px", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.55 }}>
+              CSV, TSV or XLSX. Your column names do not have to match ours — columns
+              are matched by role, so <code>SKU</code> / <code>Item Description</code> /{" "}
+              <code>Vendor</code> works the same as the challenge file's headers.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={closeDestinationDialog}
+                style={{
+                  background: "#fff", color: "#334155", border: "1px solid #e2e8f0",
+                  borderRadius: 7, padding: "9px 18px", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDestination}
+                style={{
+                  background: "#2872e3", color: "#fff", border: "none",
+                  borderRadius: 7, padding: "9px 20px", fontSize: 13, fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Choose file…
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 252-Column Product Deep-Dive Inspector Modal */}
       {inspectorProduct && (
         <div className="spec-modal-backdrop" onClick={() => setInspectorProduct(null)}>
@@ -3417,7 +3649,7 @@ function App() {
             </label>
             <button
               className="primary"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => requestImport(e.currentTarget)}
             >
               + Import documents
             </button>
