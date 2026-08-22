@@ -24,6 +24,7 @@ from .catalogue_ingestion import CatalogueBatch
 from .enrichment import enrich_batch, EnrichedBatch, EnrichedField
 from .reference_data import ReferenceStore
 from .source_discovery import discover_sources_simulated, discover_sources_live_batch, SourceDiscoveryResult
+from .web_enricher import resolve_manufacturer_domain
 from .validation_engine import validate_batch, BatchValidationResult
 from .human_review import route_batch_for_review, ReviewQueue
 
@@ -368,8 +369,21 @@ def process_batch(
         row_start = time.time()
         mfr_field = _field_by_role(enriched_row.fields, "manufacturer")
         pn_field = _field_by_role(enriched_row.fields, "part_number")
+        row_desc_field = _field_by_role(enriched_row.fields, "description")
+        brand_field = _field_by_role(enriched_row.fields, "brand")
         manufacturer = mfr_field.canonical_value if mfr_field and mfr_field.canonical_value else ""
         part_number = pn_field.canonical_value if pn_field and pn_field.canonical_value else ""
+        row_description = row_desc_field.raw_value if row_desc_field else ""
+        row_brand = brand_field.raw_value if brand_field else None
+
+        # Resolve which manufacturer this row belongs to before generating
+        # candidates, exactly as the enriched record does. Passing only the
+        # manufacturer name let discovery fall back to the first domain
+        # registered for it, so the evidence library could name a different
+        # company than the delivered record for the same SKU.
+        resolved_domain = resolve_manufacturer_domain(
+            manufacturer, row_description or "", (row_brand,),
+        )
 
         # Cost tracking only counts real network calls (live_fetch). The
         # default simulated path constructs candidate URLs locally with no
@@ -389,7 +403,9 @@ def process_batch(
                 if cached:
                     source_results.append(cached)
                 else:
-                    result = discover_sources_simulated(manufacturer, part_number)
+                    result = discover_sources_simulated(
+                        manufacturer, part_number, domain=resolved_domain,
+                    )
                     source_cache.put(manufacturer, part_number, result)
                     source_results.append(result)
 

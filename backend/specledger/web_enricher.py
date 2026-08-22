@@ -524,6 +524,22 @@ def _brand_signals(description: str, brands: tuple[str | None, ...]) -> str:
     return " ".join(parts).casefold()
 
 
+def resolve_manufacturer_domain(
+    manufacturer: str,
+    description: str = "",
+    brands: tuple[str | None, ...] = (),
+) -> str | None:
+    """Public entry point for domain resolution.
+
+    Exposed so batch processing resolves a row's manufacturer the same way
+    the enriched record does. They disagreed: the record read the product's
+    branding and the evidence library took the first registered domain, so a
+    Diablo belt was delivered with diablotools.com and listed under
+    freudtools.com.
+    """
+    return _resolve_manufacturer_domain(manufacturer, description, brands)
+
+
 def _resolve_manufacturer_domain(
     manufacturer: str,
     description: str,

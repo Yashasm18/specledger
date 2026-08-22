@@ -1059,6 +1059,40 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_evidence_sources_name_the_same_manufacturer_as_the_record(self) -> None:
+        # The inspector resolved a Diablo-branded belt to diablotools.com
+        # while the evidence library listed freudtools.com for the same SKU:
+        # source discovery during batch processing was called with only the
+        # manufacturer and part number, so it fell back to the first domain
+        # registered for "Freud Inc" instead of reading the brand.
+        csv_path = self._make_csv([{
+            "Manufacturer": "Freud Inc (2435)",
+            "Part Number": "DCB518ASTS06G",
+            "Description": 'DCB518ASTS06G Diablo 1/2"x18" - Sanding Belt 6pc',
+        }])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("evidence.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            row = self.client.get(
+                f"/catalogue/batches/{batch_id}/rows/2/unilog252"
+            ).json()
+            record = row.get("unilog252") or row
+            self.assertIn("diablotools.com", record["MFR URL"])
+
+            sources = self.client.get(f"/catalogue/batches/{batch_id}/sources").json()
+            urls = [s["url"] for s in sources["sources"]]
+            self.assertTrue(urls, "expected candidate sources")
+            for url in urls:
+                self.assertIn(
+                    "diablotools.com", url,
+                    f"evidence library names a different manufacturer than the record: {url}",
+                )
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
