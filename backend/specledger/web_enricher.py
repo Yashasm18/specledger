@@ -261,6 +261,16 @@ _GENERIC_TAXONOMY = (
     "Industrial Supplies > Maintenance",
 )
 
+# The classpath that means "the rules did not place this product". Defined
+# here, beside the taxonomy it comes from, so the LLM tier and the delivery
+# export share one definition instead of each carrying their own copy.
+GENERIC_CLASSPATH = _GENERIC_TAXONOMY[3]
+
+
+def is_unresolved_classpath(classpath: str | None) -> bool:
+    """Whether deterministic classification left this row unplaced."""
+    return not classpath or classpath == GENERIC_CLASSPATH
+
 
 def _infer_taxonomy(desc: str | None, manufacturer: str | None) -> tuple[str, str, str, str]:
     """Infer (Dept, Class, Fine, Classpath) from a product description, using

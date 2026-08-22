@@ -555,8 +555,16 @@ def _attach_categories(rows: list[dict[str, Any]]) -> None:
         desc = vals.get("part_desc") or vals.get("description") or ""
         mfr = vals.get("part_manuf") or vals.get("manufacturer") or ""
         deterministic = classify_category(desc, mfr)
-        row["category"] = deterministic
-        row["category_source"] = "deterministic"
+        # Say "unresolved" rather than naming the generic bucket. The export
+        # leaves these blank, and a dashboard that shows "Industrial Supplies
+        # > Maintenance" for a tire gauge would be claiming something the
+        # delivered file deliberately does not.
+        if needs_llm(deterministic):
+            row["category"] = ""
+            row["category_source"] = "unresolved"
+        else:
+            row["category"] = deterministic
+            row["category_source"] = "deterministic"
 
         # Where the rules produced only the generic bucket, surface the LLM's
         # suggestion instead — flagged as AI-derived, never silently merged,

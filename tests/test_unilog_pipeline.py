@@ -205,3 +205,56 @@ def test_export_still_prefers_the_sample_dataset_column_names():
         assert row[hdr.index("Mfg_Part_Num")]
         assert row[hdr.index("Mfg_Part_Num")] != "UNKNOWN-PN"
         assert row[hdr.index("MANUFACTURER_NAME")] != "Industrial Manufacturer"
+
+
+def test_unresolved_category_is_left_blank_not_asserted():
+    """An unmatched product must not be labelled a maintenance product.
+
+    Where no keyword matched, the taxonomy fell back to a generic bucket and
+    the export delivered it as a resolved answer: Classpath "Industrial
+    Supplies>Maintenance", Fine "Maintenance Products", and (since Product
+    Name began deriving from Fine) "Maintenance Product". On the official
+    1,000-row input that was 249 rows, among them a digital tire pressure
+    gauge, fence gate balusters and 4x4 post trim.
+
+    The pipeline already treats that bucket as unresolved — needs_llm() keys
+    on it, and the LLM prompt uses it as the model's "don't guess" answer. It
+    is only the delivered file that presented it as fact.
+    """
+    from backend.specledger.catalogue_ingestion import CatalogueBatch, SourceRow
+
+    rows = (
+        SourceRow(
+            row_number=1, source_name="x.csv", source_fingerprint="fp-1",
+            values={
+                "mfg_part_num": "RDI-4X4",
+                "part_desc": "4x4 Wh Heritage Post Trim RDI",
+                "part_manuf": "RDI",
+            },
+        ),
+        SourceRow(
+            row_number=2, source_name="x.csv", source_fingerprint="fp-2",
+            values={
+                "mfg_part_num": "70-100-01",
+                "part_desc": "1/2 in Bronze Ball Valve 600 PSI",
+                "part_manuf": "Apollo Valves",
+            },
+        ),
+    )
+    reader = list(csv.reader(export_unilog_csv(
+        CatalogueBatch("x.csv", ("mfg_part_num", "part_desc", "part_manuf"), rows)
+    ).splitlines()))
+    hdr = reader[0]
+    unresolved, resolved = reader[1], reader[2]
+
+    for column in ("Dept", "Class", "Fine", "Classpath", "Product Name"):
+        assert unresolved[hdr.index(column)] == "", (
+            f"{column} asserted a category for an unmatched product: "
+            f"{unresolved[hdr.index(column)]!r}"
+        )
+    assert "Maintenance" not in ",".join(unresolved)
+
+    # A row the rules do place must be unaffected.
+    assert resolved[hdr.index("Fine")] == "Ball Valves"
+    assert resolved[hdr.index("Product Name")] == "Ball Valve"
+    assert ">" in resolved[hdr.index("Classpath")]
