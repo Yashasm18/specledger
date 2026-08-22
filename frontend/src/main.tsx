@@ -2178,8 +2178,16 @@ function App() {
             body: (
               <div>
                 <p style={{ margin: "0 0 10px" }}>
-                  Use <b>+ Import documents</b> in the top right. CSV, TSV and XLSX are accepted.
-                  The file is enriched, validated and routed on upload, and the workspace switches to it.
+                  Use <b>+ Import documents</b> in the top right. Two kinds of file are accepted,
+                  and they do different things.
+                </p>
+                <p style={{ margin: "0 0 10px" }}>
+                  A <b>catalogue</b> — <code>.csv</code>, <code>.tsv</code> or <code>.xlsx</code> —
+                  is enriched, validated and routed on upload, and the workspace switches to it.
+                  A <b>manufacturer datasheet</b> — <code>.pdf</code> — is read for labelled
+                  specifications instead, each kept with the page and sentence it came from. A
+                  datasheet does not create catalogue rows, so no new batch appears; a document
+                  with no labelled specifications honestly returns none rather than a guess.
                 </p>
                 <p style={{ margin: "0 0 10px" }}>
                   <b>Your column names do not have to match ours.</b> Columns are matched by role,
@@ -3766,9 +3774,14 @@ function App() {
               />
               AI assist
             </label>
+            {/* From a sandbox this goes straight to the file picker, so the
+                dialog that lists the accepted types is never shown. Name them
+                here too, or the PDF path is invisible exactly where a first
+                time reader is standing. */}
             <button
               className="primary"
               onClick={(e) => requestImport(e.currentTarget)}
+              title="Catalogue (.csv, .tsv, .xlsx) or manufacturer datasheet (.pdf)"
             >
               + Import documents
             </button>
