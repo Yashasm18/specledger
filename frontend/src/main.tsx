@@ -341,6 +341,9 @@ function App() {
   // (same row_to_unilog_dict() that generates the actual CSV export) — not
   // client-side generated. null while loading or unavailable.
   const [unilog252, setUnilog252] = useState<Record<string, string> | null>(null);
+  // Datasheets that name the inspected row's part number, with what each
+  // says. null = not looked up yet; [] = looked up and nothing matched.
+  const [linkedDocs, setLinkedDocs] = useState<any[] | null>(null);
   const [isLoadingUnilog252, setIsLoadingUnilog252] = useState(false);
 
   // Benchmark runner state. Nothing here is pre-filled: the figures stay
@@ -1281,6 +1284,22 @@ function App() {
       .then((data) => setUnilog252(data))
       .catch(() => setUnilog252(null))
       .finally(() => setIsLoadingUnilog252(false));
+
+    // Datasheets uploaded to this workspace that name this part number.
+    // The reviewer would otherwise have to go and find the manufacturer's
+    // document themselves; this is the point of reading them at all.
+    const part = String(
+      row?.enriched_values?.mfg_part_num ?? row?.raw_values?.mfg_part_num ?? row?.[0] ?? ""
+    ).trim() || findByRole(
+      row?.enriched_values || row?.raw_values, "part_number"
+    );
+    setLinkedDocs(null);
+    if (part) {
+      fetch(`${API_BASE}/documents/for-part/${encodeURIComponent(part)}?organization_id=${encodeURIComponent(organizationId)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => setLinkedDocs(data?.documents ?? []))
+        .catch(() => setLinkedDocs([]));
+    }
   };
 
   // Real attribute triplets for the inspected row, read from the fetched
@@ -3232,6 +3251,62 @@ function App() {
               {/* Tab 2: Real Attribute Triplets (up to 50 slots, usually sparse) */}
               {inspectorTab === "triplets" && (
                 <div>
+                  {/* Datasheets uploaded to this workspace that name this part.
+                      The reviewer would otherwise go and find the manufacturer's
+                      document themselves — reading them is only worth doing if
+                      what they say arrives here. Proposals, never applied: the
+                      delivered 252 columns are unchanged until a person acts. */}
+                  {linkedDocs && linkedDocs.length > 0 && (
+                    <div style={{
+                      border: "1px solid #bfdbfe", background: "#f0f7ff",
+                      borderRadius: 8, padding: "13px 15px", marginBottom: 16,
+                    }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e40af", marginBottom: 3 }}>
+                        Manufacturer datasheet found for this part
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "#475569", marginBottom: 11, lineHeight: 1.5 }}>
+                        Matched on part number. These are proposals for a reviewer — nothing
+                        below has been written into the delivered 252 columns.
+                      </div>
+                      {linkedDocs.map((doc: any) => (
+                        <div key={doc.artifact_id} style={{ marginBottom: 10 }}>
+                          <div style={{
+                            fontSize: 11.5, fontWeight: 700, color: "#0f172a",
+                            fontFamily: "ui-monospace, monospace", marginBottom: 6,
+                          }}>
+                            {doc.filename || doc.document_id}
+                            <span style={{ fontWeight: 400, color: "#64748b" }}>
+                              {" · "}{doc.page_count} page{doc.page_count === 1 ? "" : "s"}
+                              {" · "}{doc.proposals.length} specification{doc.proposals.length === 1 ? "" : "s"}
+                            </span>
+                          </div>
+                          {doc.proposals.length === 0 && (
+                            <div style={{ fontSize: 11.5, color: "#64748b" }}>
+                              This document names the part but states no labelled specification.
+                            </div>
+                          )}
+                          {doc.proposals.map((p: any, index: number) => (
+                            <div key={`${p.name}-${index}`} style={{
+                              display: "flex", gap: 10, alignItems: "baseline",
+                              padding: "5px 0", borderTop: "1px solid #dbeafe",
+                            }}>
+                              <span style={{
+                                minWidth: 116, fontSize: 11, fontWeight: 700, color: "#475569",
+                                textTransform: "uppercase", letterSpacing: "0.03em",
+                              }}>{p.name.replace(/_/g, " ")}</span>
+                              <span style={{ fontSize: 12.5, color: "#0f172a", fontWeight: 600 }}>{p.value}</span>
+                              <span style={{ fontSize: 10.5, color: "#94a3b8", marginLeft: "auto", textAlign: "right" }}>
+                                page {p.page}
+                                <span style={{ display: "block", maxWidth: 320, fontStyle: "italic" }}>
+                                  “…{String(p.evidence || "").trim().slice(0, 90)}…”
+                                </span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14 }}>Attribute Triplets (Columns 56–205, {inspectedTriplets.length} of 50 populated)</h4>
