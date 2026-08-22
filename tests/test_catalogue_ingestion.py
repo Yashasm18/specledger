@@ -109,3 +109,68 @@ class RealWorldFileShapeTests(unittest.TestCase):
             self.assertIn("UTF-8", str(ctx.exception))
         finally:
             path.unlink(missing_ok=True)
+
+
+def test_semicolon_delimited_csv_is_parsed_as_columns(tmp_path):
+    """Excel writes ";"-separated CSV in many locales.
+
+    Assuming a comma did not fail loudly: the file ingested, reported its
+    rows, and put every value into one column named after the joined header,
+    so the delivered record was garbage while the upload looked successful.
+    """
+    path = tmp_path / "euro.csv"
+    path.write_text(
+        "Part Number;Description;Manufacturer\n"
+        "GR-1180;GR-1180 Grinding Wheel 7 in Type 27;Norton Abrasives\n",
+        encoding="utf-8",
+    )
+    batch = read_catalogue(path)
+    assert batch.row_count == 1
+    values = batch.rows[0].values
+    assert set(values) == {"part_number", "description", "manufacturer"}
+    assert values["part_number"] == "GR-1180"
+    assert values["manufacturer"] == "Norton Abrasives"
+
+
+def test_pipe_delimited_csv_is_parsed_as_columns(tmp_path):
+    path = tmp_path / "piped.csv"
+    path.write_text(
+        "Part Number|Description|Manufacturer\n"
+        "V-1|V-1 Bronze Ball Valve|Apollo Valves\n",
+        encoding="utf-8",
+    )
+    batch = read_catalogue(path)
+    assert set(batch.rows[0].values) == {"part_number", "description", "manufacturer"}
+
+
+def test_a_comma_file_is_unaffected(tmp_path):
+    path = tmp_path / "plain.csv"
+    path.write_text(
+        "Part Number,Description,Manufacturer\n"
+        "V-1,V-1 Bronze Ball Valve,Apollo Valves\n",
+        encoding="utf-8",
+    )
+    batch = read_catalogue(path)
+    assert batch.rows[0].values["part_number"] == "V-1"
+
+
+def test_a_single_column_file_still_works(tmp_path):
+    # Nothing to sniff: one column, no delimiter present anywhere.
+    path = tmp_path / "one.csv"
+    path.write_text("Part Number\nV-1\n", encoding="utf-8")
+    batch = read_catalogue(path)
+    assert batch.rows[0].values["part_number"] == "V-1"
+
+
+def test_commas_inside_quoted_values_do_not_pick_the_wrong_delimiter(tmp_path):
+    # A semicolon file whose descriptions contain commas must still split on ";".
+    path = tmp_path / "tricky.csv"
+    path.write_text(
+        "Part Number;Description;Manufacturer\n"
+        'V-2;"V-2 Valve, Bronze, 600 WOG";Apollo Valves\n',
+        encoding="utf-8",
+    )
+    batch = read_catalogue(path)
+    values = batch.rows[0].values
+    assert values["part_number"] == "V-2"
+    assert values["description"] == "V-2 Valve, Bronze, 600 WOG"

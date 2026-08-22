@@ -136,13 +136,43 @@ def _decode_text(source: Path) -> str:
     )
 
 
+def _sniff_delimiter(text: str, default: str = ",") -> str:
+    """Work out what separates the columns in a .csv file.
+
+    Excel writes ";"-separated files in any locale where the comma is the
+    decimal separator, and assuming a comma did not fail loudly: the file
+    ingested, reported its row count, and put the whole line into a single
+    column named after the joined header, so the delivered record was
+    nonsense while the upload looked like it had worked.
+
+    Decided on the header line alone, and only among characters that
+    actually appear there, so a description containing commas cannot drag
+    the choice away from the real separator. Ties go to the default.
+    """
+    header = next((line for line in text.splitlines() if line.strip()), "")
+    if not header:
+        return default
+    candidates = (default, ";", "\t", "|")
+    # csv.reader respects quoting, so a delimiter inside a quoted value is
+    # not counted — which is the case a bare str.count() gets wrong.
+    best, best_columns = default, 0
+    for candidate in candidates:
+        try:
+            columns = len(next(csv.reader([header], delimiter=candidate)))
+        except csv.Error:
+            continue
+        if columns > best_columns:
+            best, best_columns = candidate, columns
+    return best
+
+
 def read_catalogue(path: str | Path, sheet_name: str | None = None) -> CatalogueBatch:
     """Read CSV, TSV, or XLSX into the normalized batch contract."""
     source = Path(path)
     suffix = source.suffix.casefold()
     if suffix in {".csv", ".tsv"}:
-        delimiter = "\t" if suffix == ".tsv" else ","
         text = _decode_text(source)
+        delimiter = "\t" if suffix == ".tsv" else _sniff_delimiter(text)
         return normalize_rows(
             source.name, csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter)
         )
