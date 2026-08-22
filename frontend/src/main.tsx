@@ -1806,7 +1806,7 @@ function App() {
                 <h3>Ingested Batches & Evaluation Telemetry</h3>
               </div>
               <button className="primary" onClick={(e) => requestImport(e.currentTarget)}>
-                + Import CSV / XLSX / PDF
+                + Import catalogue or datasheet
               </button>
             </div>
 
