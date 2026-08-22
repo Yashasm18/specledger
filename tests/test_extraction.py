@@ -39,6 +39,20 @@ class ProseIsNotASpecificationTests(unittest.TestCase):
         text = "Choose the size that best suits your installation requirements."
         assert _named(extract_facts([_page(text)]), "size") == []
 
+    def test_prose_following_a_real_label_is_not_extracted(self) -> None:
+        # Verbatim from ti.com's LM741 datasheet. This *is* a colon-terminated
+        # label, so requiring a separator is not enough on its own — the value
+        # after it is a sentence, not a specification. A specification value is
+        # short and occupies the rest of its line; this paragraph runs on.
+        text = ("(4) Lead finish/Ball material:  Parts may have multiple material finish "
+                "options. Finish options are separated by a vertical ruled line.")
+        assert _named(extract_facts([_page(text)]), "material") == []
+
+    def test_footnote_definition_is_not_a_specification(self) -> None:
+        text = ("(2) Material type:  When designated, preproduction parts are prototypes "
+                "and are not yet approved or released for full production.")
+        assert _named(extract_facts([_page(text)]), "material") == []
+
     def test_no_facts_at_all_from_marketing_prose(self) -> None:
         text = ("Leviton products are built to the highest standards of quality and "
                 "construction, in a size and pressure range suited to every job.")
@@ -101,6 +115,11 @@ class PartNumberExtractionTests(unittest.TestCase):
     def test_prose_mentioning_part_number_is_not_extracted(self) -> None:
         text = "Please quote the part number when contacting technical assistance."
         assert _named(extract_facts([_page(text)]), "part_number") == []
+
+    def test_a_cross_reference_is_not_a_part_number(self) -> None:
+        # A catalogue that defers to a table has no part number on this page.
+        # Every real part number carries at least one digit.
+        assert _named(extract_facts([_page("Catalog Number: see table below")]), "part_number") == []
 
 
 if __name__ == "__main__":

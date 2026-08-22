@@ -63,9 +63,15 @@ PATTERNS = (
     ("size", re.compile(
         r"(?:size|diameter|dia\.?|dn)" + _SEP +
         r"(dn\s*)?([0-9]+(?:\s*[x×/]\s*[0-9]+)?\s*(?:mm|in|inch|inches)?\b)", re.I)),
+    # Anchored to the end of its line. A colon alone is not enough: ti.com's
+    # LM741 datasheet carries the footnote "Lead finish/Ball material: Parts
+    # may have multiple material finish options. …", which is a genuine
+    # labelled line whose value is a sentence. A specification value is short
+    # and occupies the remainder of its line, so a run-on paragraph cannot
+    # reach the line end within the cap and is rejected.
     ("material", re.compile(
         r"(?:body\s*material|material|construction)" + _SEP +
-        r"([A-Za-z][A-Za-z0-9 .-]{2,40})", re.I)),
+        r"([A-Za-z][A-Za-z0-9 ./-]{2,58})[ \t]*(?=\n|$)", re.I)),
     # Electrical sheets carry none of the three attributes above. Without
     # these an entire vertical extracts zero facts from a valid datasheet.
     ("amperage", re.compile(
@@ -74,10 +80,12 @@ PATTERNS = (
     ("voltage", re.compile(
         r"(?:voltage(?:\s*rating)?|volts?)" + _SEP +
         r"([0-9]+(?:\.[0-9]+)?\s*(?:v|volt|volts)\b)", re.I)),
-    # The part number is what links a datasheet back to a catalogue row.
+    # The part number is what links a datasheet back to a catalogue row. It
+    # must contain a digit: every real part number does, and without that
+    # "Catalog Number: see table below" yields a part number of "see".
     ("part_number", re.compile(
         r"(?:part|catalog(?:ue)?|model|item)\s*(?:number|no\.?|#)" + _SEP +
-        r"([A-Za-z0-9][A-Za-z0-9._/-]{2,40})", re.I)),
+        r"((?=[A-Za-z0-9._/-]*[0-9])[A-Za-z0-9][A-Za-z0-9._/-]{2,40})", re.I)),
 )
 
 
