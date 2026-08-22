@@ -223,7 +223,7 @@ What Unilog actually published for this challenge is three things: a Solution Gu
 
 Reproduce the numbers below yourself:
 ```bash
-.venv/bin/python -m pytest tests/ -v                        # 252 tests, 100% pass
+.venv/bin/python -m pytest tests/ -q                        # 475 passed, 1 skipped
 .venv/bin/python -m pytest tests/test_evaluator.py -v        # self-generated 200-row regression benchmark
 .venv/bin/python -m pytest tests/test_unilog_pipeline.py -v  # official 1,000-row dataset, structural checks
 ```
@@ -238,6 +238,36 @@ Reproduce the numbers below yourself:
 | [PyMuPDF](https://pymupdf.readthedocs.io/) (`fitz`) | Real text extraction from fetched manufacturer PDF datasheets | Open-source library, AGPL-3.0 (with a commercial option from Artifex) — used here as a hackathon prototype dependency |
 
 Nothing in the enrichment path reads from a private or paywalled dataset. If you re-run this against your own catalogue, the only outbound calls are to Serper.dev (optional, requires your own `SERPER_API_KEY`) and whatever manufacturer domains your data resolves to.
+
+
+### Real manufacturer documents this was tested against
+
+Every document below was downloaded from the manufacturer's own domain — not a distributor mirror, not a marketplace — and run through the real extraction pipeline. The results are copied from those runs, including the ones that were embarrassing. Two of the three defects found in extraction this weekend were found by these files and by nothing else in the repository.
+
+| Document | Source | Size | Result |
+|---|---|---|---|
+| Leviton PK-A3158 4-in-1 receptacle wiring/spec sheet | [leviton.com](https://leviton.com/content/dam/leviton/commercial-industrial/product_documents/instruction_sheet/PK-A3158-10-02-0F-W.pdf) | 219,056 B, 2 pages, 27,635 chars | **Before:** one fabricated fact — `material = "s and on installation time."` at confidence 0.85. **After:** 0 facts, which is correct — the document contains no labelled specification. |
+| Leviton Q-1146 spec-grade receptacle comparison | [leviton.com](https://leviton.com/content/dam/leviton/commercial-industrial/product_documents/product_specification/straight-blade-recepts-grades-cheatsheet-ci-q1146-en-leviton.pdf) | 2,649,166 B, 2 pages, 2,419 chars | 0 facts before and after. A graphic-heavy chart with almost no extractable text. |
+| Texas Instruments LM741 op-amp datasheet | [ti.com](https://www.ti.com/lit/ds/symlink/lm741.pdf) | 819,277 B, 17 pages, 28,710 chars | **Before:** one fabricated fact — `material = "Parts may have multiple material finish o"`, taken from the footnote *"(4) Lead finish/Ball material: Parts may have multiple material finish options…"*. **After:** 0 facts. |
+| Watts Series FBV bronze ball valve spec sheet | [watts.com](https://www.watts.com/dfsmedia/0533dbba17714b1ab581ab07a4cbb521/20345-source/638780054600000000/es-fbv-pdf.pdf) | 230,969 B, 2 pages | **1 genuine specification** — `pressure_rating = "600psi"` from *"Maximum Working Pressure: 600psi (41 bar) WOG non-shock"*. |
+| Watts Series LFWGV brass gate valve spec sheet | [watts.com](https://www.watts.com/dfsmedia/0533dbba17714b1ab581ab07a4cbb521/23843-source/638779959670000000/es-lfwgv-pdf.pdf) | 78,040 B, 1 page | 0 facts. |
+
+**One deliberate miss, stated because it is a miss.** The Watts FBV sheet carries a line reading `Sizes: 1⁄2" – 2" (15 – 50mm)`. It is not extracted, for two reasons: the label is plural and our pattern expects `Size:`, and more importantly that value is a *range* for a product series, not one product's size. Supporting the plural label without also handling the range would have produced `size = "1"`, which is worse than nothing.
+
+**What was tested where.** The Leviton PK-A3158 sheet was uploaded to the live production sandbox, twice — before the fix, where it produced the fabricated `material` value shown above, and after, where it correctly produced none. The other four were run through the same pipeline locally; `watts.com` and `ti.com` send no `Access-Control-Allow-Origin` header, so the browser cannot upload them to the deployed API.
+
+### Data used, and how honest each source is
+
+| Data | What it is | Status |
+|---|---|---|
+| `Unihack_ Sample Dataset - Input.csv` | Unilog's official 1,000-row challenge input | **Real, supplied by Unilog.** Every headline number in this README is measured on it. |
+| `Unihack_ Expected Output - Delivery Format.csv` | Unilog's 252-column header plus 2 worked rows | **Real, supplied by Unilog.** The only genuine labelled ground truth available. |
+| `data/reference/*_curated.csv` (~100 entries) | Manufacturer, brand and distributor names | **Real companies, self-authored.** Written by hand from the distinct unresolved strings in the challenge dataset. Not sourced from Unilog's reference files, which were never made available. |
+| `data/samples/01`–`04` | Small catalogues in various shapes and encodings | **Self-authored fixtures.** Part numbers are real products; the rows are constructed. |
+| `data/samples/sample_datasheet_*.pdf` | Three datasheets used to demonstrate document linking | **Synthetic fixtures, and they say so on their own first line.** Every value in them is one the accompanying catalogue row already states, so none was invented to make the feature demonstrate better. |
+| `data/ground_truth/*` | Regression benchmarks | **Self-generated and fictional**, as the table above already notes. Useful against our own logic, not a claim about real-world accuracy. |
+| A 1,081-row public Sony/Bose catalogue | Used in earlier sessions as an external-shape test | Its provenance was recorded earlier as a public `etano/productner` dataset, **but that was not re-verified in the session that wrote this section**, and the batch has since been deleted from production. Treat the "1,081-row external catalogue" figure in older notes as unconfirmed. |
+
 
 ---
 
