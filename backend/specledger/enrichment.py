@@ -432,7 +432,19 @@ def _enrich_field(
 
     # Role-specific enrichment
     if role == "manufacturer":
-        match = store.match_manufacturer(clean_manufacturer_name(raw_value) or raw_value)
+        cleaned = clean_manufacturer_name(raw_value) or raw_value
+        match = store.match_manufacturer(cleaned)
+        if match.confidence == 0.0:
+            # A manufacturer column that actually names a distributor is the
+            # data-quality defect a PIM exists to catch. Resolving it would
+            # write a false manufacturer; saying nothing loses the reason.
+            # So the field stays unresolved and the evidence records why.
+            distributor = store.match_distributor(cleaned)
+            if distributor.confidence >= 0.95:
+                evidence = FieldEvidence(source_name, row_number, column, raw_value,
+                                         "distributor_not_manufacturer")
+                return EnrichedField(column, raw_value, raw_value, 0.0,
+                                     "review_required", role, evidence)
         return _from_canonical_match(column, raw_value, match, role, source_name, row_number)
 
     if role == "brand":

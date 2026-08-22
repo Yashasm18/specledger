@@ -65,6 +65,31 @@ class EnrichmentPipelineTests(unittest.TestCase):
         assert mfg_field.canonical_value == "Parker Hannifin"
         assert mfg_field.confidence == 0.95
 
+    def test_distributor_in_manufacturer_column_is_not_verified(self) -> None:
+        # Part_Manuf names whoever shipped the goods about as often as it
+        # names who made them. Resolving a distributor into MANUFACTURER_NAME
+        # would assert something the source data does not support.
+        batch = self._make_batch([{"Part_Manuf": "Boise Cascade Building Materials (BOICA)",
+                                   "Mfg_Part_Num": "X-1"}])
+        enriched = enrich_batch(batch, self.store)
+        mfg_field = enriched.rows[0].role_map["manufacturer"]
+        assert mfg_field.status == "review_required"
+        assert mfg_field.confidence == 0.0
+
+    def test_recognised_distributor_is_named_in_the_evidence(self) -> None:
+        # Refusing is only useful if the system can say why.
+        batch = self._make_batch([{"Part_Manuf": "Boise Cascade Building Materials (BOICA)",
+                                   "Mfg_Part_Num": "X-1"}])
+        enriched = enrich_batch(batch, self.store)
+        evidence = enriched.rows[0].role_map["manufacturer"].evidence
+        assert evidence.transformation == "distributor_not_manufacturer"
+
+    def test_unknown_manufacturer_keeps_plain_passthrough_evidence(self) -> None:
+        batch = self._make_batch([{"Part_Manuf": "Totally Unknown Co", "Mfg_Part_Num": "X-2"}])
+        enriched = enrich_batch(batch, self.store)
+        evidence = enriched.rows[0].role_map["manufacturer"].evidence
+        assert evidence.transformation == "passthrough"
+
     def test_inferred_manufacturer_normalized(self) -> None:
         batch = self._make_batch([{"Manufacturer": "Parker Hannifin Industrial Division", "SKU": "Y"}])
         enriched = enrich_batch(batch, self.store)
@@ -76,7 +101,7 @@ class EnrichmentPipelineTests(unittest.TestCase):
     def test_review_required_unknown_manufacturer(self) -> None:
         batch = self._make_batch([{"Manufacturer": "UnknownMfg XYZ", "SKU": "Z"}])
         enriched = enrich_batch(batch, self.store)
-        mfg_field = enriched.rows[0].field_map["manufacturer"]
+        mfg_field = enriched.rows[0].role_map["manufacturer"]
         assert mfg_field.status == "review_required"
         assert mfg_field.confidence == 0.0
         # Raw value preserved

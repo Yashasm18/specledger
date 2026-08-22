@@ -241,5 +241,66 @@ class MaterialNormalizationTests(unittest.TestCase):
         assert result.canonical == "Cast Iron"
 
 
+class BrandFallsBackToManufacturerTests(unittest.TestCase):
+    """A brand column often carries a name the store knows as a manufacturer.
+
+    ``SEED_BRANDS`` was written for the valve vertical, so DEWALT, Leviton,
+    3M and Square D scored 0.0 as brands while resolving cleanly as
+    manufacturers — the answer was already in the store, and the brand path
+    could not see it. On the challenge dataset that alone left 77 brand
+    fields unresolved.
+    """
+
+    def setUp(self) -> None:
+        self.store = ReferenceStore()
+
+    def test_brand_resolves_via_manufacturer_canonical(self) -> None:
+        result = self.store.match_brand("Leviton")
+        assert result.canonical == "Leviton"
+        assert result.confidence >= 0.95
+
+    def test_brand_resolves_via_manufacturer_alias(self) -> None:
+        result = self.store.match_brand("Diablo")
+        assert result.canonical == "Freud"
+        assert result.confidence >= 0.95
+
+    def test_brand_index_still_wins_over_manufacturer_index(self) -> None:
+        # "Apollo" is a brand of Apollo Valves. The brand answer must not be
+        # displaced by the manufacturer entry of the same name.
+        result = self.store.match_brand("Apollo")
+        assert result.canonical == "Apollo"
+
+    def test_unknown_brand_still_unresolved(self) -> None:
+        result = self.store.match_brand("Nonexistent Brand Co")
+        assert result.confidence == 0.0
+        assert result.canonical == ""
+
+
+class DistributorRecognitionTests(unittest.TestCase):
+    """Part_Manuf frequently names a distributor, not a manufacturer.
+
+    Resolving "Boise Cascade Building Materials" into MANUFACTURER_NAME
+    would assert something false. The store recognises the name so the
+    system can say *why* the manufacturer is still unknown.
+    """
+
+    def setUp(self) -> None:
+        self.store = ReferenceStore()
+
+    def test_known_distributor_is_recognised(self) -> None:
+        result = self.store.match_distributor("Boise Cascade Building Materials")
+        assert result.canonical == "Boise Cascade"
+        assert result.confidence >= 0.95
+
+    def test_distributor_is_not_a_manufacturer(self) -> None:
+        assert self.store.match_manufacturer("Boise Cascade Building Materials").confidence == 0.0
+
+    def test_manufacturer_is_not_a_distributor(self) -> None:
+        assert self.store.match_distributor("Parker Hannifin").confidence == 0.0
+
+    def test_unknown_name_is_not_a_distributor(self) -> None:
+        assert self.store.match_distributor("Some Unknown Co").confidence == 0.0
+
+
 if __name__ == "__main__":
     unittest.main()

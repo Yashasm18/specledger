@@ -129,6 +129,25 @@ SEED_CATEGORIES: list[dict] = [
 ]
 
 
+# Distributors, wholesalers and buying co-operatives that turn up in a
+# ``Part_Manuf`` column. These are not manufacturers, and writing them into
+# MANUFACTURER_NAME would assert something the source data does not support
+# — the same defect class as an invented source URL. Recognising them lets
+# the system report *why* a manufacturer is still unknown. Only names that
+# are unambiguously distribution businesses belong here.
+SEED_DISTRIBUTORS: list[dict] = [
+    {"canonical": "Boise Cascade", "aliases": ["Boise Cascade Building Materials",
+                                               "Boise Cascade Building Materials Distribution"]},
+    {"canonical": "Appliance Dealers Cooperative", "aliases": ["Appliance Dealers Co-operative",
+                                                              "Appliance Dealers Coop"]},
+    {"canonical": "Parksite", "aliases": ["Parksite Inc", "Parksite Plunkett-Webster"]},
+    {"canonical": "U S Lumber", "aliases": ["US Lumber", "U.S. Lumber", "US LBM", "U S Lumber Group"]},
+    {"canonical": "Jam Industrial Supply", "aliases": ["Jam Industrial Supply LLC"]},
+    {"canonical": "Palmer Donavin", "aliases": ["Palmer Donavin Mfg Company",
+                                                "The Palmer-Donavin Manufacturing Company"]},
+]
+
+
 class ReferenceStore:
     """In-memory reference-data store with canonical matching.
 
@@ -140,9 +159,11 @@ class ReferenceStore:
         self._manufacturers: list[ReferenceEntry] = []
         self._brands: list[ReferenceEntry] = []
         self._categories: list[ReferenceEntry] = []
+        self._distributors: list[ReferenceEntry] = []
         self._mfr_index: dict[str, ReferenceEntry] = {}
         self._brand_index: dict[str, ReferenceEntry] = {}
         self._category_index: dict[str, ReferenceEntry] = {}
+        self._distributor_index: dict[str, ReferenceEntry] = {}
 
         # Load built-in seed data
         self._load_seed()
@@ -157,7 +178,30 @@ class ReferenceStore:
         return self._match(raw, self._mfr_index, self._manufacturers)
 
     def match_brand(self, raw: str) -> CanonicalMatch:
-        return self._match(raw, self._brand_index, self._brands)
+        """Match a brand, falling back to the manufacturer index.
+
+        A brand column routinely carries a name the store already knows as a
+        manufacturer — DEWALT, Leviton, 3M, Square D all scored 0.0 here
+        while resolving cleanly one index over. The brand index still wins
+        an exact or alias hit, so "Apollo" stays the Apollo brand rather
+        than becoming Apollo Valves the manufacturer.
+        """
+        result = self._match(raw, self._brand_index, self._brands)
+        if result.confidence >= 0.95:
+            return result
+        manufacturer = self._match(raw, self._mfr_index, self._manufacturers)
+        if manufacturer.confidence >= 0.95:
+            return manufacturer
+        return result
+
+    def match_distributor(self, raw: str) -> CanonicalMatch:
+        """Match a name against known distributors and buying co-operatives.
+
+        ``Part_Manuf`` frequently names whoever shipped the goods rather
+        than who made them. Recognising those names lets the manufacturer
+        stay honestly unresolved instead of being filled with a distributor.
+        """
+        return self._match(raw, self._distributor_index, self._distributors)
 
     def match_category(self, raw: str) -> CanonicalMatch:
         return self._match(raw, self._category_index, self._categories)
@@ -173,6 +217,10 @@ class ReferenceStore:
     @property
     def category_count(self) -> int:
         return len(self._categories)
+
+    @property
+    def distributor_count(self) -> int:
+        return len(self._distributors)
 
     # -- private helpers ----------------------------------------------------
 
@@ -221,9 +269,14 @@ class ReferenceStore:
             ReferenceEntry(c["canonical"], frozenset(c.get("aliases", [])), "seed")
             for c in SEED_CATEGORIES
         ]
+        self._distributors = [
+            ReferenceEntry(d["canonical"], frozenset(d.get("aliases", [])), "seed")
+            for d in SEED_DISTRIBUTORS
+        ]
         self._mfr_index = self._build_index(self._manufacturers)
         self._brand_index = self._build_index(self._brands)
         self._category_index = self._build_index(self._categories)
+        self._distributor_index = self._build_index(self._distributors)
 
     def _load_directory(self, directory: Path) -> None:
         """Load private CSV/JSON reference files from a directory."""
@@ -267,6 +320,8 @@ class ReferenceStore:
             ref_type = "brands"
         elif name_lower.startswith("categor"):
             ref_type = "categories"
+        elif name_lower.startswith("distributor"):
+            ref_type = "distributors"
         if not ref_type:
             return
 
@@ -292,3 +347,6 @@ class ReferenceStore:
         elif ref_type == "categories":
             self._categories.extend(entries)
             self._category_index = self._build_index(self._categories)
+        elif ref_type == "distributors":
+            self._distributors.extend(entries)
+            self._distributor_index = self._build_index(self._distributors)
