@@ -576,6 +576,19 @@ function App() {
           setAuditEvents(auditData.events || []);
           setTotalAuditEvents(auditData.total_events ?? (auditData.events || []).length);
         }
+      } else {
+        // An empty workspace must look empty. Leaving the previous one's
+        // state in place showed the master catalogue's row count, file name
+        // and review queue under the sandbox's name — one organization's
+        // data presented as another's, which is the exact failure a
+        // workspace is supposed to rule out.
+        setActiveBatch(null);
+        setLiveRows([]);
+        setPendingReviews([]);
+        setTotalPending(0);
+        setBatchSources([]);
+        setAuditEvents([]);
+        setTotalAuditEvents(0);
       }
 
       // Scores the bundled synthetic benchmark server-side so the dashboard
