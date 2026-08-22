@@ -187,7 +187,14 @@ function App() {
   // page would show a row as still pending after it was approved.
   const pageCacheRef = useRef<Map<string, any>>(new Map());
   const [filterMode, setFilterMode] = useState<"all" | "review" | "changed">("all");
+  // The classpath being filtered on, or "all". These come from what the
+  // loaded batch actually contains, fetched from the API — not a fixed list
+  // of verticals that only ever matched one dataset.
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [batchCategories, setBatchCategories] = useState<
+    { classpath: string; label: string; count: number }[]
+  >([]);
+  const [unclassifiedCount, setUnclassifiedCount] = useState(0);
   // "auto" is the pipeline's own events. The server groups by whether an
   // event carries a reviewer, which is the real distinction the data model
   // makes, so these map onto actor=all|human|system.
@@ -335,7 +342,7 @@ function App() {
     if (!batchId) return;
     fetchRowPage(batchId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageOffset, debouncedSearch]);
+  }, [pageOffset, debouncedSearch, categoryFilter]);
 
   // Changing the audit actor filter refetches only the trail. The filter is
   // applied server-side across every event, so it cannot be done on the
@@ -450,11 +457,14 @@ function App() {
   const pageUrl = (batchId: string, offset: number) =>
     withOrg(
       `${API_BASE}/catalogue/batches/${batchId}?limit=${ROWS_PER_PAGE}&offset=${offset}` +
-      (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "")
+      (debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "") +
+      // Classpaths contain "&", so they must be encoded or the query string
+      // is cut short at the first one.
+      (categoryFilter !== "all" ? `&category=${encodeURIComponent(categoryFilter)}` : "")
     );
 
   const pageCacheKey = (batchId: string, offset: number) =>
-    `${batchId}|${debouncedSearch}|${offset}`;
+    `${batchId}|${debouncedSearch}|${categoryFilter}|${offset}`;
 
   /** Warm the cache for a page the reader is likely to ask for next.
    *
@@ -546,13 +556,14 @@ function App() {
         const offset = switchingBatch ? 0 : pageOffset;
         if (switchingBatch && pageOffset !== 0) setPageOffset(0);
 
-        const [batchRes, pendingRes, sourcesRes, auditRes] = await Promise.all([
+        const [batchRes, pendingRes, sourcesRes, auditRes, catsRes] = await Promise.all([
           fetchWithRetry(pageUrl(latestId, offset)),
           fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches/${latestId}/review/pending`)),
           fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches/${latestId}/sources`)),
           fetchWithRetry(
             withOrg(`${API_BASE}/catalogue/batches/${latestId}/audit?limit=50&actor=${auditFilterRef.current}`)
           ),
+          fetchWithRetry(withOrg(`${API_BASE}/catalogue/batches/${latestId}/categories`)),
         ]);
 
         if (batchRes.ok) {
@@ -576,6 +587,11 @@ function App() {
           setAuditEvents(auditData.events || []);
           setTotalAuditEvents(auditData.total_events ?? (auditData.events || []).length);
         }
+        if (catsRes.ok) {
+          const cats = await catsRes.json();
+          setBatchCategories(cats.categories || []);
+          setUnclassifiedCount(cats.unclassified ?? 0);
+        }
       } else {
         // An empty workspace must look empty. Leaving the previous one's
         // state in place showed the master catalogue's row count, file name
@@ -589,6 +605,8 @@ function App() {
         setBatchSources([]);
         setAuditEvents([]);
         setTotalAuditEvents(0);
+        setBatchCategories([]);
+        setUnclassifiedCount(0);
       }
 
       // Scores the bundled synthetic benchmark server-side so the dashboard
@@ -1119,15 +1137,9 @@ function App() {
   // Filter rows by Category & Search
   const filteredRows = displayRows.filter((r: any) => {
     if (filterMode === "review" && r[4] !== "Needs review") return false;
-    if (categoryFilter === "hvac" && !r[3].toLowerCase().includes("hvac") && !r[1].toLowerCase().includes("thermostat")) return false;
-    if (categoryFilter === "valves" && !r[3].toLowerCase().includes("valve") && !r[3].toLowerCase().includes("fitting") && !r[1].toLowerCase().includes("valve")) return false;
-    if (categoryFilter === "electrical" && !r[3].toLowerCase().includes("electric") && !r[1].toLowerCase().includes("switch")) return false;
-    if (categoryFilter === "abrasives" && !r[3].toLowerCase().includes("abrasive") && !r[3].toLowerCase().includes("tool") && !r[1].toLowerCase().includes("blade")) return false;
-    if (categoryFilter === "appliances" && !r[3].toLowerCase().includes("appliance") && !r[1].toLowerCase().includes("refrigerator")) return false;
-    // No search predicate here: the API already filtered the whole batch by
-    // `search`, so re-filtering the page would only be able to remove rows
-    // the server deliberately matched (e.g. on a brand column the table
-    // doesn't render).
+    // No category or search predicate here: the API filtered the whole batch
+    // by both before paging. Re-filtering the page could only remove rows the
+    // server deliberately matched.
     return true;
   });
 
@@ -1215,24 +1227,41 @@ function App() {
 
             {/* Category Filter Chips Bar */}
             <div className="category-filter-bar">
-              <button className={`category-chip ${categoryFilter === "all" ? "active" : ""}`} onClick={() => setCategoryFilter("all")}>
-                All Categories ({batchRowCount.toLocaleString()})
+              {/* Built from what this batch actually contains. The previous
+                  five buttons were fixed verticals matched by keyword, so on
+                  any catalogue but the sample they filtered to an empty table
+                  and explained nothing. */}
+              <button
+                className={`category-chip ${categoryFilter === "all" ? "active" : ""}`}
+                onClick={() => { setCategoryFilter("all"); setPageOffset(0); }}
+              >
+                All categories ({batchRowCount.toLocaleString()})
               </button>
-              <button className={`category-chip ${categoryFilter === "valves" ? "active" : ""}`} onClick={() => setCategoryFilter("valves")}>
-                Plumbing & Valves
-              </button>
-              <button className={`category-chip ${categoryFilter === "abrasives" ? "active" : ""}`} onClick={() => setCategoryFilter("abrasives")}>
-                Abrasives & Tools
-              </button>
-              <button className={`category-chip ${categoryFilter === "electrical" ? "active" : ""}`} onClick={() => setCategoryFilter("electrical")}>
-                Electrical & Automation
-              </button>
-              <button className={`category-chip ${categoryFilter === "hvac" ? "active" : ""}`} onClick={() => setCategoryFilter("hvac")}>
-                HVAC & Heating
-              </button>
-              <button className={`category-chip ${categoryFilter === "appliances" ? "active" : ""}`} onClick={() => setCategoryFilter("appliances")}>
-                Commercial Appliances
-              </button>
+              {batchCategories.slice(0, 8).map((c) => (
+                <button
+                  key={c.classpath}
+                  className={`category-chip ${categoryFilter === c.classpath ? "active" : ""}`}
+                  title={c.classpath}
+                  onClick={() => { setCategoryFilter(c.classpath); setPageOffset(0); }}
+                >
+                  {c.label} ({c.count.toLocaleString()})
+                </button>
+              ))}
+              {unclassifiedCount > 0 && (
+                <button
+                  className={`category-chip ${categoryFilter === "__unclassified__" ? "active" : ""}`}
+                  title="No keyword rule placed these products, so no category is claimed. They route to the AI tier or a human."
+                  onClick={() => { setCategoryFilter("__unclassified__"); setPageOffset(0); }}
+                  style={{ fontStyle: "italic" }}
+                >
+                  Not classified ({unclassifiedCount.toLocaleString()})
+                </button>
+              )}
+              {batchCategories.length === 0 && unclassifiedCount === 0 && (
+                <span style={{ fontSize: 11, color: "#94a3b8", alignSelf: "center" }}>
+                  Categories appear here once a batch is loaded.
+                </span>
+              )}
             </div>
 
             <div className="filters" style={{ marginTop: 8 }}>

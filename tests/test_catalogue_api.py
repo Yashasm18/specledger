@@ -4,6 +4,7 @@ import csv
 import tempfile
 import time
 import unittest
+from urllib.parse import quote
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -920,6 +921,89 @@ class CatalogueApiTests(unittest.TestCase):
 
         still_empty = self.client.get("/catalogue/batches?organization_id=fresh_org").json()
         self.assertEqual(still_empty.get("batches", []), [])
+
+    def test_categories_endpoint_reports_the_real_distribution(self) -> None:
+        # The dashboard's category chips were five hardcoded verticals that
+        # only matched the sample data's vocabulary, filtering the loaded page
+        # by keyword. On any other catalogue they emptied the table. The chips
+        # have to come from what the batch actually contains.
+        rows = [
+            {"Manufacturer": "Apollo Valves", "Part Number": "V-1",
+             "Description": "1/2 in Bronze Ball Valve 600 PSI"},
+            {"Manufacturer": "Apollo Valves", "Part Number": "V-2",
+             "Description": "2 in Bronze Ball Valve 600 PSI"},
+            {"Manufacturer": "Leviton", "Part Number": "S-1",
+             "Description": "20A Industrial Rocker Switch"},
+            {"Manufacturer": "UnknownCo", "Part Number": "X-1",
+             "Description": "X-1 Widget"},
+        ]
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("cats.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            body = self.client.get(f"/catalogue/batches/{batch_id}/categories").json()
+            self.assertEqual(body["total_rows"], 4)
+            self.assertEqual(body["unclassified"], 1)
+
+            by_path = {c["classpath"]: c["count"] for c in body["categories"]}
+            valves = next(p for p in by_path if "Ball Valves" in p)
+            self.assertEqual(by_path[valves], 2)
+            # Ordered by how many rows fall in each, so the chips are useful.
+            self.assertGreaterEqual(body["categories"][0]["count"], body["categories"][-1]["count"])
+            # A label short enough to put on a button.
+            self.assertTrue(body["categories"][0]["label"])
+
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_rows_can_be_filtered_by_category_across_the_batch(self) -> None:
+        rows = [
+            {"Manufacturer": "Apollo Valves", "Part Number": f"V-{i}",
+             "Description": "1/2 in Bronze Ball Valve 600 PSI"}
+            for i in range(8)
+        ]
+        rows += [
+            {"Manufacturer": "Leviton", "Part Number": f"S-{i}",
+             "Description": "20A Industrial Rocker Switch"}
+            for i in range(3)
+        ]
+        csv_path = self._make_csv(rows)
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("catfilter.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            cats = self.client.get(f"/catalogue/batches/{batch_id}/categories").json()
+            valve_path = next(
+                c["classpath"] for c in cats["categories"] if "Ball Valves" in c["classpath"]
+            )
+
+            # Filtered across the whole batch, before paging — the defect in
+            # the old chips was filtering only the rows already on screen.
+            encoded = quote(valve_path, safe="")
+            page = self.client.get(
+                f"/catalogue/batches/{batch_id}?limit=3&category={encoded}"
+            ).json()
+            self.assertEqual(page["matched_rows"], 8)
+            self.assertEqual(page["returned_rows"], 3)
+            self.assertTrue(page["has_more"])
+
+            second = self.client.get(
+                f"/catalogue/batches/{batch_id}?limit=3&offset=6&category={encoded}"
+            ).json()
+            self.assertEqual(second["returned_rows"], 2)
+            self.assertFalse(second["has_more"])
+
+            unclassified = self.client.get(
+                f"/catalogue/batches/{batch_id}?category=__unclassified__"
+            ).json()
+            self.assertEqual(unclassified["matched_rows"], 0)
+        finally:
+            csv_path.unlink(missing_ok=True)
 
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([

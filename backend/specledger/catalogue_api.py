@@ -573,6 +573,45 @@ def _unilog_args_from_raw(
     return unilog_args_from_values(vals)
 
 
+# batch_id -> {row_number: classpath}. Categories are derived rather than
+# stored, so filtering or counting by one means classifying the whole batch.
+# Doing that per request would undo pagination, so it is computed once per
+# batch and reused. Cleared when a batch is re-ingested.
+_category_index: dict[str, dict[int, str]] = {}
+
+UNCLASSIFIED = "__unclassified__"
+
+
+def _row_identity_text(row: dict[str, Any]) -> tuple[str, str]:
+    """The description and manufacturer a row should be classified on.
+
+    Read by role rather than by column name, so a catalogue using its own
+    headers classifies the same way the delivered file does.
+    """
+    vals = row.get("raw_values") or {
+        f["column"]: f["raw_value"] for f in row.get("fields", [])
+    }
+    _, manufacturer, description, *_ = unilog_args_from_values(vals)
+    return (description or "", manufacturer or "")
+
+
+def _build_category_index(organization_id: str, batch_id: str) -> dict[int, str]:
+    """Classify every row in a batch, once."""
+    cached = _category_index.get(batch_id)
+    if cached is not None:
+        return cached
+    stored = catalogue_store.get_batch(organization_id, batch_id)
+    index: dict[int, str] = {}
+    for row in (stored or {}).get("rows", []):
+        desc, mfr = _row_identity_text(row)
+        classpath = classify_category(desc, mfr)
+        index[row["row_number"]] = (
+            UNCLASSIFIED if needs_llm(classpath) else classpath
+        )
+    _category_index[batch_id] = index
+    return index
+
+
 def _attach_categories(rows: list[dict[str, Any]]) -> None:
     """Inject a real, deterministic classpath into each row (mutates in
     place) — the raw 6-column input never has a category column, so
@@ -639,6 +678,15 @@ def get_batch(
     organization_id: str = Query(default="default"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    category: str | None = Query(
+        default=None,
+        max_length=300,
+        description=(
+            "Filter rows to one classpath, across the whole batch rather than "
+            "the current page. Pass '__unclassified__' for rows no rule placed. "
+            "Values come from GET /catalogue/batches/{id}/categories."
+        ),
+    ),
     search: str | None = Query(
         default=None,
         max_length=200,
@@ -669,12 +717,29 @@ def get_batch(
     real_id = _resolve_batch_id(batch_id, organization_id)
     # Push the page down to the store so only these rows are ever loaded —
     # slicing after fetching everything defeats the purpose at scale.
-    batch = catalogue_store.get_batch(
-        organization_id, real_id, row_limit=limit, row_offset=offset,
-        search=search,
-    )
-    if batch is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
+    # A category filter has to be applied before paging, and categories are
+    # derived rather than stored, so this path fetches the batch and filters
+    # it here instead of in SQL. Bounded by the cached classification, not by
+    # re-deriving per request.
+    if category:
+        batch = catalogue_store.get_batch(organization_id, real_id, search=search)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        index = _build_category_index(organization_id, real_id)
+        matching = [
+            row for row in batch.get("rows", [])
+            if index.get(row["row_number"]) == category
+        ]
+        batch = dict(batch)
+        batch["matched_rows"] = len(matching)
+        batch["rows"] = matching[offset:offset + limit]
+    else:
+        batch = catalogue_store.get_batch(
+            organization_id, real_id, row_limit=limit, row_offset=offset,
+            search=search,
+        )
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Batch not found")
 
     # row_count comes from the batch record, so it stays the true total even
     # though only one page of rows was fetched.
@@ -704,10 +769,13 @@ def get_batch(
     # When a search is active, paging walks the matched set — computing
     # has_more against the batch total would offer a "Next" that returns an
     # empty page, and any "N of M" label would count the wrong M.
-    if search and search.strip():
+    if category or (search and search.strip()):
         matched = batch.get("matched_rows", len(page))
         response["matched_rows"] = matched
-        response["search"] = search
+        if search and search.strip():
+            response["search"] = search
+        if category:
+            response["category"] = category
         response["has_more"] = offset + len(page) < matched
     else:
         response["has_more"] = offset + len(page) < total_rows
@@ -721,6 +789,49 @@ def get_batch(
         response["cost"] = result.cost.summary()
 
     return response
+
+
+@router.get("/batches/{batch_id}/categories")
+def list_batch_categories(
+    batch_id: str,
+    organization_id: str = Query(default="default"),
+) -> dict[str, Any]:
+    """The categories actually present in a batch, with row counts.
+
+    The dashboard's category filters are built from this rather than from a
+    fixed list of verticals. A fixed list only ever matched the sample data —
+    on any other catalogue the buttons filtered to nothing and said nothing
+    about why.
+
+    Categories are derived from the description, not stored, so this
+    classifies the batch once and caches the result. At 750,000 rows that
+    would want a stored, indexed column instead; see the README's Known
+    limits.
+    """
+    real_id = _resolve_batch_id(batch_id, organization_id)
+    index = _build_category_index(organization_id, real_id)
+    counts: dict[str, int] = {}
+    for classpath in index.values():
+        counts[classpath] = counts.get(classpath, 0) + 1
+
+    categories = [
+        {
+            "classpath": path,
+            # The finest level, which is what fits on a button.
+            "label": path.split(">")[-1].strip(),
+            "count": count,
+        }
+        for path, count in counts.items()
+        if path != UNCLASSIFIED
+    ]
+    categories.sort(key=lambda c: (-c["count"], c["label"]))
+
+    return {
+        "batch_id": real_id,
+        "total_rows": len(index),
+        "unclassified": counts.get(UNCLASSIFIED, 0),
+        "categories": categories,
+    }
 
 
 @router.get("/batches/{batch_id}/rows/{row_number}")
