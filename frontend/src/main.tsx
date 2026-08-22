@@ -12,6 +12,7 @@ import { openReviewWorkspace } from "./reviewWorkspace";
 import { apiFetch, fetchWithRetry, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiClient";
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
+import { classifyUpload, ACCEPT_ATTRIBUTE } from "./fileTypes";
 import {
   clearAutoReloadFlag, clearReloadMarker, clearStaleHtmlRetryFlag, hasAutoReloaded,
   isSupersededBuild, markAutoReloaded, reloadOntoLatest,
@@ -925,9 +926,18 @@ function App() {
     pendingUploadOrgRef.current = null;
     if (!file) return;
 
-    const isSpreadsheet = file.name.endsWith(".csv") || file.name.endsWith(".tsv") || file.name.endsWith(".xlsx");
+    // One resolver decides this, shared in shape with the server's
+    // file_types module. A refusal is caught here rather than after the
+    // upload, so the reason arrives immediately and no bytes are sent.
+    const classified = classifyUpload(file.name);
 
-    if (isSpreadsheet) {
+    if (classified.kind === "unsupported") {
+      setNotice(`${file.name} was not uploaded. ${classified.reason}`);
+      event.target.value = "";
+      return;
+    }
+
+    if (classified.kind === "catalogue") {
       setNotice(
         liveFetchEnabled
           ? `Ingesting ${file.name} with live web fetch — real HTTP requests to manufacturer sites, capped at 50 rows…`
@@ -2182,12 +2192,20 @@ function App() {
                   and they do different things.
                 </p>
                 <p style={{ margin: "0 0 10px" }}>
-                  A <b>catalogue</b> — <code>.csv</code>, <code>.tsv</code> or <code>.xlsx</code> —
-                  is enriched, validated and routed on upload, and the workspace switches to it.
-                  A <b>manufacturer datasheet</b> — <code>.pdf</code> — is read for labelled
-                  specifications instead, each kept with the page and sentence it came from. A
-                  datasheet does not create catalogue rows, so no new batch appears; a document
-                  with no labelled specifications honestly returns none rather than a guess.
+                  A <b>catalogue</b> — <code>.csv</code>, <code>.tsv</code>, <code>.xlsx</code>,{" "}
+                  <code>.json</code> or <code>.xml</code> — is enriched, validated and routed on
+                  upload, and the workspace switches to it. A <b>manufacturer datasheet</b> —{" "}
+                  <code>.pdf</code>, <code>.txt</code>, <code>.docx</code> or <code>.rtf</code> — is
+                  read for labelled specifications instead, each kept with the page and sentence it
+                  came from. A datasheet does not create catalogue rows, so no new batch appears; a
+                  document with no labelled specifications honestly returns none rather than a guess.
+                </p>
+                <p style={{ margin: "0 0 10px" }}>
+                  <b>The usual first run:</b> switch to <i>Evaluation Sandbox</i> so the challenge
+                  dataset stays untouched, upload your catalogue, then open any row's{" "}
+                  <b>Inspect 252 Specs</b> to see every delivered column with the evidence behind
+                  it. <b>Run benchmark</b> measures the pipeline live on the loaded batch —
+                  the figures are computed during that request, never replayed.
                 </p>
                 <p style={{ margin: "0 0 10px" }}>
                   <b>Your column names do not have to match ours.</b> Columns are matched by role,
@@ -2198,6 +2216,70 @@ function App() {
                 <p style={{ margin: 0, color: "#64748b" }}>
                   Nothing is required. Columns we cannot interpret are carried through untouched,
                   and a missing field is delivered blank rather than filled in with a guess.
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "formats",
+            q: "Which file types can I upload, and which are refused?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  Nine formats are accepted, in two groups. Which group a file lands in decides
+                  what happens to it, so the distinction matters more than the extension.
+                </p>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, margin: "0 0 12px" }}>
+                  <tbody>
+                    {[
+                      { g: "Catalogue — becomes 252-column rows", rows: [
+                        [".csv", "Comma-separated rows. The most common distributor feed."],
+                        [".tsv", "Tab-separated rows."],
+                        [".xlsx", "Excel workbook. The first sheet is read unless another is named."],
+                        [".json", "An array of product objects, or an object wrapping one."],
+                        [".xml", "Repeated elements, one per product."],
+                      ]},
+                      { g: "Document — read for specifications, creates no rows", rows: [
+                        [".pdf", "Manufacturer datasheets and specification sheets."],
+                        [".txt", "Plain text with no formatting."],
+                        [".docx", "Word document."],
+                        [".rtf", "Rich text."],
+                      ]},
+                    ].map(group => (
+                      <React.Fragment key={group.g}>
+                        <tr>
+                          <td colSpan={2} style={{
+                            padding: "9px 0 5px", fontWeight: 700, color: "#475569", fontSize: 11.5,
+                          }}>{group.g}</td>
+                        </tr>
+                        {group.rows.map(([ext, note]) => (
+                          <tr key={ext}>
+                            <td style={{
+                              padding: "3px 12px 3px 0", verticalAlign: "top", whiteSpace: "nowrap",
+                              fontFamily: "ui-monospace, monospace", color: "#2872e3", fontWeight: 700,
+                            }}>{ext}</td>
+                            <td style={{ padding: "3px 0", color: "#64748b" }}>{note}</td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+                <p style={{ margin: "0 0 10px" }}>
+                  <b>Refused, with the reason shown on screen.</b> Images
+                  (<code>.jpg</code>, <code>.jpeg</code>, <code>.png</code>, <code>.gif</code>,{" "}
+                  <code>.svg</code>) carry no machine-readable specification — send the datasheet
+                  as a PDF instead. Audio (<code>.mp3</code>, <code>.wav</code>) and video
+                  (<code>.mp4</code>, <code>.avi</code>, <code>.mov</code>) carry nothing this
+                  system can verify. Archives (<code>.zip</code>) are not opened, and executables
+                  (<code>.exe</code>) and disk images (<code>.iso</code>) are never accepted.
+                </p>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  Legacy <code>.xls</code> and <code>.doc</code> are refused rather than half-read;
+                  re-save them as <code>.xlsx</code> or <code>.docx</code>. A refused file is
+                  stopped in the browser, so nothing is uploaded and the reason appears
+                  immediately — silence would leave you unable to tell a rejected format from a
+                  broken pipeline.
                 </p>
               </div>
             ),
@@ -2745,7 +2827,7 @@ function App() {
         type="file"
         ref={fileInputRef}
         onChange={handleFileUpload}
-        accept=".csv,.tsv,.xlsx,.pdf"
+        accept={ACCEPT_ATTRIBUTE}
         style={{ display: "none" }}
       />
 
@@ -2899,7 +2981,9 @@ function App() {
                 Accepted files
               </div>
               <div style={{ display: "flex", gap: 9, marginBottom: 8 }}>
-                <code style={{ flexShrink: 0, color: "#2872e3", fontWeight: 700 }}>.csv .tsv .xlsx</code>
+                <code style={{ flexShrink: 0, color: "#2872e3", fontWeight: 700 }}>
+                  .csv .tsv .xlsx<br />.json .xml
+                </code>
                 <span>
                   <strong style={{ color: "#475569" }}>Product catalogue.</strong> Becomes a batch of
                   enriched 252-column records. Your column names do not have to match ours —
@@ -2907,14 +2991,21 @@ function App() {
                   <code>Vendor</code> works the same as the challenge file's headers.
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 9 }}>
-                <code style={{ flexShrink: 0, color: "#2872e3", fontWeight: 700 }}>.pdf</code>
+              <div style={{ display: "flex", gap: 9, marginBottom: 8 }}>
+                <code style={{ flexShrink: 0, color: "#2872e3", fontWeight: 700 }}>
+                  .pdf .txt<br />.docx .rtf
+                </code>
                 <span>
                   <strong style={{ color: "#475569" }}>Manufacturer datasheet.</strong> Read for
                   labelled specifications, each kept with the page and sentence it came from.
                   A datasheet does not create catalogue rows, and a document with no labelled
                   specifications honestly returns none.
                 </span>
+              </div>
+              <div style={{ color: "#a3aec0" }}>
+                Images, audio, video, archives and executables are refused — an image carries no
+                machine-readable specification. Legacy <code>.xls</code> and <code>.doc</code> are
+                refused too; re-save them as <code>.xlsx</code> or <code>.docx</code>.
               </div>
             </div>
             </div>
