@@ -2793,11 +2793,12 @@ function App() {
           >
             <div style={{ padding: "26px 28px 14px", flexShrink: 0 }}>
               <h3 id="upload-destination-title" style={{ margin: "0 0 6px", fontSize: 17, color: "#0f172a" }}>
-                Where should this catalogue go?
+                Where should this upload go?
               </h3>
               <p id="upload-destination-desc" style={{ margin: 0, fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>
-                An uploaded file becomes a batch in one workspace, and the dashboard
-                opens on the most recent one. Choose where yours belongs.
+                A spreadsheet becomes a catalogue batch; a PDF is read as a datasheet.
+                Either way it lands in one workspace, and the dashboard opens on the
+                most recent batch. Choose where yours belongs.
               </p>
             </div>
 
@@ -2879,11 +2880,35 @@ function App() {
               })}
             </div>
 
-            <p style={{ margin: "4px 0 18px", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.55 }}>
-              CSV, TSV or XLSX. Your column names do not have to match ours — columns
-              are matched by role, so <code>SKU</code> / <code>Item Description</code> /{" "}
-              <code>Vendor</code> works the same as the challenge file's headers.
-            </p>
+            {/* The file input accepts PDFs as well as spreadsheets, and they
+                take completely different paths through the system — one
+                builds catalogue rows, the other extracts facts from a
+                document and builds none. Naming only the spreadsheet types
+                here left the PDF path undiscoverable and made the result
+                look like a failure when no batch appeared. */}
+            <div style={{ margin: "4px 0 18px", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.55 }}>
+              <div style={{ fontWeight: 700, color: "#64748b", marginBottom: 7 }}>
+                Accepted files
+              </div>
+              <div style={{ display: "flex", gap: 9, marginBottom: 8 }}>
+                <code style={{ flexShrink: 0, color: "#2872e3", fontWeight: 700 }}>.csv .tsv .xlsx</code>
+                <span>
+                  <strong style={{ color: "#475569" }}>Product catalogue.</strong> Becomes a batch of
+                  enriched 252-column records. Your column names do not have to match ours —
+                  columns are matched by role, so <code>SKU</code> / <code>Item Description</code> /{" "}
+                  <code>Vendor</code> works the same as the challenge file's headers.
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 9 }}>
+                <code style={{ flexShrink: 0, color: "#2872e3", fontWeight: 700 }}>.pdf</code>
+                <span>
+                  <strong style={{ color: "#475569" }}>Manufacturer datasheet.</strong> Read for
+                  labelled specifications, each kept with the page and sentence it came from.
+                  A datasheet does not create catalogue rows, and a document with no labelled
+                  specifications honestly returns none.
+                </span>
+              </div>
+            </div>
             </div>
 
             <div style={{
