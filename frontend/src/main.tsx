@@ -13,7 +13,8 @@ import { apiFetch, fetchWithRetry, getApiBaseUrl, getApiKeyHeaders, readApiError
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
 import {
-  clearReloadMarker, clearStaleHtmlRetryFlag, isSupersededBuild, reloadOntoLatest,
+  clearAutoReloadFlag, clearReloadMarker, clearStaleHtmlRetryFlag, hasAutoReloaded,
+  isSupersededBuild, markAutoReloaded, reloadOntoLatest,
 } from "./buildVersion";
 
 // Mirrors backend/specledger/enrichment.py's detect_role() keyword heuristic.
@@ -368,15 +369,43 @@ function App() {
     clearStaleHtmlRetryFlag();
     const controller = new AbortController();
     let cancelled = false;
-    const check = async () => {
+    // Two different situations, handled differently.
+    //
+    // On arrival the page carries no work worth protecting, so a superseded
+    // build is best dealt with by quietly reloading onto the current one —
+    // nobody should have to know that the host caches its HTML, or think to
+    // hard-reload. Once at most, guarded in sessionStorage: if the cached
+    // copy is still being served, looping is worse than saying so.
+    //
+    // Later in the session the reader may be part-way through something, and
+    // reloading underneath them would be rude, so that case only offers.
+    const checkOnArrival = async () => {
+      if (cancelled) return;
+      const superseded = await isSupersededBuild(controller.signal);
+      if (cancelled) return;
+      if (!superseded) {
+        // Current build: a deploy later in this session gets its own reload.
+        clearAutoReloadFlag();
+        return;
+      }
+      if (hasAutoReloaded()) {
+        setUpdateAvailable(true);
+        return;
+      }
+      markAutoReloaded();
+      reloadOntoLatest();
+    };
+
+    const checkWhileOpen = async () => {
       if (cancelled || document.hidden) return;
       if (await isSupersededBuild(controller.signal)) setUpdateAvailable(true);
     };
-    check();
-    const onFocus = () => { void check(); };
+
+    checkOnArrival();
+    const onFocus = () => { void checkWhileOpen(); };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
-    const timer = window.setInterval(check, 5 * 60 * 1000);
+    const timer = window.setInterval(checkWhileOpen, 5 * 60 * 1000);
     return () => {
       cancelled = true;
       controller.abort();

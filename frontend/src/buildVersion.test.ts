@@ -69,3 +69,49 @@ describe("isSupersededBuild", () => {
     expect(init.cache).toBe("no-store");
   });
 });
+
+describe("auto-reload loop protection", () => {
+  const KEY = "specledger:auto-reloaded-for-stale-build";
+  const store = new Map<string, string>();
+
+  function stubStorage(working = true) {
+    vi.stubGlobal("sessionStorage", working ? {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+    } : {
+      getItem: () => { throw new Error("blocked"); },
+      setItem: () => { throw new Error("blocked"); },
+      removeItem: () => { throw new Error("blocked"); },
+    });
+  }
+
+  afterEach(() => store.clear());
+
+  it("permits the first silent reload of a session", async () => {
+    stubStorage();
+    const { hasAutoReloaded } = await import("./buildVersion");
+    expect(hasAutoReloaded()).toBe(false);
+  });
+
+  it("refuses a second, so a still-cached host cannot cause a loop", async () => {
+    stubStorage();
+    const { hasAutoReloaded, markAutoReloaded } = await import("./buildVersion");
+    markAutoReloaded();
+    expect(hasAutoReloaded()).toBe(true);
+  });
+
+  it("re-arms once the running build is current again", async () => {
+    stubStorage();
+    const { clearAutoReloadFlag, hasAutoReloaded, markAutoReloaded } = await import("./buildVersion");
+    markAutoReloaded();
+    clearAutoReloadFlag();
+    expect(hasAutoReloaded()).toBe(false);
+  });
+
+  it("never auto-reloads when storage is unavailable, since nothing could stop a loop", async () => {
+    stubStorage(false);
+    const { hasAutoReloaded } = await import("./buildVersion");
+    expect(hasAutoReloaded()).toBe(true);
+  });
+});

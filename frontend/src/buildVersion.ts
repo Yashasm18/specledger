@@ -95,3 +95,39 @@ export function clearStaleHtmlRetryFlag(): void {
     /* storage unavailable; the guard is a no-op in that case too */
   }
 }
+
+const AUTO_RELOAD_KEY = "specledger:auto-reloaded-for-stale-build";
+
+/** Whether this session has already reloaded itself onto a newer build.
+ *
+ *  A fresh page load carries no work worth protecting, so finding it stale is
+ *  best handled by quietly reloading rather than asking. That must happen at
+ *  most once: if the host keeps serving the superseded HTML, a second attempt
+ *  would loop, and a banner the reader can act on is the better failure.
+ */
+export function hasAutoReloaded(): boolean {
+  try {
+    return sessionStorage.getItem(AUTO_RELOAD_KEY) === "1";
+  } catch {
+    // No storage means no loop protection, so never auto-reload.
+    return true;
+  }
+}
+
+export function markAutoReloaded(): void {
+  try {
+    sessionStorage.setItem(AUTO_RELOAD_KEY, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Called once the running build is confirmed current, so a later deploy in
+ *  the same session gets its own silent reload. */
+export function clearAutoReloadFlag(): void {
+  try {
+    sessionStorage.removeItem(AUTO_RELOAD_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
