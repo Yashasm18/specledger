@@ -26,6 +26,14 @@
 
 ---
 
+<p align="center">
+  <img src="docs/media/specledger-demo.gif" alt="SpecLedger: uploading a catalogue and a manufacturer datasheet into the live app, and the datasheet's specifications appearing against the product row it describes" width="900">
+</p>
+
+<p align="center"><sub>Recorded against the deployed application — every frame is the real app talking to the real API. Reproduce it with <code>scripts/record_demo.py</code>.</sub></p>
+
+---
+
 ## What it achieves
 
 **Two thirds of Unilog's 1,000-row challenge dataset now clears enrichment with no human touch at all**, delivered in the official 252-column format with a source and a reason attached to every value.
@@ -41,6 +49,8 @@
 | 252-column header vs Unilog's Expected Output | **exact match** | — |
 
 That is a **2.3x reduction in rows requiring human attention** (800 → 352) and a **3.2x increase in rows clearing with no human at all** (200 → 648) — the numbers that decide whether 150,000 SKUs a month can become 750,000 without hiring proportionally. Throughput was never the constraint — the deterministic path already runs orders of magnitude faster than any realistic monthly volume. The constraint is people, and this moves it.
+
+One number reads differently in the live app, and both are true: the table above is what the **pipeline decides** — 352 rows routed to a person. The dashboard's *Review queue* shows what is **still waiting**, which drops as reviewers work through it. A lower number there is people doing the job, not a different measurement.
 
 **Every figure above is measured on Unilog's own file, live, and you can reproduce all of it.** Press **Run benchmark** in the [live app](https://yashasm18.github.io/specledger/) and the pipeline runs during that request — the tiles read `—` until you do, because nothing here is a stored figure from a past run. Or clone the repo and run `pytest`; the before-numbers were re-measured at the exact commit they came from rather than quoted from notes.
 

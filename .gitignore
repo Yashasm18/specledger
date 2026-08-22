@@ -53,3 +53,9 @@ PROJECT_STATUS_*
 *.mkv
 *.gif
 .claude/
+.demo-frames/
+
+# The README demo clip is a deliverable, not a stray recording. Regenerated
+# by scripts/record_demo.py against the live app.
+!docs/media/specledger-demo.gif
+!docs/media/specledger-demo.mp4
