@@ -44,7 +44,7 @@ from .export import (
 from .catalogue_persistence import CatalogueStore, InMemoryCatalogueStore, PostgresCatalogueStore
 from .database import resolve_database_url
 from .source_discovery import discover_sources_live, SourceStatus
-from .unilog_exporter import row_to_unilog_dict
+from .unilog_exporter import row_to_unilog_dict, unilog_args_from_values
 from .web_enricher import classify_category
 from .llm_enricher import enrich_unresolved, is_llm_configured, needs_llm
 
@@ -532,19 +532,15 @@ def _run_llm_tier(
 def _unilog_args_from_raw(
     vals: dict[str, Any],
 ) -> tuple[str, Any, Any, Any, Any, Any]:
-    """Map a row's raw source values onto row_to_unilog_dict()'s positional
-    arguments. The official challenge columns (mfg_part_num, part_desc,
-    part_manuf, ...) are checked first, with generic names as the fallback so
-    an uploaded file that uses its own headers still resolves.
+    """Map a row's raw source values onto row_to_unilog_dict()'s arguments.
+
+    Delegates to the exporter so this endpoint and the CSV it claims to
+    mirror cannot disagree. This used to keep its own copy of the mapping,
+    checking two spellings per field, and its docstring claimed uploaded
+    files with their own headers resolved — they did not: a catalogue keyed
+    on SKU / Item Description / Vendor came back as UNKNOWN-PN.
     """
-    return (
-        vals.get("mfg_part_num") or vals.get("part_number") or "",
-        vals.get("part_manuf") or vals.get("manufacturer"),
-        vals.get("part_desc") or vals.get("description"),
-        vals.get("e1_brand"),
-        vals.get("unilog_brand"),
-        vals.get("dib_brand"),
-    )
+    return unilog_args_from_values(vals)
 
 
 def _attach_categories(rows: list[dict[str, Any]]) -> None:

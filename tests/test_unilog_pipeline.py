@@ -146,3 +146,62 @@ def test_exported_classpath_uses_the_delivery_format_separator():
         assert ">" in path, f"expected a hierarchical classpath, got {path!r}"
         # And the segments must survive intact, not get their spaces stripped.
         assert not any(s.startswith(" ") or s.endswith(" ") for s in path.split(">"))
+
+
+def test_export_reads_roles_not_hardcoded_column_names():
+    """The 252 export must work on a file that isn't the sample dataset.
+
+    The challenge brief is explicit that the solution has to handle "different
+    data/field combinations rather than being designed only for the sample
+    dataset". The exporter looked up "mfg_part_num" / "part_desc" /
+    "part_manuf" by name, so a catalogue using SKU / Item Description / Vendor
+    exported every row as UNKNOWN-PN with "Industrial Manufacturer" as the
+    maker — the input was ingested fine and then thrown away at delivery.
+
+    detect_role() already classifies columns by keyword; this is the export
+    path using it.
+    """
+    from backend.specledger.catalogue_ingestion import CatalogueBatch, SourceRow
+
+    columns = ("sku", "item_description", "vendor", "brand_code")
+    rows = (
+        SourceRow(
+            row_number=1,
+            source_name="medical.csv",
+            source_fingerprint="fp-1",
+            values={
+                "sku": "MED-4471",
+                "item_description": "MED-4471 Nitrile Exam Glove Powder-Free Large 100/Box",
+                "vendor": "Halyard Health Inc (HALYD)",
+                "brand_code": "-- Unbranded --",
+            },
+        ),
+    )
+    batch = CatalogueBatch("medical.csv", columns, rows)
+
+    reader = list(csv.reader(export_unilog_csv(batch).splitlines()))
+    hdr, row = reader[0], reader[1]
+    get = lambda name: row[hdr.index(name)]
+
+    assert get("Mfg_Part_Num") == "MED-4471"
+    assert get("PART_NUMBER") == "MED-4471"
+    assert "UNKNOWN-PN" not in row
+    assert get("MANUFACTURER_NAME") == "Halyard Health Inc"
+    assert "Nitrile Exam Glove" in get("Part_Desc")
+    assert "Nitrile Exam Glove" in get("SHORT_DESC")
+
+
+def test_export_still_prefers_the_sample_dataset_column_names():
+    """Role detection must not change behaviour on the official input."""
+    input_path = _get_input_path()
+    if input_path is None:
+        pytest.skip("Unilog input file not present")
+
+    batch = read_catalogue(input_path)
+    mini = type(batch)(batch.source_name, batch.columns, batch.rows[:3])
+    reader = list(csv.reader(export_unilog_csv(mini).splitlines()))
+    hdr = reader[0]
+    for row in reader[1:]:
+        assert row[hdr.index("Mfg_Part_Num")]
+        assert row[hdr.index("Mfg_Part_Num")] != "UNKNOWN-PN"
+        assert row[hdr.index("MANUFACTURER_NAME")] != "Industrial Manufacturer"

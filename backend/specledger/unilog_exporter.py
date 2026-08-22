@@ -20,7 +20,7 @@ import io
 from typing import Any, Mapping
 
 from .catalogue_ingestion import CatalogueBatch, clean_manufacturer_name
-from .enrichment import EnrichedBatch
+from .enrichment import EnrichedBatch, detect_role
 from .web_enricher import (
     enrich_product_web, product_name_from_fine, WebEnrichmentResult,
 )
@@ -68,6 +68,73 @@ def _delivery_classpath(classpath: str | None) -> str:
     if not classpath:
         return ""
     return ">".join(segment.strip() for segment in classpath.split(">"))
+
+
+# Column names the sample dataset uses, checked first so the official input
+# keeps its exact behaviour. Anything else falls back to role detection.
+_PREFERRED_KEYS = {
+    "part_number": ("mfg_part_num", "part_number"),
+    "description": ("part_desc", "description"),
+    "manufacturer": ("part_manuf", "manufacturer"),
+}
+_BRAND_SLOTS = ("e1_brand", "unilog_brand", "dib_brand")
+
+
+def _resolve_by_role(values: Mapping[str, Any], role: str) -> Any:
+    """Find a row's value for a semantic role.
+
+    The uploaded file decides its own column names — the brief requires
+    handling "different data/field combinations rather than being designed
+    only for the sample dataset" — so the sample's names are a preference,
+    not a requirement. A catalogue keyed on SKU / Item Description / Vendor
+    used to export as UNKNOWN-PN because these were looked up by name.
+    """
+    for key in _PREFERRED_KEYS.get(role, ()):
+        if values.get(key) not in (None, ""):
+            return values[key]
+    for key, value in values.items():
+        if value not in (None, "") and detect_role(key) == role:
+            return value
+    return None
+
+
+def _resolve_brands(values: Mapping[str, Any]) -> tuple[Any, Any, Any]:
+    """The three Unilog brand slots, by name where present.
+
+    Any other columns detected as brands fill the remaining slots in column
+    order, so a file with its own brand columns still delivers them.
+    """
+    named = [values.get(slot) for slot in _BRAND_SLOTS]
+    spare = [
+        value for key, value in values.items()
+        if key not in _BRAND_SLOTS and value not in (None, "")
+        and detect_role(key) == "brand"
+    ]
+    filled = []
+    for existing in named:
+        if existing not in (None, ""):
+            filled.append(existing)
+        else:
+            filled.append(spare.pop(0) if spare else None)
+    return tuple(filled)  # type: ignore[return-value]
+
+
+def unilog_args_from_values(
+    values: Mapping[str, Any],
+) -> tuple[str, Any, Any, Any, Any, Any]:
+    """Map a row's raw values onto row_to_unilog_dict()'s positional arguments.
+
+    The one place that decides which column means what. Every delivery path —
+    the CSV export, the per-row inspector endpoint, the audit export — goes
+    through here, so a file with its own headers resolves identically in all
+    of them rather than only wherever the mapping was remembered.
+    """
+    return (
+        _resolve_by_role(values, "part_number") or "",
+        _resolve_by_role(values, "manufacturer"),
+        _resolve_by_role(values, "description"),
+        *_resolve_brands(values),
+    )
 
 
 def row_to_unilog_dict(
@@ -177,26 +244,19 @@ def export_unilog_csv(batch: CatalogueBatch | EnrichedBatch) -> str:
     if isinstance(batch, EnrichedBatch):
         for enriched_row in batch.rows:
             fmap = enriched_row.field_map
-            part_number = fmap.get("mfg_part_num", fmap.get("part_number")).canonical_value or "" if ("mfg_part_num" in fmap or "part_number" in fmap) else ""
-            raw_mfr = fmap.get("part_manuf", fmap.get("manufacturer")).raw_value if ("part_manuf" in fmap or "manufacturer" in fmap) else None
-            raw_desc = fmap.get("part_desc", fmap.get("description")).raw_value if ("part_desc" in fmap or "description" in fmap) else None
-            e1_brand = fmap.get("e1_brand").raw_value if "e1_brand" in fmap else None
-            unilog_brand = fmap.get("unilog_brand").raw_value if "unilog_brand" in fmap else None
-            dib_brand = fmap.get("dib_brand").raw_value if "dib_brand" in fmap else None
-
-            row_dict = row_to_unilog_dict(part_number, raw_mfr, raw_desc, e1_brand, unilog_brand, dib_brand)
+            canonical = {k: f.canonical_value for k, f in fmap.items()}
+            raw = {k: f.raw_value for k, f in fmap.items()}
+            # Canonical values for the identifier, raw text for everything
+            # a human reads back.
+            args = unilog_args_from_values(raw)
+            row_dict = row_to_unilog_dict(
+                _resolve_by_role(canonical, "part_number") or args[0], *args[1:],
+            )
             writer.writerow(row_dict)
     else:
         for source_row in batch.rows:
             vals = source_row.values
-            part_number = vals.get("mfg_part_num") or vals.get("part_number") or ""
-            raw_mfr = vals.get("part_manuf") or vals.get("manufacturer")
-            raw_desc = vals.get("part_desc") or vals.get("description")
-            e1_brand = vals.get("e1_brand")
-            unilog_brand = vals.get("unilog_brand")
-            dib_brand = vals.get("dib_brand")
-
-            row_dict = row_to_unilog_dict(part_number, raw_mfr, raw_desc, e1_brand, unilog_brand, dib_brand)
+            row_dict = row_to_unilog_dict(*unilog_args_from_values(vals))
             writer.writerow(row_dict)
 
     return output.getvalue()

@@ -843,6 +843,40 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_unilog252_endpoint_resolves_a_foreign_columned_file(self) -> None:
+        # The CSV export and this endpoint each kept their own copy of the
+        # "which column means what" mapping, so fixing the export alone left
+        # the inspector still showing UNKNOWN-PN. Both now share one resolver;
+        # this covers the endpoint path specifically.
+        csv_path = self._make_csv([{
+            "SKU": "IV-8890",
+            "Item Description": "IV-8890 IV Infusion Pump 15A 120V Volumetric",
+            "Vendor": "Baxter International",
+        }])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("foreign.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            body = self.client.get(
+                f"/catalogue/batches/{batch_id}/rows/2/unilog252"
+            ).json()
+            row = body.get("unilog252") or body.get("row") or body
+
+            self.assertEqual(row["Mfg_Part_Num"], "IV-8890")
+            self.assertEqual(row["MANUFACTURER_NAME"], "Baxter International")
+            self.assertIn("Infusion Pump", row["Part_Desc"])
+            # Spec extraction is column-name agnostic too.
+            labels = {
+                row.get(f"ATTRIBUTE_LABEL {i}"): row.get(f"ATTRIBUTE_VALUE {i}")
+                for i in range(1, 6)
+            }
+            self.assertEqual(labels.get("Voltage Rating"), "120")
+            self.assertEqual(labels.get("Amperage Rating"), "15")
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
