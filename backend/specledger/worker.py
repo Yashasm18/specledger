@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from uuid import uuid4
 
 from .object_store import LocalObjectStore
+from .document_text import extract_pages
 from .extraction import extract_facts, validate_facts
 from .schemas import get_schema
 from .tasks import ProcessingTask, TaskQueue
@@ -57,24 +58,21 @@ class DocumentProcessingWorker:
 
     def _extract(self, task: ProcessingTask) -> ExtractedDocument:
         if not task.document_id:
-            raise ValueError("PDF extraction task has no document_id")
+            raise ValueError("Extraction task has no document_id")
         content = self.object_store.get(task.document_id)
-        try:
-            import fitz
-        except ImportError as exc:
-            raise RuntimeError("PyMuPDF is required for PDF worker tasks") from exc
 
-        # Opened from memory. This wrote the bytes to a temporary file inside
-        # object_store.root first, which only exists on the local development
-        # store — against the deployed Supabase-backed store every extraction
-        # failed on a missing attribute, so an uploaded PDF was accepted and
-        # then never processed. The content is already in hand by this point.
-        document = fitz.open(stream=content, filetype="pdf")
-        try:
-            pages = tuple(
-                ExtractedPage(index + 1, page.get_text("text").strip())
-                for index, page in enumerate(document)
-            )
-        finally:
-            document.close()
+        # Read from memory, and let document_text pick the reader. This used
+        # to open PDFs only, and wrote the bytes to a temporary file inside
+        # object_store.root first — an attribute only the local development
+        # store has, so against the deployed Supabase-backed store every
+        # extraction failed and an uploaded file was accepted then never
+        # processed. The content is already in hand by this point.
+        #
+        # A task registered before filenames were recorded carries none;
+        # those are all PDFs, which was the only format that existed then.
+        filename = task.filename or "document.pdf"
+        pages = tuple(
+            ExtractedPage(page["page"], page["text"])
+            for page in extract_pages(filename, content)
+        )
         return ExtractedDocument(task.document_id, pages)

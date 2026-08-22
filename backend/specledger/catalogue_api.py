@@ -30,6 +30,7 @@ from .rate_limit import limiter
 from .catalogue_ingestion import read_catalogue, CatalogueBatch, normalize_rows, SourceRow, clean_manufacturer_name
 from .enrichment import enrich_batch
 from .evaluator import evaluate, load_ground_truth_csv
+from .file_types import CATALOGUE_FORMATS, classify_upload
 from .reference_data import ReferenceStore
 from .uom import normalize_uom, normalize_material
 from .validation_engine import validate_batch
@@ -367,7 +368,9 @@ def normalize_material_endpoint(raw: str = Query(min_length=1)) -> dict[str, Any
 # Ingestion & Batch Processing
 # ---------------------------------------------------------------------------
 
-ALLOWED_EXTENSIONS = {".csv", ".tsv", ".xlsx"}
+# The accepted formats live in file_types, so the endpoint, the reader and
+# the dashboard cannot drift apart. Kept as a name because callers import it.
+ALLOWED_EXTENSIONS = set(CATALOGUE_FORMATS)
 
 
 @router.post("/ingest", dependencies=[Depends(require_api_key)])
@@ -395,10 +398,17 @@ async def ingest_catalogue(
     suffix = Path(filename).suffix.casefold()
 
     if suffix not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Unsupported file format '{suffix}'. Use CSV, TSV, or XLSX.",
-        )
+        # Say what this file is and where it should have gone, rather than
+        # listing formats and leaving the reader to work out which applies.
+        classified = classify_upload(filename)
+        if classified.kind == "document":
+            detail = (f"'{suffix}' is a document, not a catalogue. Send it to "
+                      f"/documents/intake, which reads it for specifications.")
+        else:
+            detail = classified.reason or (
+                f"Unsupported file format '{suffix}'. "
+                f"Use {', '.join(sorted(ALLOWED_EXTENSIONS))}.")
+        raise HTTPException(status_code=415, detail=detail)
 
     contents = await file.read()
     if not contents:

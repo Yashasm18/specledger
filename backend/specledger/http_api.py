@@ -22,6 +22,7 @@ from slowapi import _rate_limit_exceeded_handler
 
 from .api import SpecLedgerService
 from .auth import require_api_key
+from .file_types import classify_upload
 from .worker import DocumentProcessingWorker
 from .database import resolve_database_url
 from .batch import BatchImportService, BatchJobRepository
@@ -375,11 +376,24 @@ async def intake_document(request: Request, file: UploadFile = File(...), organi
     """Persist a source document and enqueue durable worker extraction."""
     if task_queue is None:
         raise HTTPException(status_code=503, detail="Durable intake requires PostgreSQL")
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=415, detail="Only PDF files are supported")
+
+    # Classified by filename, not by the browser's content_type guess: the
+    # same .docx arrives as application/octet-stream from some clients, and
+    # a refusal has to explain itself either way.
+    filename = file.filename or "uploaded.pdf"
+    classified = classify_upload(filename)
+    if classified.kind == "catalogue":
+        raise HTTPException(
+            status_code=415,
+            detail=(f"'{classified.extension}' is a product catalogue, not a document. "
+                    f"Send it to /catalogue/ingest, which enriches it into rows."),
+        )
+    if classified.kind != "document":
+        raise HTTPException(status_code=415, detail=classified.reason)
+
     contents = await file.read()
     if not contents or len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="PDF must be between 1 byte and 5 MB")
+        raise HTTPException(status_code=413, detail="Document must be between 1 byte and 5 MB")
     content_hash = hashlib.sha256(contents).hexdigest()
     existing = task_queue.find_document_by_hash(organization_id, content_hash)
     if existing:
@@ -397,7 +411,8 @@ async def intake_document(request: Request, file: UploadFile = File(...), organi
     object_key = document_id
     artifact_store.put(object_key, contents)
     task_queue.register_document(organization_id, document_id, file.filename or "uploaded.pdf",
-                                 "application/pdf", object_key, content_hash, len(contents), category)
+                                 file.content_type or "application/octet-stream",
+                                 object_key, content_hash, len(contents), category)
     task = task_queue.enqueue(organization_id, "pdf_extract", document_id)
     return {"document_id": document_id, "task_id": task.task_id, "state": task.state,
             "filename": file.filename, "category": category}

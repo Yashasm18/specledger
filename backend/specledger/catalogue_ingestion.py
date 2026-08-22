@@ -2,7 +2,8 @@
 
 This module deliberately stops before enrichment. It turns a source table into
 stable, traceable rows so later matching and generation can be deterministic.
-It accepts CSV/TSV and optionally XLSX when ``openpyxl`` is installed.
+It accepts CSV/TSV, JSON and XML, and optionally XLSX when ``openpyxl`` is
+installed.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
+from xml.etree import ElementTree
 
 
 PLACEHOLDERS = frozenset({"", "-", "--", "n/a", "na", "none", "null", "unknown"})
@@ -188,4 +190,92 @@ def read_catalogue(path: str | Path, sheet_name: str | None = None) -> Catalogue
         if not headers:
             raise ValueError("XLSX sheet contains no header row")
         return normalize_rows(source.name, (dict(zip(headers, values)) for values in records))
-    raise ValueError("Unsupported catalogue format; use CSV, TSV, or XLSX")
+    if suffix == ".json":
+        return normalize_rows(source.name, _read_json_records(_decode_text(source)))
+    if suffix == ".xml":
+        return normalize_rows(source.name, _read_xml_records(_decode_text(source)))
+    raise ValueError(
+        "Unsupported catalogue format; use CSV, TSV, XLSX, JSON, or XML"
+    )
+
+
+# A feed's product list is not always at the top level, and the wrapper key
+# is whatever the publisher chose. These are the ones seen in the wild;
+# anything else falls back to the first list of objects in the payload.
+_JSON_LIST_KEYS = ("products", "items", "rows", "records", "data", "catalogue", "catalog")
+
+
+def _read_json_records(text: str) -> list[dict]:
+    """Pull a list of product objects out of a JSON feed."""
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"File is not valid JSON: {exc}") from exc
+
+    records = None
+    if isinstance(payload, list):
+        records = payload
+    elif isinstance(payload, dict):
+        for key in _JSON_LIST_KEYS:
+            value = payload.get(key)
+            if isinstance(value, list):
+                records = value
+                break
+        if records is None:
+            # A wrapper under an unrecognised key, or a single product.
+            nested = [v for v in payload.values() if isinstance(v, list) and v]
+            records = nested[0] if nested else [payload]
+
+    if not isinstance(records, list) or not records:
+        raise ValueError("JSON feed contains no product records")
+    if not all(isinstance(record, dict) for record in records):
+        raise ValueError("JSON feed must be a list of objects, one per product")
+    return [_flatten_record(record) for record in records]
+
+
+def _flatten_record(record: dict) -> dict:
+    """Render nested values as text rather than dropping the field.
+
+    A cell holds one value. A nested object or list still came from the
+    supplier, so it is preserved as its JSON text and left for a human
+    rather than silently discarded.
+    """
+    flat: dict = {}
+    for key, value in record.items():
+        if isinstance(value, (dict, list)):
+            flat[key] = json.dumps(value, ensure_ascii=False)
+        else:
+            flat[key] = value
+    return flat
+
+
+def _read_xml_records(text: str) -> list[dict]:
+    """Pull a list of product elements out of an XML feed.
+
+    Entity declarations are refused before parsing rather than trusted:
+    ElementTree's parser expands internal entities, which is how a small
+    file becomes an out-of-memory error.
+    """
+    lowered = text.casefold()
+    if "<!entity" in lowered or "<!doctype" in lowered:
+        raise ValueError("XML with a DTD or entity declarations is not accepted")
+
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError as exc:
+        raise ValueError(f"File is not valid XML: {exc}") from exc
+
+    records: list[dict] = []
+    for element in list(root):
+        record: dict = dict(element.attrib)
+        for child in element:
+            tag = child.tag.rsplit("}", 1)[-1]  # drop any namespace
+            record[tag] = (child.text or "").strip()
+        if element.text and element.text.strip() and not record:
+            record[root.tag.rsplit("}", 1)[-1]] = element.text.strip()
+        if record:
+            records.append(record)
+
+    if not records:
+        raise ValueError("XML feed contains no product elements")
+    return records

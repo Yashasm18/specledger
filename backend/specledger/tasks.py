@@ -19,6 +19,9 @@ class ProcessingTask:
     document_id: str | None
     error_message: str | None
     category: str = "generic"
+    # The worker needs the original filename to know which reader to use:
+    # a document is no longer always a PDF.
+    filename: str = ""
 
 
 class TaskQueue:
@@ -86,7 +89,9 @@ class TaskQueue:
                     RETURNING task.task_id, task.organization_id, task.task_type, task.state,
                               task.attempts, task.document_id, task.error_message,
                               COALESCE((SELECT category FROM document_assets asset WHERE
-                                asset.organization_id = task.organization_id AND asset.document_id = task.document_id), 'generic')""",
+                                asset.organization_id = task.organization_id AND asset.document_id = task.document_id), 'generic'),
+                              COALESCE((SELECT filename FROM document_assets asset WHERE
+                                asset.organization_id = task.organization_id AND asset.document_id = task.document_id), '')""",
                     (task_type, task_type, organization_id, organization_id, worker_id),
                 )
                 row = cursor.fetchone()
@@ -106,7 +111,9 @@ class TaskQueue:
                     """SELECT task.task_id, task.organization_id, task.task_type, task.state, task.attempts,
                     task.document_id, task.error_message,
                     COALESCE((SELECT category FROM document_assets asset WHERE
-                      asset.organization_id = task.organization_id AND asset.document_id = task.document_id), 'generic')
+                      asset.organization_id = task.organization_id AND asset.document_id = task.document_id), 'generic'),
+                    COALESCE((SELECT filename FROM document_assets asset WHERE
+                      asset.organization_id = task.organization_id AND asset.document_id = task.document_id), '')
                     FROM processing_tasks task WHERE task.organization_id = %s AND task.task_id = %s""",
                     (organization_id, task_id),
                 )
@@ -198,4 +205,5 @@ class TaskQueue:
 
     @staticmethod
     def _task(row: tuple) -> ProcessingTask:
-        return ProcessingTask(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+        return ProcessingTask(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7],
+                              row[8] if len(row) > 8 else "")
