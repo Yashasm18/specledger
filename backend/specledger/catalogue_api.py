@@ -614,15 +614,17 @@ def _build_category_index(organization_id: str, batch_id: str) -> dict[int, str]
 
 def _attach_categories(rows: list[dict[str, Any]]) -> None:
     """Inject a real, deterministic classpath into each row (mutates in
-    place) — the raw 6-column input never has a category column, so
-    findByRole-style role detection alone always resolves to "Uncategorized".
-    classify_category() is the same keyword-based logic used for the real
-    252-column export, just applied here without needing that full record.
+    place) — an uploaded catalogue never carries a category column, so this
+    is the only classification available. classify_category() is the same
+    keyword logic the 252-column export uses, applied here without needing
+    the full record.
     """
     for row in rows:
-        vals = row.get("raw_values") or {f["column"]: f["raw_value"] for f in row.get("fields", [])}
-        desc = vals.get("part_desc") or vals.get("description") or ""
-        mfr = vals.get("part_manuf") or vals.get("manufacturer") or ""
+        # Read by role, like every other path that needs these fields. Looking
+        # them up by name here meant a catalogue using its own headers showed
+        # every row as "Not classified" in the table while the categories
+        # endpoint, which reads by role, classified the same rows correctly.
+        desc, mfr = _row_identity_text(row)
         deterministic = classify_category(desc, mfr)
         # Say "unresolved" rather than naming the generic bucket. The export
         # leaves these blank, and a dashboard that shows "Industrial Supplies

@@ -1093,6 +1093,33 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_catalogue_rows_classify_on_a_foreign_columned_file(self) -> None:
+        # The catalogue table read part_desc/part_manuf by name to classify a
+        # row, so a file using SKU / Item Description / Vendor showed every
+        # row as "Not classified" — a bronze ball valve included — while the
+        # categories endpoint, which reads by role, classified it correctly.
+        # Two answers to the same question on the same screen.
+        csv_path = self._make_csv([{
+            "SKU": "QA-3",
+            "Item Description": "QA-3 Bronze Ball Valve 600 PSI 1/2 in",
+            "Vendor": "Apollo Valves",
+        }])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("foreigncat.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            row = self.client.get(f"/catalogue/batches/{batch_id}?limit=1").json()["rows"][0]
+            self.assertIn("Ball Valves", row["category"])
+            self.assertEqual(row["category_source"], "deterministic")
+
+            # And it agrees with the batch-wide classification.
+            cats = self.client.get(f"/catalogue/batches/{batch_id}/categories").json()
+            self.assertEqual(cats["unclassified"], 0)
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
