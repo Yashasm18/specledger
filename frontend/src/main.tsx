@@ -2240,6 +2240,53 @@ function App() {
             ),
           },
           {
+            id: "datasheet-demo",
+            q: "How do I see a datasheet attach to a product row?",
+            body: (
+              <div>
+                <p style={{ margin: "0 0 10px" }}>
+                  Upload a datasheet that names a part number already in a loaded catalogue and
+                  it attaches to that row, with every specification it states and the sentence
+                  each came from. Three sample datasheets are in the repository under{" "}
+                  <code>data/samples/</code> so this is reproducible without hunting for a
+                  matching document — each names a part in a catalogue that ships with the project.
+                </p>
+                <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#475569", fontSize: 12.5 }}>
+                  In Unilog CX1 Master — nothing to upload first
+                </p>
+                <p style={{ margin: "0 0 10px" }}>
+                  Import <code>sample_datasheet_prime_TNOCD002.pdf</code>, choosing{" "}
+                  <b>Unilog CX1 Master</b>. Then open row <code>TNOCD002</code> and its{" "}
+                  <b>Spec Triplets</b> tab. The challenge dataset already contains that part, so
+                  the datasheet finds it immediately.
+                </p>
+                <p style={{ margin: "0 0 6px", fontWeight: 700, color: "#475569", fontSize: 12.5 }}>
+                  In Evaluation Sandbox — two uploads
+                </p>
+                <p style={{ margin: "0 0 10px" }}>
+                  Import <code>data/samples/01_industrial_distributor.csv</code> into the sandbox,
+                  then <code>sample_datasheet_apollo_70-104-01.pdf</code>. Open row{" "}
+                  <code>70-104-01</code> and the same tab: Apollo's size, pressure rating and body
+                  material appear against the record, each with its page and evidence.
+                </p>
+                <p style={{ margin: "0 0 10px", color: "#64748b" }}>
+                  <b>Worth trying:</b> <code>sample_datasheet_leviton_R02D215P1RW.pdf</code> matches
+                  in <i>both</i> workspaces. The sample catalogue writes that Leviton part as{" "}
+                  <code>R02D215P1RW</code> and the official challenge dataset writes it as{" "}
+                  <code>R02-D215P-1RW</code> — the same part, hyphenated differently. Matching
+                  ignores case and separators, so both resolve; a digit difference never does.
+                </p>
+                <p style={{ margin: 0, color: "#64748b" }}>
+                  These files are synthetic fixtures and say so on their first line — they are not
+                  manufacturer publications. Every value in them is one the catalogue row already
+                  states, so nothing was invented to make the feature look better. What appears on
+                  the row is a proposal for a reviewer: it is not written into the delivered 252
+                  columns.
+                </p>
+              </div>
+            ),
+          },
+          {
             id: "formats",
             q: "Which file types can I upload, and which are refused?",
             body: (
