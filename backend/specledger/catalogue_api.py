@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any, Literal
@@ -72,6 +73,7 @@ _source_cache = SourceCache()
 # Only this organization is seeded with the bundled sample data. Any other
 # one is somebody's own workspace and starts genuinely empty.
 DEFAULT_ORGANIZATION = "default"
+_seed_lock = threading.Lock()
 
 
 def _ensure_seed_batch(organization_id: str = DEFAULT_ORGANIZATION) -> str | None:
@@ -88,6 +90,20 @@ def _ensure_seed_batch(organization_id: str = DEFAULT_ORGANIZATION) -> str | Non
         return summaries[0]["batch_id"]
     if organization_id != DEFAULT_ORGANIZATION:
         return None
+
+    # Serialised, and the emptiness re-checked once held. The dashboard issues
+    # several requests at once, so on a cold deployment each of them found the
+    # organization empty and seeded it — an unseeded sandbox came back with
+    # four batches, three of them the same file.
+    with _seed_lock:
+        summaries = catalogue_store.list_batches(organization_id)
+        if summaries:
+            return summaries[0]["batch_id"]
+        return _seed_first_available(organization_id)
+
+
+def _seed_first_available(organization_id: str) -> str | None:
+    """Load the first bundled dataset that exists on disk."""
 
     seed_paths = [
         "data/challenge/Unihack_ Sample Dataset - Input.csv",
