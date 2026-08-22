@@ -20,7 +20,7 @@ import io
 from typing import Any, Mapping
 
 from .catalogue_ingestion import CatalogueBatch, clean_manufacturer_name
-from .enrichment import EnrichedBatch, detect_role
+from .enrichment import EnrichedBatch, detect_role, is_identifier_column
 from .web_enricher import (
     enrich_product_web, is_unresolved_classpath, product_name_from_fine,
     WebEnrichmentResult,
@@ -93,10 +93,20 @@ def _resolve_by_role(values: Mapping[str, Any], role: str) -> Any:
     for key in _PREFERRED_KEYS.get(role, ()):
         if values.get(key) not in (None, ""):
             return values[key]
-    for key, value in values.items():
-        if value not in (None, "") and detect_role(key) == role:
-            return value
-    return None
+    matches = [
+        (key, value) for key, value in values.items()
+        if value not in (None, "") and detect_role(key) == role
+    ]
+    if not matches:
+        return None
+    if role == "part_number":
+        # A column that names a part number outranks a bare row identifier,
+        # whatever order they appear in. Both are identifiers, but only one
+        # of them is the product's number.
+        for key, value in matches:
+            if not is_identifier_column(key):
+                return value
+    return matches[0][1]
 
 
 def _resolve_brands(values: Mapping[str, Any]) -> tuple[Any, Any, Any]:

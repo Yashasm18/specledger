@@ -224,3 +224,39 @@ class EnrichedRowPropertyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_identifier_columns_are_recognised_as_part_numbers():
+    """A product feed's identifier column is often just "id".
+
+    Real published catalogues use `id`, `product_id` or `item_id` where this
+    dataset uses `mfg_part_num`. Those resolved to no role at all, so a file
+    keyed on one delivered every row with a blank part number — the product
+    identifier was present in the upload and dropped on the way out.
+    """
+    for column in ("id", "product_id", "item_id", "catalog_id", "productId"):
+        assert detect_role(column) == "part_number", column
+
+
+def test_a_dedicated_part_number_column_still_wins_over_a_generic_id():
+    from backend.specledger.unilog_exporter import unilog_args_from_values
+
+    values = {
+        "id": "552",
+        "sku": "PSLX350H",
+        "description": "Sony Turntable",
+    }
+    part_number, *_ = unilog_args_from_values(values)
+    assert part_number == "PSLX350H", "a real part number must beat a row identifier"
+
+
+def test_a_generic_id_is_used_when_it_is_the_only_identifier():
+    from backend.specledger.unilog_exporter import unilog_args_from_values
+
+    part_number, *_ = unilog_args_from_values({"id": "552", "name": "Sony Turntable"})
+    assert part_number == "552"
+
+
+def test_words_merely_ending_in_id_are_not_identifiers():
+    for column in ("valid", "rapid", "liquid", "humid"):
+        assert detect_role(column) != "part_number", column

@@ -194,11 +194,37 @@ _TEMPERATURE_KEYS = frozenset({
     "temperature_range", "temp_range", "temperature", "temp", "temp_rating",
 })
 
+# Column names that are a row's identifier rather than a described part
+# number. A published product feed's key is often just "id" or "product_id",
+# and those resolved to no role at all — so a file keyed on one delivered
+# every row with a blank part number, dropping an identifier that was right
+# there in the upload.
+_IDENTIFIER_PREFIXES = (
+    "product", "item", "catalog", "catalogue", "part", "sku",
+    "record", "asset", "entity", "row",
+)
+_IDENTIFIER_PATTERN = re.compile(
+    rf"id|[a-z0-9]+[_\-]id|(?:{'|'.join(_IDENTIFIER_PREFIXES)})id"
+)
+
+
+def is_identifier_column(column_key: str) -> bool:
+    """Whether a column name is a bare row identifier.
+
+    Separator-less names are only accepted for a known identifier prefix, so
+    "productid" counts and "valid", "liquid" and "humid" do not — they are
+    the same shape and only the vocabulary tells them apart.
+    """
+    return bool(_IDENTIFIER_PATTERN.fullmatch(column_key.casefold().strip()))
+
+
 def detect_role(column_key: str) -> str:
     """Detect the semantic role of a column based on its normalized key."""
     k = column_key.lower().strip()
     # 1. Part number / SKU (high priority)
     if k in _PART_NUMBER_KEYS or any(p in k for p in ("part_num", "part_no", "part_number", "sku", "item_num", "item_no", "model_num", "mfg_part", "item_code")):
+        return "part_number"
+    if is_identifier_column(k):
         return "part_number"
     # 2. Descriptions
     if k in _DESCRIPTION_KEYS or any(d in k for d in ("desc", "description", "product_name", "item_title", "title", "part_desc")):
