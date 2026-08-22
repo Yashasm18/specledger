@@ -45,10 +45,39 @@ def validate_facts(facts: list[ExtractedFact], required: frozenset[str] = DEFAUL
     return issues
 
 
+# A specification is a *labelled* value, not any sentence that happens to
+# mention one. The separator used to be optional, which meant the word
+# "materials" in ordinary prose matched and the capture group swallowed the
+# rest of the sentence: a live upload of a Leviton receptacle sheet produced
+# ``material = "s and on installation time."`` at confidence 0.85 — evidence
+# snippet and all. Requiring a real ``:`` or ``=`` costs a handful of
+# unlabelled values and removes an entire class of invented fact. The
+# separator absorbs newlines, so a label whose value sits on the next line
+# (how the datasheets are laid out) still reads correctly.
+_SEP = r"\s*[:=]\s*"
+
 PATTERNS = (
-    ("pressure_rating", re.compile(r"(?:pressure\s*(?:rating|class)?|class)\s*[:#-]?\s*([0-9]+(?:\s*[-/]\s*[0-9]+)?\s*(?:psi|bar|wog|class)?\b)", re.I)),
-    ("size", re.compile(r"(?:size|diameter|dia\.?|dn)\s*[:#-]?\s*(dn\s*)?([0-9]+(?:\s*[x×/]\s*[0-9]+)?\s*(?:mm|in|inch|inches)?\b)", re.I)),
-    ("material", re.compile(r"(?:material|body\s*material|construction)\s*[:#-]?\s*([A-Za-z][A-Za-z0-9 .-]{2,40})", re.I)),
+    ("pressure_rating", re.compile(
+        r"(?:pressure\s*(?:rating|class)?|class)" + _SEP +
+        r"([0-9]+(?:\s*[-/]\s*[0-9]+)?\s*(?:psi|bar|wog|class)?\b)", re.I)),
+    ("size", re.compile(
+        r"(?:size|diameter|dia\.?|dn)" + _SEP +
+        r"(dn\s*)?([0-9]+(?:\s*[x×/]\s*[0-9]+)?\s*(?:mm|in|inch|inches)?\b)", re.I)),
+    ("material", re.compile(
+        r"(?:body\s*material|material|construction)" + _SEP +
+        r"([A-Za-z][A-Za-z0-9 .-]{2,40})", re.I)),
+    # Electrical sheets carry none of the three attributes above. Without
+    # these an entire vertical extracts zero facts from a valid datasheet.
+    ("amperage", re.compile(
+        r"(?:amperage(?:\s*rating)?|current\s*rating|amps?)" + _SEP +
+        r"([0-9]+(?:\.[0-9]+)?\s*(?:a|amp|amps)\b)", re.I)),
+    ("voltage", re.compile(
+        r"(?:voltage(?:\s*rating)?|volts?)" + _SEP +
+        r"([0-9]+(?:\.[0-9]+)?\s*(?:v|volt|volts)\b)", re.I)),
+    # The part number is what links a datasheet back to a catalogue row.
+    ("part_number", re.compile(
+        r"(?:part|catalog(?:ue)?|model|item)\s*(?:number|no\.?|#)" + _SEP +
+        r"([A-Za-z0-9][A-Za-z0-9._/-]{2,40})", re.I)),
 )
 
 
