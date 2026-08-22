@@ -31,10 +31,22 @@ function detectRole(column: string): string {
   return "other";
 }
 
+// Values that mean "there is no value here". This dataset writes absence as
+// a descriptive phrase rather than a blank, so treating them as data put
+// "-- Unbranded --" in the manufacturer column of the catalogue table.
+const NULL_PLACEHOLDERS = new Set([
+  "-- unbranded --", "-- no unilog brand --", "-- no dib brand --",
+  "n/a", "na", "none", "unknown",
+]);
+
+function isPlaceholder(value: string | undefined): boolean {
+  return !value || NULL_PLACEHOLDERS.has(value.trim().toLowerCase());
+}
+
 function findByRole(values: Record<string, string> | undefined, role: string): string | undefined {
   if (!values) return undefined;
   for (const [col, val] of Object.entries(values)) {
-    if (val && detectRole(col) === role) return val;
+    if (val && !isPlaceholder(val) && detectRole(col) === role) return val;
   }
   return undefined;
 }
@@ -1711,14 +1723,24 @@ function App() {
         // same classify_category() classpath shown in the catalogue table,
         // not a fixed set of example categories shown regardless of what's
         // actually in the batch.
+        // Grouped from the batch-wide classification, not the loaded page.
+        // Counting the page described whichever hundred rows happened to be
+        // on screen — on the official input it reported one unclassified SKU
+        // where the batch has 252.
         const categoryBreakdown = (() => {
           const counts = new Map<string, { count: number; sample: Set<string> }>();
-          for (const r of displayRows as any[]) {
-            const dept = (r[3] || "Uncategorized").split(" > ")[0];
+          for (const c of batchCategories) {
+            const dept = c.classpath.split(">")[0].trim() || "Uncategorized";
             if (!counts.has(dept)) counts.set(dept, { count: 0, sample: new Set() });
             const entry = counts.get(dept)!;
-            entry.count += 1;
-            if (entry.sample.size < 3 && r[2]) entry.sample.add(r[2]);
+            entry.count += c.count;
+            if (entry.sample.size < 3) entry.sample.add(c.label);
+          }
+          if (unclassifiedCount > 0) {
+            counts.set("Not classified", {
+              count: unclassifiedCount,
+              sample: new Set(["routed for human review"]),
+            });
           }
           return [...counts.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 6);
         })();
@@ -1763,7 +1785,7 @@ function App() {
             </div>
 
             <p style={{ fontSize: 12, color: "#64748b", marginTop: 14 }}>
-              Category breakdown of the loaded page ({displayRows.length} of {batchRowCount.toLocaleString()} SKUs), computed from the real deterministic classifier — not a fixed example set.
+              Category breakdown across all {batchRowCount.toLocaleString()} SKUs in this batch, computed by the deterministic classifier — not a fixed example set.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 10 }}>
               {categoryBreakdown.length > 0 ? categoryBreakdown.map(([dept, info]) => (
@@ -1773,7 +1795,7 @@ function App() {
                     {info.count} SKU{info.count !== 1 ? "s" : ""} in this batch
                   </p>
                   <small style={{ color: "#10b981", display: "block", marginTop: 10 }}>
-                    {info.sample.size > 0 ? `Manufacturers: ${[...info.sample].join(", ")}` : "No manufacturer data"}
+                    {info.sample.size > 0 ? `Includes: ${[...info.sample].join(", ")}` : "No categories resolved"}
                   </small>
                 </div>
               )) : (
