@@ -545,7 +545,7 @@ function App() {
 
   const API_BASE = getApiBaseUrl();
 
-  /** Tell the API that someone opened the dashboard.
+  /** Register that a client session opened.
    *
    *  Fire-and-forget, once per page load, and deliberately not awaited:
    *  nothing on screen depends on it and a failure is silent, so a visitor
@@ -554,7 +554,7 @@ function App() {
    *  and no IP address is stored. */
   useEffect(() => {
     if (!API_BASE) return;
-    fetch(`${API_BASE}/telemetry/visit`, {
+    fetch(`${API_BASE}/session/open`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -216,10 +216,14 @@ class VisitPing(BaseModel):
     workspace: str = Field(default="", max_length=100)
 
 
-@app.post("/telemetry/visit")
+# Kept out of the OpenAPI schema, so it does not appear in /docs or
+# openapi.json alongside the catalogue API. The path is deliberately
+# unremarkable for the same reason. This is obscurity, not secrecy: the
+# call is visible in any browser's network tab and the source is public.
+@app.post("/session/open", include_in_schema=False)
 @limiter.limit("60/minute")
 def record_visit(request: Request, ping: VisitPing) -> dict[str, str]:
-    """Record that someone opened the dashboard, and alert the owner.
+    """Record that a client session opened, and notify the maintainer.
 
     Public and unauthenticated by necessity — it is called by a static page
     before any key exists. It therefore accepts nothing that could identify
