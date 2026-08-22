@@ -1938,9 +1938,18 @@ function App() {
   // the same way displayRows does, with array/object indexing as fallback.
   const inspectorValues = inspectorProduct?.enriched_values || inspectorProduct?.raw_values
     || (inspectorProduct?.fields ? Object.fromEntries(inspectorProduct.fields.map((f: any) => [f.column, f.canonical_value ?? f.raw_value])) : undefined);
-  const inspectedSku = findByRole(inspectorValues, "part_number") || inspectorProduct?.[0] || "VLV-600-050";
-  const inspectedDesc = findByRole(inspectorValues, "description") || inspectorProduct?.[1] || "Ball Valve · DN50 Full Port Stainless Steel";
-  const inspectedMfr = findByRole(inspectorValues, "manufacturer") || findByRole(inspectorValues, "brand") || inspectorProduct?.[2] || "Apollo Valves";
+  // No invented fallbacks. These used to end in "VLV-600-050" / "Apollo
+  // Valves" / "Ball Valve · DN50 Full Port Stainless Steel", so a row whose
+  // real values were missing — an unresolved part number, or a batch removed
+  // while the page was open — displayed a complete, entirely fictional
+  // product. A dash says "not known"; a fake part number says something
+  // false, and it is the one screen a reviewer is meant to trust.
+  const inspectedSku = findByRole(inspectorValues, "part_number") || inspectorProduct?.[0] || "—";
+  const inspectedDesc = findByRole(inspectorValues, "description") || inspectorProduct?.[1] || "—";
+  const inspectedMfr = findByRole(inspectorValues, "manufacturer") || findByRole(inspectorValues, "brand") || inspectorProduct?.[2] || "—";
+  // True when the row carries no identifying values at all, which in practice
+  // means it could not be loaded rather than that it is empty.
+  const inspectorUnloadable = !inspectorValues && !inspectorProduct?.[0];
   const inspectedCat = unilog252?.Classpath || findByRole(inspectorValues, "category") || inspectorProduct?.category || inspectorProduct?.[3] || "Uncategorized";
   const inspectedTriplets = getProductTriplets(unilog252);
   const filteredTriplets = inspectedTriplets.filter(t => 
@@ -2028,7 +2037,13 @@ function App() {
                   {inspectedSku}
                   <span style={{ fontSize: 12, fontWeight: 500, color: "#94a3b8" }}>· {inspectedMfr}</span>
                   <span style={{ fontSize: 10, background: "rgba(16,185,129,0.2)", color: "#34d399", padding: "2px 8px", borderRadius: 4 }}>
-                    {unilog252 ? `${all252ColumnsList.filter((c) => c.val).length} of 252 columns populated` : isLoadingUnilog252 ? "Loading…" : "Unavailable"}
+                    {unilog252
+                      ? `${all252ColumnsList.filter((c) => c.val).length} of 252 columns populated`
+                      : isLoadingUnilog252
+                        ? "Loading…"
+                        : inspectorUnloadable
+                          ? "Row could not be loaded — it may have been removed"
+                          : "Unavailable"}
                   </span>
                 </h3>
               </div>
