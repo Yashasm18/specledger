@@ -24,6 +24,7 @@ from .api import SpecLedgerService
 from .auth import require_api_key
 from .file_types import classify_upload
 from .document_linking import find_matching_rows, proposals_from_facts, normalize_part_number
+from .visits import Visit, summarise_agent, send_alert_in_background
 from .worker import DocumentProcessingWorker
 from .database import resolve_database_url
 from .batch import BatchImportService, BatchJobRepository
@@ -206,6 +207,54 @@ def to_domain_product(payload: ProductInput) -> Product:
         for version in payload.versions
     )
     return Product(payload.product_id, payload.sku, payload.name, payload.category, versions)
+
+
+class VisitPing(BaseModel):
+    """What the dashboard reports when it loads. No identifier is accepted."""
+    referrer: str = Field(default="", max_length=500)
+    path: str = Field(default="", max_length=300)
+    workspace: str = Field(default="", max_length=100)
+
+
+@app.post("/telemetry/visit")
+@limiter.limit("60/minute")
+def record_visit(request: Request, ping: VisitPing) -> dict[str, str]:
+    """Record that someone opened the dashboard, and alert the owner.
+
+    Public and unauthenticated by necessity — it is called by a static page
+    before any key exists. It therefore accepts nothing that could identify
+    a person and stores no IP address; the user agent is read from the
+    request and reduced to a browser name before it is kept.
+
+    The response does not wait on the email provider. A visitor must never
+    pay for this in latency, and a provider outage must never look like a
+    broken site.
+    """
+    visit = Visit(
+        referrer=ping.referrer,
+        user_agent=request.headers.get("user-agent", ""),
+        path=ping.path,
+        workspace=ping.workspace,
+    )
+    browser = summarise_agent(visit.user_agent)
+
+    if hasattr(repository, "pool"):
+        try:
+            with repository.connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """INSERT INTO site_visits (referrer, browser, path, workspace, is_bot)
+                           VALUES (%s, %s, %s, %s, %s)""",
+                        (visit.referrer[:500], browser, visit.path[:300],
+                         visit.workspace[:100], "(bot)" in browser),
+                    )
+                connection.commit()
+        except Exception:  # pylint: disable=broad-except
+            # Recording is best-effort; it must not fail the page load.
+            logger.warning("Could not record site visit", exc_info=True)
+
+    send_alert_in_background(visit)
+    return {"recorded": "ok"}
 
 
 @app.get("/health")

@@ -545,6 +545,29 @@ function App() {
 
   const API_BASE = getApiBaseUrl();
 
+  /** Tell the API that someone opened the dashboard.
+   *
+   *  Fire-and-forget, once per page load, and deliberately not awaited:
+   *  nothing on screen depends on it and a failure is silent, so a visitor
+   *  never waits on it or sees it. It sends no identifier — the referrer
+   *  and the browser's own user-agent header are all the server records,
+   *  and no IP address is stored. */
+  useEffect(() => {
+    if (!API_BASE) return;
+    fetch(`${API_BASE}/telemetry/visit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        referrer: document.referrer || "",
+        path: window.location.pathname + window.location.search,
+        workspace: organizationId,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+    // Once per load, not per workspace change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API_BASE]);
+
   /** Append the active workspace to an API path. Every read and write is
    *  scoped to it, which is what makes the workspaces actually separate
    *  rather than two names for one catalogue. */
