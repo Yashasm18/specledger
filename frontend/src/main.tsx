@@ -12,6 +12,7 @@ import { openReviewWorkspace } from "./reviewWorkspace";
 import { apiFetch, fetchWithRetry, getApiBaseUrl, getApiKeyHeaders, readApiError } from "./apiClient";
 import { downloadBlob, downloadJson } from "./download";
 import { fetchCatalogueExport } from "./catalogueClient";
+import { clearReloadMarker, isSupersededBuild, reloadOntoLatest } from "./buildVersion";
 
 // Mirrors backend/specledger/enrichment.py's detect_role() keyword heuristic.
 // The catalogue persistence API returns raw_values/enriched_values keyed by
@@ -194,6 +195,7 @@ function App() {
   // Distinct from isLoadingBatch: paging swaps the table's rows but must not
   // blank the batch-wide metric tiles, which do not change with the page.
   const [isPagingRows, setIsPagingRows] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   // Pages already fetched, keyed by batch + search term + offset. Cleared
   // whenever a row's state could have changed underneath them, since a stale
   // page would show a row as still pending after it was approved.
@@ -339,6 +341,34 @@ function App() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Notice when this page is running a build the host has already replaced.
+  // GitHub Pages caches index.html and offers no way to change that, so a
+  // browser can keep the previous HTML — which names the previous bundle.
+  // Nothing errors; the app just runs old code and a deploy looks like it
+  // silently failed. Checked on arrival, whenever the tab is returned to,
+  // and occasionally while it sits open.
+  useEffect(() => {
+    clearReloadMarker();
+    const controller = new AbortController();
+    let cancelled = false;
+    const check = async () => {
+      if (cancelled || document.hidden) return;
+      if (await isSupersededBuild(controller.signal)) setUpdateAvailable(true);
+    };
+    check();
+    const onFocus = () => { void check(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const timer = window.setInterval(check, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
 
   // Load the whole workspace on mount, and again when a different batch is
   // selected. Everything here describes the batch itself.
@@ -3391,6 +3421,40 @@ function App() {
         </header>
 
         <div className="content">
+          {updateAvailable && (
+            <div
+              role="status"
+              style={{
+                background: "rgba(56,189,248,0.10)",
+                border: "1px solid rgba(56,189,248,0.35)",
+                borderRadius: 8,
+                padding: "10px 16px",
+                marginBottom: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                fontSize: 12,
+                color: "#0369a1",
+              }}
+            >
+              <span>
+                <b>A newer version of SpecLedger is live.</b> This tab is still running an
+                older build — reload to pick it up.
+              </span>
+              <button
+                onClick={reloadOntoLatest}
+                style={{
+                  background: "#0284c7", color: "#fff", border: "none",
+                  borderRadius: 6, padding: "6px 14px", fontSize: 12,
+                  fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+                }}
+              >
+                Reload
+              </button>
+            </div>
+          )}
+
           {apiError && (
             <div
               role="alert"
