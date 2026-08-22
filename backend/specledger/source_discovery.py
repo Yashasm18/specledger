@@ -28,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Sequence
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 logger = logging.getLogger("specledger")
 
@@ -439,8 +439,20 @@ def discover_sources_simulated(
     now = time.time()
     clean_pn = part_number.strip().lower().replace(" ", "-")
 
-    # Simulate discovering a product page
-    product_url = f"https://www.{primary_domain}/product/{clean_pn}"
+    # A search on the manufacturer's own site rather than a guessed product
+    # path. Probed against the domains in this registry, "/product/{sku}"
+    # 404s about as often as it resolves — freudtools, milwaukeetool,
+    # makitatools and southwire all reject it — while a search resolved on
+    # seven of the eight domains that answered. Unilog's own worked row does
+    # the same: its Whirlpool entry is a smartsearchresults query, not a
+    # product path.
+    #
+    # This is the unverified candidate a person clicks. Live verification
+    # builds its own candidates and still looks for a real product page,
+    # since a search result echoing the query back proves nothing.
+    product_url = (
+        f"https://www.{primary_domain}/search?q={quote(part_number.strip(), safe='')}"
+    )
     content = f"Product page for {manufacturer} {part_number}"
     result.sources.append(DiscoveredSource(
         url=product_url,

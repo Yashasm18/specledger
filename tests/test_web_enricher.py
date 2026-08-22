@@ -378,3 +378,37 @@ class SizeAttributeTests(unittest.TestCase):
         attrs = self._attrs('Bandsaw 18" 1.75HP 1PH 115V')
         self.assertIn("Voltage Rating", attrs)
         self.assertIn("Horsepower", attrs)
+
+
+class ManufacturerUrlShapeTests(unittest.TestCase):
+    """The guessed URL should land somewhere that exists.
+
+    The generated MFR URL was `https://www.{domain}/product/{slug}`. Probed
+    against the registry's own domains, that shape 404s about as often as it
+    resolves — freudtools, milwaukeetool, makitatools and southwire all
+    reject it, while dewalt, leviton, kichler and apollovalves accept it.
+    A search URL resolved on seven of the eight domains that answered.
+
+    Unilog's own worked row does the same thing: its Whirlpool entry is
+    `learnwhirlpool.com/smartsearchresults?searchtext=WDTS7024R`, a search,
+    not a product path.
+
+    This is the unverified candidate a person clicks. Live verification
+    builds its own candidates and is unaffected.
+    """
+
+    def test_url_queries_the_manufacturer_site_for_the_part(self) -> None:
+        res = enrich_product_web("70-100-01", "Apollo Valves", "Bronze Ball Valve")
+        self.assertIn("apollovalves.com", res.mfr_url)
+        self.assertIn("70-100-01", res.mfr_url)
+        self.assertNotIn("/product/", res.mfr_url)
+
+    def test_part_numbers_are_encoded_for_a_query_string(self) -> None:
+        res = enrich_product_web("A&B 100/2", "Apollo Valves", "Bronze Ball Valve")
+        # A raw "&" would end the query parameter early.
+        self.assertNotIn("&B", res.mfr_url)
+        self.assertIn("%26", res.mfr_url)
+
+    def test_still_nothing_when_the_manufacturer_is_unknown(self) -> None:
+        res = enrich_product_web("X-1", "V & V Appliance Parts Inc", "Dryer Timer")
+        self.assertFalse(res.mfr_url)
