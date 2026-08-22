@@ -351,6 +351,23 @@ async def extract_document(request: Request, file: UploadFile = File(...)) -> di
     return {"filename": file.filename, "page_count": len(pages), "pages": pages}
 
 
+def resolve_repeat_intake(artifact: dict[str, Any] | None) -> str:
+    """Decide what a repeat upload of an already-registered document means.
+
+    Re-uploading the same file is the only gesture a user has for "try that
+    again", so it must actually retry when the first pass produced nothing.
+    It must equally *not* re-run extraction over an artifact a human has
+    already ruled on, which would quietly replace reviewed values.
+    """
+    if artifact is None:
+        return "reprocess"
+    if str(artifact.get("review_state") or "pending_review") != "pending_review":
+        return "already_extracted"
+    if int(artifact.get("fact_count") or 0) > 0:
+        return "already_extracted"
+    return "reprocess"
+
+
 @app.post("/documents/intake", dependencies=[Depends(require_api_key)])
 @limiter.limit("20/minute")
 async def intake_document(request: Request, file: UploadFile = File(...), organization_id: str = Query(default="default", min_length=1),
@@ -366,7 +383,15 @@ async def intake_document(request: Request, file: UploadFile = File(...), organi
     content_hash = hashlib.sha256(contents).hexdigest()
     existing = task_queue.find_document_by_hash(organization_id, content_hash)
     if existing:
-        return {"document_id": existing["document_id"], "task_id": None, "state": "already_registered",
+        artifact = task_queue.latest_artifact(organization_id, existing["document_id"])
+        if resolve_repeat_intake(artifact) == "already_extracted":
+            return {"document_id": existing["document_id"], "task_id": None, "state": "already_extracted",
+                    "filename": existing["filename"], "category": existing["category"],
+                    "fact_count": artifact.get("fact_count") if artifact else None}
+        # Nothing usable came of the first attempt, so treat the re-upload as
+        # the retry the user meant it to be.
+        retry = task_queue.enqueue(organization_id, "pdf_extract", existing["document_id"])
+        return {"document_id": existing["document_id"], "task_id": retry.task_id, "state": retry.state,
                 "filename": existing["filename"], "category": existing["category"]}
     document_id = str(uuid4())
     object_key = document_id
