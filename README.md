@@ -1,4 +1,13 @@
-# SpecLedger — AI-Powered Industrial Product Intelligence & Catalogue Enrichment
+<p align="center">
+  <img src="docs/media/specledger-logo.png" alt="SpecLedger" width="96" height="96">
+</p>
+
+<h1 align="center">SpecLedger</h1>
+
+<p align="center"><b>AI-Powered Industrial Product Intelligence &amp; Catalogue Enrichment</b></p>
+
+
+<div align="center">
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-yashasm18.github.io-2ea44f.svg?logo=github&logoColor=white)](https://yashasm18.github.io/specledger/)
 [![API](https://img.shields.io/badge/API-Railway-0B0D0E.svg?logo=railway&logoColor=white)](https://specledger-production.up.railway.app/docs)
@@ -19,6 +28,8 @@
 [![React](https://img.shields.io/badge/React%20%2B%20Vite-TypeScript-61DAFB.svg?logo=react&logoColor=white)](https://vitejs.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)](https://github.com/Yashasm18/specledger/blob/main/docker-compose.yml)
 [![Gemini](https://img.shields.io/badge/Gemini-opt--in%20tier-8E75B2.svg?logo=googlegemini&logoColor=white)](#overview)
+
+</div>
 
 > **Live demo:** [yashasm18.github.io/specledger](https://yashasm18.github.io/specledger/)
 >
