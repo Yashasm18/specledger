@@ -833,6 +833,35 @@ function App() {
     correct: "corrected",
   };
 
+  /** Remove a batch and everything in it. Confirmed first: it cannot be
+   *  undone, and the audit trail goes with it. */
+  const handleDeleteBatch = async (batchId: string, sourceName: string) => {
+    if (!API_BASE) return;
+    const ok = window.confirm(
+      `Delete "${sourceName}" and all of its rows?\n\n`
+      + "This cannot be undone. Its review decisions and audit trail are removed with it."
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(withOrg(`${API_BASE}/catalogue/batches/${batchId}`), {
+        method: "DELETE",
+        headers: getApiKeyHeaders(),
+      });
+      if (!res.ok) {
+        throw new Error(`The API responded with HTTP ${res.status}.`);
+      }
+      const body = await res.json();
+      setNotice(`Deleted "${sourceName}" · ${body.deleted_rows?.toLocaleString?.() ?? 0} rows removed`);
+      // Whatever was selected may be the batch that just went.
+      setSelectedBatchId(null);
+      setPageOffset(0);
+      setIsLoadingBatch(true);
+      await fetchWorkspace();
+    } catch (error) {
+      setNotice(`Could not delete "${sourceName}" · ${error instanceof Error ? error.message : "backend unavailable"}`);
+    }
+  };
+
   // Human Review Actions
   const handleReviewAction = async (rowNumber: number, action: "approve" | "reject" | "correct", comment?: string) => {
     const reviewerName = `${currentPersona.name} (${currentPersona.badge})`;
@@ -1989,10 +2018,25 @@ function App() {
                         background: isActive ? "rgba(40,114,227,0.06)" : "#fff",
                       }}
                     >
-                      <b style={{ fontSize: 12 }}>{isActive ? "✓ " : ""}{b.source_name}</b>
-                      <small style={{ display: "block", color: "#64748b" }}>
-                        {(b.row_count ?? 0).toLocaleString()} rows
-                      </small>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                        <div>
+                          <b style={{ fontSize: 12 }}>{isActive ? "✓ " : ""}{b.source_name}</b>
+                          <small style={{ display: "block", color: "#64748b" }}>
+                            {(b.row_count ?? 0).toLocaleString()} rows
+                          </small>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteBatch(b.batch_id, b.source_name); }}
+                          title="Delete this batch and all of its rows"
+                          style={{
+                            background: "none", border: "1px solid #e2e8f0", borderRadius: 5,
+                            color: "#b91c1c", fontSize: 11, fontWeight: 600,
+                            padding: "4px 9px", cursor: "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

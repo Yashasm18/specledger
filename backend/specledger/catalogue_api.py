@@ -791,6 +791,35 @@ def get_batch(
     return response
 
 
+@router.delete("/batches/{batch_id}", dependencies=[Depends(require_api_key)])
+def delete_batch(
+    batch_id: str,
+    organization_id: str = Query(default="default"),
+) -> dict[str, Any]:
+    """Delete a batch and every row in it.
+
+    An uploaded catalogue becomes the newest batch and is what the dashboard
+    opens on, so without this a file someone uploaded to try the app out
+    displaces the demo permanently — clearing one previously meant deleting
+    rows in Postgres by hand.
+
+    Scoped by organization like every other operation: a batch id from
+    another workspace is not found rather than removed. The literal "latest"
+    is deliberately not resolved here — deletion should name what it deletes.
+    """
+    removed = catalogue_store.delete_batch(organization_id, batch_id)
+    if removed is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Drop the process-local state that belonged to it, so a later batch
+    # reusing nothing of it cannot read stale review or category data.
+    _review_queues.pop(batch_id, None)
+    _batch_results.pop(batch_id, None)
+    _category_index.pop(batch_id, None)
+
+    return {"batch_id": batch_id, "deleted_rows": removed, "deleted": True}
+
+
 @router.get("/batches/{batch_id}/categories")
 def list_batch_categories(
     batch_id: str,

@@ -86,6 +86,12 @@ class CatalogueStore:
     ) -> dict[str, Any] | None:
         raise NotImplementedError
 
+    def delete_batch(self, organization_id: str, batch_id: str) -> int | None:
+        """Delete a batch and its rows. Returns the row count removed, or None
+        if the organization has no such batch — deletion is scoped like every
+        other operation, so one workspace cannot remove another's data."""
+        raise NotImplementedError
+
 
 class InMemoryCatalogueStore(CatalogueStore):
     """In-memory catalogue store for testing and fallback."""
@@ -133,6 +139,12 @@ class InMemoryCatalogueStore(CatalogueStore):
             rows = rows[row_offset:row_offset + row_limit]
         paged["rows"] = rows
         return paged
+
+    def delete_batch(self, organization_id: str, batch_id: str) -> int | None:
+        batch = self._batches.pop((organization_id, batch_id), None)
+        if batch is None:
+            return None
+        return len(batch.get("rows", []))
 
     def get_batch_row(self, organization_id: str, batch_id: str, row_number: int) -> dict[str, Any] | None:
         batch = self.get_batch(organization_id, batch_id)
@@ -387,6 +399,32 @@ class PostgresCatalogueStore(CatalogueStore):
             if row.get("row_number") == row_number:
                 return row
         return None
+
+    def delete_batch(self, organization_id: str, batch_id: str) -> int | None:
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                # Scoped by organization in the same statement, so a batch id
+                # from another workspace matches nothing rather than deleting.
+                cur.execute(
+                    "SELECT 1 FROM catalogue_batches WHERE organization_id = %s AND batch_id = %s",
+                    (organization_id, batch_id),
+                )
+                if cur.fetchone() is None:
+                    return None
+                cur.execute(
+                    "DELETE FROM catalogue_rows WHERE organization_id = %s AND batch_id = %s",
+                    (organization_id, batch_id),
+                )
+                removed = cur.rowcount
+                cur.execute(
+                    "DELETE FROM catalogue_batches WHERE organization_id = %s AND batch_id = %s",
+                    (organization_id, batch_id),
+                )
+                conn.commit()
+                return removed
+        finally:
+            self._release(conn)
 
     def list_batches(self, organization_id: str) -> list[dict[str, Any]]:
         conn = self._get_connection()

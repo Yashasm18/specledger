@@ -1005,6 +1005,60 @@ class CatalogueApiTests(unittest.TestCase):
         finally:
             csv_path.unlink(missing_ok=True)
 
+    def test_a_batch_can_be_deleted(self) -> None:
+        # Without this there is no way to remove an uploaded catalogue from
+        # the dashboard at all — a judge's test file becomes the newest batch
+        # permanently, and clearing it meant going into Postgres by hand.
+        csv_path = self._make_csv([{"Manufacturer": "Parker Hannifin", "Part Number": "V-1"}])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest", files={"file": ("throwaway.csv", f, "text/csv")}
+                ).json()["batch_id"]
+
+            self.assertEqual(
+                self.client.get(f"/catalogue/batches/{batch_id}").status_code, 200
+            )
+
+            deleted = self.client.delete(f"/catalogue/batches/{batch_id}")
+            self.assertEqual(deleted.status_code, 200)
+            self.assertEqual(deleted.json()["deleted_rows"], 1)
+
+            self.assertEqual(
+                self.client.get(f"/catalogue/batches/{batch_id}").status_code, 404
+            )
+            listed = self.client.get("/catalogue/batches").json()
+            self.assertNotIn("throwaway.csv", [b["source_name"] for b in listed["batches"]])
+        finally:
+            csv_path.unlink(missing_ok=True)
+
+    def test_deleting_an_unknown_batch_is_a_404(self) -> None:
+        res = self.client.delete("/catalogue/batches/00000000-0000-0000-0000-000000000000")
+        self.assertEqual(res.status_code, 404)
+
+    def test_delete_will_not_cross_organizations(self) -> None:
+        # Deleting is destructive, so it must obey the same namespacing as
+        # every read: one workspace cannot remove another's catalogue.
+        csv_path = self._make_csv([{"Manufacturer": "Parker Hannifin", "Part Number": "V-1"}])
+        try:
+            with csv_path.open("rb") as f:
+                batch_id = self.client.post(
+                    "/catalogue/ingest?organization_id=owner",
+                    files={"file": ("owned.csv", f, "text/csv")},
+                ).json()["batch_id"]
+
+            intruder = self.client.delete(
+                f"/catalogue/batches/{batch_id}?organization_id=someone_else"
+            )
+            self.assertEqual(intruder.status_code, 404)
+
+            still_there = self.client.get(
+                f"/catalogue/batches/{batch_id}?organization_id=owner"
+            )
+            self.assertEqual(still_there.status_code, 200)
+        finally:
+            csv_path.unlink(missing_ok=True)
+
     def test_sources_endpoint(self) -> None:
         csv_path = self._make_csv([
             {"Manufacturer": "Parker Hannifin", "Part Number": "V-100"},
