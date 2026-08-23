@@ -38,6 +38,20 @@ function isIdentifierColumn(column: string): boolean {
   return IDENTIFIER_PATTERN.test(column.toLowerCase().trim());
 }
 
+/** A greeting that actually matches the clock, in India Standard Time
+ *  regardless of the visitor's own timezone — the workspace is Unilog's,
+ *  so the greeting is theirs, not the reader's. */
+function timeOfDayGreeting(): string {
+  const istHour = Number(
+    new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "Asia/Kolkata" }).format(new Date())
+  );
+  if (istHour < 5) return "Good night";
+  if (istHour < 12) return "Good morning";
+  if (istHour < 17) return "Good afternoon";
+  if (istHour < 21) return "Good evening";
+  return "Good night";
+}
+
 function detectRole(column: string): string {
   const k = column.toLowerCase().trim();
   if (["part_num", "part_no", "part_number", "sku", "item_num", "item_no", "model_num", "mfg_part", "item_code"].some((p) => k.includes(p))) return "part_number";
@@ -3956,7 +3970,7 @@ function App() {
               Workspace / {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
-              <h1 style={{ margin: 0 }}>Good evening, {currentPersona.shortName}</h1>
+              <h1 style={{ margin: 0 }}>{timeOfDayGreeting()}, {currentPersona.shortName}</h1>
               <span
                 style={{
                   fontSize: 10,
