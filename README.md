@@ -32,6 +32,7 @@
 </div>
 
 > **Live demo:** [yashasm18.github.io/specledger](https://yashasm18.github.io/specledger/)
+> **Video demo:** [Watch the SpecLedger demo on YouTube](https://youtu.be/UkuO4jX7f4g)
 >
 > **UniHack 2026 submission** — transforming limited, unstructured industrial catalogue data into rich, evidence-backed, commerce-ready product intelligence, delivered in Unilog's official **252-column template format**, targeting the growth from **150,000 to 750,000 enriched SKUs/month at the same operational capacity** Unilog named as their goal.
 
